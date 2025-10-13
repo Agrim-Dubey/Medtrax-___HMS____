@@ -122,6 +122,9 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION':True,
     'AUTH_HEADER_TYPES':('Bearer',),
 }
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = []  
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 import os
 from pathlib import Path
 from dotenv import load_dotenv
