@@ -6,11 +6,12 @@ from django.utils import timezone
 from datetime import timedelta
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'})
-    password2 = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},label="Confirm Password")
-    email = serializers.EmailField(required=True,validators=[])
+    password = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},help_text="Password must be 8-20 characters long")
+    password2 = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},label="Confirm Password",help_text="Re-enter password for confirmation")
+    email = serializers.EmailField(required=True,validators=[],help_text="Enter a valid email address"
+    )
     
-    role = serializers.ChoiceField(choices=['doctor', 'patient'],required=True)
+    role = serializers.ChoiceField(choices=['doctor', 'patient'],required=True, help_text="Select whether you are a doctor or patient")
     class Meta:
         model = CustomUser
         fields = ['username', 'email', 'password', 'password2', 'role', 'first_name', 'last_name']

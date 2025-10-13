@@ -1,12 +1,20 @@
-
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .serializers import (RegisterSerializer,OTPVerificationSerializer,LoginSerializer,ForgotPasswordSerializer,ResetPasswordSerializer
-)
+from .serializers import (RegisterSerializer,OTPVerificationSerializer,LoginSerializer,ForgotPasswordSerializer,ResetPasswordSerializer)
 from django.contrib.auth import get_user_model
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 CustomUser = get_user_model()
+
+
+@swagger_auto_schema(
+    method='post',
+    request_body=RegisterSerializer,
+    responses={201: openapi.Response('User registered successfully', RegisterSerializer)}
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
@@ -29,6 +37,12 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST 
         )
     
+
+@swagger_auto_schema(
+    method='post',
+    request_body=OTPVerificationSerializer,
+    responses={200: openapi.Response('Email verified successfully', OTPVerificationSerializer)}
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_otp_view(request):
@@ -52,6 +66,13 @@ def verify_otp_view(request):
             },
             status=status.HTTP_400_BAD_REQUEST 
         )
+    
+
+@swagger_auto_schema(
+    method='post',
+    request_body=LoginSerializer,
+    responses={200: openapi.Response('Login successful', LoginSerializer)}
+)    
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -87,6 +108,12 @@ def login_view(request):
             },
             status=status.HTTP_400_BAD_REQUEST 
         )
+
+@swagger_auto_schema(
+    method='post',
+    request_body=ForgotPasswordSerializer,
+    responses={200: openapi.Response('OTP sent to email', ForgotPasswordSerializer)}
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def forgot_password_view(request):
@@ -106,7 +133,11 @@ def forgot_password_view(request):
         status=status.HTTP_400_BAD_REQUEST
     )
 
-
+@swagger_auto_schema(
+    method='post',
+    request_body=ForgotPasswordSerializer,
+    responses={200: openapi.Response('OTP sent to email', ForgotPasswordSerializer)}
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def reset_password_view(request):
