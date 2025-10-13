@@ -5,29 +5,6 @@ import random
 from django.utils import timezone
 from datetime import timedelta
 
-
-
-class Loginserializer(serializers.Serializer):
-     email = serializers.EmailField()
-     password = serializers.CharField(write_only =True)
-
-     def validate(self,data):
-          email = data.get('email')
-          password = data.get('password')
-
-          try:
-               user = CustomUser.objects.get(email=email)
-          except CustomUser.DoesNotExist:
-               raise serializers.ValidationError("Email is not registered. Please enter a registered E-mail")
-          
-          if user.role!= 'doctor':
-            raise serializers.ValidationError("The account is not a doctor")
-          user = authenticate(username=user.username,password=password)
-          if user is None:
-            raise serializers.ValidationError("Incorrect password.")
-          data['user'] = user
-          return data
-
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'})
     password2 = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},label="Confirm Password")
