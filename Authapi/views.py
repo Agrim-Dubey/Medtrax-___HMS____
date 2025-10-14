@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import random
+from django.utils import timezone
 
 CustomUser = get_user_model()
 
@@ -460,4 +461,22 @@ def resend_otp_view(request):
         return Response(
             {"error": {"email": "No unverified account found with this email."}},
             status=status.HTTP_404_NOT_FOUND
+        )
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    try:
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+        refresh_token = request.data.get('refresh')
+        token = OutstandingToken.objects.get(token=refresh_token)
+        BlacklistedToken.objects.create(token=token)
+        return Response(
+            {"message": "Logged out successfully."},
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
         )

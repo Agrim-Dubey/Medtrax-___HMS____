@@ -8,5 +8,5 @@ urlpatterns = [
     path('api/forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('api/reset-password/', views.reset_password_view, name='reset_password'),
     path('api/resend-otp/', views.resend_otp_view, name='resend_otp'),
-    
+    path('api/logout/', views.logout_view, name='logout'),
 ]
