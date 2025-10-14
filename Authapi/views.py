@@ -6,6 +6,7 @@ from .serializers import (RegisterSerializer,OTPVerificationSerializer,LoginSeri
 from django.contrib.auth import get_user_model
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+import random
 
 CustomUser = get_user_model()
 
@@ -424,3 +425,39 @@ def reset_password_view(request):
         {"error": serializer.errors},
         status=status.HTTP_400_BAD_REQUEST
     )
+@swagger_auto_schema(
+    method='post',
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={'email': openapi.Schema(type=openapi.TYPE_STRING)},
+        required=['email']
+    ),
+    responses={200: openapi.Response(description='OTP resent successfully')},
+    tags=['Authentication']
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_otp_view(request):
+    email = request.data.get('email')
+    try:
+        user = CustomUser.objects.get(email=email, is_verified=False)
+        otp = str(random.randint(100000, 999999))
+        user.otp = otp
+        user.otp_created_at = timezone.now()
+        user.save()
+        
+        from django.core.mail import send_mail
+        from django.conf import settings
+        subject = 'Your New OTP - MedTrax'
+        message = f'Your new OTP is: {otp}\n\nThis OTP will expire in 10 minutes.'
+        send_mail(subject, message, settings.EMAIL_HOST_USER, [email], fail_silently=False)
+        
+        return Response(
+            {"message": "OTP resent successfully to your email."},
+            status=status.HTTP_200_OK
+        )
+    except CustomUser.DoesNotExist:
+        return Response(
+            {"error": {"email": "No unverified account found with this email."}},
+            status=status.HTTP_404_NOT_FOUND
+        )
