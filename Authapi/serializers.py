@@ -308,6 +308,19 @@ class ResetPasswordSerializer(serializers.Serializer):
         user.otp_locked_until = None
         user.save()
         return user
+    def send_reset_password_email(self, email):
+        subject = 'Medtrax Account Password reset'
+        message = (
+            'Hello,\n\n'
+            'Your password for your Medtrax account has been reset to a new password.\n'
+            'If you didn\'t request this, please contact support staff immediately.\n\n'
+            'Best regards,\n'
+            'MedTrax Team'
+        )
+        from_email = settings.EMAIL_HOST_USER
+        recipient_list = [email]
+        
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
 
 
 class ResendOTPSerializer(serializers.Serializer):
