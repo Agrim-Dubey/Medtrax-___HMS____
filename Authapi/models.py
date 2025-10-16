@@ -1,10 +1,10 @@
 
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin , 
+from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin  
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.core.validators import RegexValidator
-from accounts.models  import CustomUser
+# from . import CustomUser
 from django.conf import settings
 
 class CustomUser(AbstractUser):
@@ -12,6 +12,7 @@ class CustomUser(AbstractUser):
         ('doctor', 'Doctor'),
         ('patient', 'Patient'),
     )
+    email = models.EmailField(unique=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     otp = models.CharField(max_length=6, blank=True, null=True)
     otp_created_at = models.DateTimeField(blank=True, null=True)
@@ -28,7 +29,7 @@ class CustomUser(AbstractUser):
         return f"{self.username} ({self.role})"
 
 
-class Doctors(models.Model):
+class Doctor(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     gender_choice = (('male','Male'),('female','Female'), ('Prefer not to say','Prefer not to say'))

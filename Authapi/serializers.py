@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from accounts.models import CustomUser, Doctors, Patient
+from Authapi.models import CustomUser, Doctor, Patient
 from django.utils import timezone
 from datetime import timedelta
 from django.core.mail import send_mail
@@ -99,60 +99,22 @@ MedTrax Team
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, write_only=True)
     otp = serializers.CharField(required=True, write_only=True, max_length=6, min_length=6)
-    role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True, write_only=True)
-    username = serializers.CharField(required=True, write_only=True)
-    password = serializers.CharField(required=True, write_only=True)
     
     def validate(self, data):
         email = data.get('email')
         otp = data.get('otp')
-        role = data.get('role')
-        username = data.get('username')
-        password = data.get('password')
         
-        if not email or not otp or not role or not username or not password:
-            raise serializers.ValidationError("All fields are required")
+        if not email or not otp:
+            raise serializers.ValidationError("Email and OTP are required")
         
         try:
             temp_user = CustomUser.objects.get(email=email)
-            raise serializers.ValidationError("Email already registered. Please login")
+            if temp_user.is_verified:
+                raise serializers.ValidationError("Email already registered. Please login")
         except CustomUser.DoesNotExist:
             pass
         
-        if not hasattr(self, 'otp_from_request'):
-            raise serializers.ValidationError("OTP not generated. Please request registration first")
-        
-        if data.get('otp') != getattr(self, 'otp_from_request', None):
-            raise serializers.ValidationError("Invalid OTP")
-        
-        if not hasattr(self, 'otp_created_at'):
-            raise serializers.ValidationError("OTP not generated")
-        
-        if timezone.now() - getattr(self, 'otp_created_at', timezone.now()) > timedelta(minutes=3):
-            raise serializers.ValidationError("OTP expired")
-        
         return data
-    
-    def create(self, validated_data):
-        email = validated_data['email']
-        username = validated_data['username']
-        password = validated_data['password']
-        role = validated_data['role']
-        
-        user = CustomUser.objects.create(
-            email=email,
-            username=username,
-            role=role,
-            is_verified=False,
-            is_active=False,
-            otp=None,
-            otp_created_at=None,
-            otp_attempts=0
-        )
-        user.set_password(password)
-        user.save()
-        
-        return user
 
 
 class DoctorLoginSerializer(serializers.Serializer):
@@ -178,7 +140,7 @@ class DoctorLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("This login is for doctors only. You don't have doctor access.")
         
         if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified. Please verify your email.")
+            raise serializers.ValidationError("Your account is not verified. Please complete your profile details.")
         
         if not user.is_active:
             raise serializers.ValidationError("Your profile is incomplete. Please complete your details.")
@@ -210,7 +172,7 @@ class PatientLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("This login is for patients only. You don't have patient access.")
         
         if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified. Please verify your email.")
+            raise serializers.ValidationError("Your account is not verified. Please complete your profile details.")
         
         if not user.is_active:
             raise serializers.ValidationError("Your profile is incomplete. Please complete your details.")
@@ -418,7 +380,7 @@ class DoctorDetailsSerializer(serializers.Serializer):
         return data
     
     def create(self, validated_data, user):
-        doctor = Doctors.objects.create(
+        doctor = Doctor.objects.create(
             user=user,
             date_of_birth=validated_data['date_of_birth'],
             gender=validated_data['gender'],
