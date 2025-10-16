@@ -1,225 +1,264 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import CustomUser
-import random
+from accounts.models import CustomUser, Doctors, Patient
 from django.utils import timezone
 from datetime import timedelta
+from django.core.mail import send_mail
+from django.conf import settings
+import random
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},help_text="Password must be 8-20 characters long")
-    password2 = serializers.CharField( write_only=True,required=True,style={'input_type': 'password'},label="Confirm Password",help_text="Re-enter password for confirmation")
-    email = serializers.EmailField(required=True,validators=[],help_text="Enter a valid email address"
-    )
+
+class DoctorRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    username = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
     
-    role = serializers.ChoiceField(choices=['doctor', 'patient'],required=True, help_text="Select whether you are a doctor or patient")
-    class Meta:
-        model = CustomUser
-        fields = ['username', 'email', 'password', 'password2', 'role', 'first_name', 'last_name']
-        extra_kwargs = {
-            'first_name': {'required': True}, 
-            'last_name': {'required': True}, 
-        }
+    def validate(self, data):
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not email or not username or not password:
+            raise serializers.ValidationError("Email, username, and password are required")
+        
+        if CustomUser.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Email already exists")
+        
+        if CustomUser.objects.filter(username=username).exists():
+            raise serializers.ValidationError("Username already exists")
+        
+        return data
+
+
+class PatientRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    username = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
     
-    def validate_email(self, value):
-        if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value
+    def validate(self, data):
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not email or not username or not password:
+            raise serializers.ValidationError("Email, username, and password are required")
+        
+        if CustomUser.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Email already exists")
+        
+        if CustomUser.objects.filter(username=username).exists():
+            raise serializers.ValidationError("Username already exists")
+        
+        return data
+
+
+class GenerateOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    username = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True)
     
-    def validate_username(self, value):
-        if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError("This username is already taken.")
-        return value
+    def validate(self, data):
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not email or not username or not password:
+            raise serializers.ValidationError("Email, username, and password are required")
+        
+        if CustomUser.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Email already exists")
+        
+        if CustomUser.objects.filter(username=username).exists():
+            raise serializers.ValidationError("Username already exists")
+        
+        return data
     
-    def validate(self, data):        
-      
-        if data['password'] != data['password2']:
-            raise serializers.ValidationError({
-                "password": "Password fields didn't match."
-            })
-        if len(data['password']) < 8:
-            raise serializers.ValidationError({
-                "password": "Password must be at least 8 characters long."
-            })
-        if len(data['password'])>20:
-            raise serializers.ValidationError({
-                "password": "Password must be within 20 characters limit."
-            })
+    def generate_and_send_otp(self, email):
+        otp = str(random.randint(100000, 999999))
+        subject = 'Verify Your Email with OTP - MedTrax Hospital Management'
+        message = f'''
+Hello,
+
+Thank you for registering with MedTrax!
+
+Your OTP for email verification is: {otp}
+
+This OTP will expire in 3 minutes.
+
+If you didn't trigger this request, please ignore this email.
+
+Best regards,
+MedTrax Team
+        '''
+        from_email = settings.EMAIL_HOST_USER
+        recipient_list = [email]
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        return otp
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    otp = serializers.CharField(required=True, write_only=True, max_length=6, min_length=6)
+    role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True, write_only=True)
+    username = serializers.CharField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True)
+    
+    def validate(self, data):
+        email = data.get('email')
+        otp = data.get('otp')
+        role = data.get('role')
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not email or not otp or not role or not username or not password:
+            raise serializers.ValidationError("All fields are required")
+        
+        try:
+            temp_user = CustomUser.objects.get(email=email)
+            raise serializers.ValidationError("Email already registered. Please login")
+        except CustomUser.DoesNotExist:
+            pass
+        
+        if not hasattr(self, 'otp_from_request'):
+            raise serializers.ValidationError("OTP not generated. Please request registration first")
+        
+        if data.get('otp') != getattr(self, 'otp_from_request', None):
+            raise serializers.ValidationError("Invalid OTP")
+        
+        if not hasattr(self, 'otp_created_at'):
+            raise serializers.ValidationError("OTP not generated")
+        
+        if timezone.now() - getattr(self, 'otp_created_at', timezone.now()) > timedelta(minutes=3):
+            raise serializers.ValidationError("OTP expired")
+        
         return data
     
     def create(self, validated_data):
-        validated_data.pop('password2')
-        otp = str(random.randint(100000, 999999))
-        user = CustomUser.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
-            role=validated_data['role'],
-            otp=otp,
-            otp_created_at=timezone.now(), 
-            is_verified=False, 
-            is_active=False 
+        email = validated_data['email']
+        username = validated_data['username']
+        password = validated_data['password']
+        role = validated_data['role']
+        
+        user = CustomUser.objects.create(
+            email=email,
+            username=username,
+            role=role,
+            is_verified=False,
+            is_active=False,
+            otp=None,
+            otp_created_at=None,
+            otp_attempts=0
         )
+        user.set_password(password)
         user.save()
-        self.send_otp_email(user.email, otp)
+        
         return user
+
+
+class DoctorLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True)
     
-    def send_otp_email(self, email, otp):
-        from django.core.mail import send_mail
-        from django.conf import settings
-        
-        subject = 'Verify Your Email with OTP - MedTrax Hospital Management'
-        message = f'''
-        Hello,
-        
-        Thank you for registering with MedTrax!
-        
-        Your OTP for email verification is: {otp}
-        
-        This OTP will expire in 10 minutes.
-        If you didn't trigger this request, please ignore this email.
-        Best regards,
-        MedTrax Team
-        '''
-        from_email = settings.EMAIL_HOST_USER 
-        recipient_list = [email] 
-        send_mail(subject,message,from_email,recipient_list,fail_silently=False,)
-
-class OTPVerificationSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    otp = serializers.CharField(required=True, max_length=6, min_length=6)
-    def validate(self, data):
-        email = data.get('email') 
-        otp = data.get('otp')  
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({
-                "email": "No user found with this email address."
-            })
-        if not user.otp:
-            raise serializers.ValidationError({
-                "otp": "No OTP found. Please request a new one."
-            })
-        if user.otp != otp:
-            raise serializers.ValidationError({
-                "otp": "Invalid OTP. Please check and try again."
-            })
-        if user.otp_created_at:
-            time_elapsed = timezone.now() - user.otp_created_at
-            if time_elapsed > timedelta(minutes=10):
-                raise serializers.ValidationError({
-                    "otp": "OTP has expired. Please request a new one."
-                })
-        data['user'] = user
-        return data
-    def save(self):
-        user = self.validated_data['user']
-        user.is_active = True
-        user.is_verified = True
-        user.otp = None
-        user.otp_created_at = None
-        user.save()
-        return user
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(
-        required=True,
-        write_only=True,
-        style={'input_type': 'password'})
-    role = serializers.ChoiceField(
-        choices=['doctor', 'patient'],
-        required=True
-    )
-    access = serializers.CharField(read_only=True)
-    refresh = serializers.CharField(read_only=True)
     def validate(self, data):
         email = data.get('email')
         password = data.get('password')
-        role = data.get('role')
+        
+        if not email or not password:
+            raise serializers.ValidationError("Enter both email and password")
+        
         try:
             user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({
-                "non_field_errors": ["Invalid email or password."]
-            })
+            raise serializers.ValidationError("Invalid email or password.")
+        
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid email or password.")
+        
+        if user.role != 'doctor':
+            raise serializers.ValidationError("This login is for doctors only. You don't have doctor access.")
+        
         if not user.is_verified:
-            raise serializers.ValidationError({
-                "non_field_errors": ["Please verify your email before logging in. Check your inbox for the OTP."]
-            })
+            raise serializers.ValidationError("Your account is not verified. Please verify your email.")
+        
         if not user.is_active:
-            raise serializers.ValidationError({
-                "non_field_errors": ["Your account has been deactivated. Please contact support."]
-            })
-        if user.role != role:
-            raise serializers.ValidationError({
-                "non_field_errors": [f"This account is registered as a {user.role}, not a {role}."]
-            })
-        user_authenticated = authenticate(username=user.username, password=password)
-        if user_authenticated is None:
-         
-            raise serializers.ValidationError({
-                "non_field_errors": ["Invalid email or password."]
-            })
-        from rest_framework_simplejwt.tokens import RefreshToken
-        refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
-        refresh = str(refresh)
-        data['access'] = access
-        data['refresh'] = refresh
-        data['user_id'] = user.id
-        data['username'] = user.username
-        data['email'] = user.email
-        data['role'] = user.role
-        data['first_name'] = user.first_name
-        data['last_name'] = user.last_name
+            raise serializers.ValidationError("Your profile is incomplete. Please complete your details.")
+        
+        data['user'] = user
         return data
 
-class ForgotPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    role = serializers.ChoiceField(
-        choices=['doctor', 'patient'],
-        required=True
-    )
+
+class PatientLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True)
+    
     def validate(self, data):
         email = data.get('email')
-        role = data.get('role')
+        password = data.get('password')
+        
+        if not email or not password:
+            raise serializers.ValidationError("Enter both email and password")
+        
         try:
-            user = CustomUser.objects.get(email=email, role=role)
+            user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({
-                "email": f"No {role} account found with this email address."
-            })
+            raise serializers.ValidationError("Invalid email or password.")
+        
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid email or password.")
+        
+        if user.role != 'patient':
+            raise serializers.ValidationError("This login is for patients only. You don't have patient access.")
+        
         if not user.is_verified:
-            raise serializers.ValidationError({
-                "email": "This account is not verified. Please complete registration first."
-            })
+            raise serializers.ValidationError("Your account is not verified. Please verify your email.")
+        
         if not user.is_active:
-            raise serializers.ValidationError({
-                "email": "This account has been deactivated. Please contact support."
-            })
+            raise serializers.ValidationError("Your profile is incomplete. Please complete your details.")
+        
+        data['user'] = user
+        return data
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    
+    def validate(self, data):
+        email = data.get('email')
+        
+        if not email:
+            raise serializers.ValidationError("Email is required")
+        
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email")
+        
+        if not user.is_verified:
+            raise serializers.ValidationError("This account is not verified. Please complete registration first")
+        
+        if not user.is_active:
+            raise serializers.ValidationError("This account has been deactivated. Please contact support")
+        
         otp = str(random.randint(100000, 999999))
         user.otp = otp
         user.otp_created_at = timezone.now()
+        user.otp_attempts = 0
+        user.otp_locked_until = None
         user.save()
-        self.send_otp_email(user.email, otp, user.first_name)
+        self.send_otp_email(user.email, otp)
         data['user'] = user
         return data
-    def send_otp_email(self, email, otp, first_name):
-        from django.core.mail import send_mail
-        from django.conf import settings
-
+    
+    def send_otp_email(self, email, otp):
         subject = 'Password Reset OTP - MedTrax Hospital Management'
         message = f'''
-Hello {first_name},
+Hello,
 
 We received a request to reset your password for your MedTrax account.
 
-Your OTP for password reset is  {otp}
+Your OTP for password reset is: {otp}
 
-This OTP will expire in 10 minutes for security reasons.
+This OTP will expire in 3 minutes for security reasons.
 
 If you didn't request this password reset, please ignore this email or contact our support team immediately.
 
@@ -228,114 +267,219 @@ MedTrax Support Team
         '''
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [email]
-        send_mail(
-            subject,          
-            message,          
-            from_email,       
-            recipient_list,    
-            fail_silently=False,  
-        )
-class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+
+
+class VerifyPasswordResetOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    otp = serializers.CharField(required=True, write_only=True, max_length=6, min_length=6)
     
-    otp = serializers.CharField(
-        required=True,
-        max_length=6,
-        min_length=6
-    )
-    new_password = serializers.CharField(
-        required=True,
-        write_only=True,
-        style={'input_type': 'password'}, 
-        min_length=8 
-    )
-    confirm_password = serializers.CharField(
-        required=True,
-        write_only=True,
-        style={'input_type': 'password'}
-    )
-    
-    role = serializers.ChoiceField(
-        choices=['doctor', 'patient'],
-        required=True
-    )
     def validate(self, data):
         email = data.get('email')
         otp = data.get('otp')
-        new_password = data.get('new_password')
-        confirm_password = data.get('confirm_password')
-        role = data.get('role')
-        if new_password != confirm_password:
-            raise serializers.ValidationError({
-                "confirm_password": "Passwords do not match. Please try again."
-            })
-        if len(new_password) < 8:
-            raise serializers.ValidationError({
-                "new_password": "Password must be at least 8 characters long."
-            })
-        if new_password.isdigit():
-            raise serializers.ValidationError({
-                "new_password": "Password cannot be entirely numeric. Please include letters."
-            })
-        if new_password.lower() == 'password':
-            raise serializers.ValidationError({
-                "new_password": "Password cannot be 'password'. Please choose a stronger password."
-            })
+        
+        if not email or not otp:
+            raise serializers.ValidationError("Email and OTP are required")
+        
         try:
-            user = CustomUser.objects.get(email=email, role=role)
+            user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
-            raise serializers.ValidationError({
-                "email": f"No {role} account found with this email address."
-            })
+            raise serializers.ValidationError("No account found with this email")
+        
         if not user.otp:
-            raise serializers.ValidationError({
-                "otp": "No OTP found. Please request a new password reset."
-            })
+            raise serializers.ValidationError("No OTP generated for this email")
+        
+        if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+            remaining_time = (user.otp_locked_until - timezone.now()).seconds // 60
+            raise serializers.ValidationError(f"Too many failed attempts. Try again in {remaining_time} minutes")
+        
         if user.otp != otp:
-            raise serializers.ValidationError({
-                "otp": "Invalid OTP. Please check and try again."
-            })
-        if user.otp_created_at:
-            time_elapsed = timezone.now() - user.otp_created_at
-            if time_elapsed > timedelta(minutes=10):
-                raise serializers.ValidationError({
-                    "otp": "OTP has expired. Please request a new password reset."
-                })
+            user.otp_attempts = user.otp_attempts + 1
+            
+            if user.otp_attempts >= 3:
+                user.otp_locked_until = timezone.now() + timedelta(minutes=10)
+                user.save()
+                raise serializers.ValidationError("Invalid OTP. Maximum attempts exceeded. Try again in 10 minutes")
+            
+            user.save()
+            raise serializers.ValidationError(f"Invalid OTP. {3 - user.otp_attempts} attempts remaining")
+        
+        if timezone.now() - user.otp_created_at > timedelta(minutes=3):
+            raise serializers.ValidationError("OTP expired")
+        
         data['user'] = user
         return data
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True, min_length=8)
+    
+    def validate(self, data):
+        email = data.get('email')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not email or not new_password or not confirm_password:
+            raise serializers.ValidationError("All fields are required")
+        
+        if new_password != confirm_password:
+            raise serializers.ValidationError("Passwords do not match")
+        
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email")
+        
+        data['user'] = user
+        data['new_password'] = new_password
+        return data
+    
     def save(self):
         user = self.validated_data['user']
         new_password = self.validated_data['new_password']
         user.set_password(new_password)
         user.otp = None
         user.otp_created_at = None
+        user.otp_attempts = 0
+        user.otp_locked_until = None
         user.save()
-        self.send_password_reset_confirmation(user.email, user.first_name)
         return user
-    def send_password_reset_confirmation(self, email, first_name):
-        from django.core.mail import send_mail
-        from django.conf import settings
+
+
+class ResendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    
+    def validate(self, data):
+        email = data.get('email')
         
-        subject = 'Password Successfully Reset - MedTrax'
+        if not email:
+            raise serializers.ValidationError("Email is required")
         
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("No account found with this email")
+        
+        if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+            remaining_time = (user.otp_locked_until - timezone.now()).seconds // 60
+            raise serializers.ValidationError(f"Too many failed attempts. Try again in {remaining_time} minutes")
+        
+        otp = str(random.randint(100000, 999999))
+        user.otp = otp
+        user.otp_created_at = timezone.now()
+        user.otp_attempts = 0
+        user.otp_locked_until = None
+        user.save()
+        self.send_otp_email(user.email, otp)
+        data['user'] = user
+        return data
+    
+    def send_otp_email(self, email, otp):
+        subject = 'Your New OTP - MedTrax Hospital Management'
         message = f'''
-Hello {first_name},
+Hello,
 
-Your password has been successfully reset for your MedTrax account.
+Your new OTP for verification is: {otp}
 
-If you made this change, you can safely ignore this email.
+This OTP will expire in 3 minutes.
 
-If you did NOT reset your password, your account may be compromised. Please contact our support team immediately at support@medtrax.com or call us at 1-800-MEDTRAX.
-
-For your security:
-- Never share your password with anyone
-- Use a unique password for your MedTrax account
-- Enable two-factor authentication if available
+If you didn't request this, please ignore this email.
 
 Best regards,
-MedTrax Security Team'''
-      
+MedTrax Team
+        '''
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [email]
-        send_mail(subject,message,from_email,recipient_list,fail_silently=False,
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+
+
+class DoctorDetailsSerializer(serializers.Serializer):
+    date_of_birth = serializers.DateField(required=True)
+    gender = serializers.CharField(required=True)
+    specialization = serializers.CharField(required=True)
+    department = serializers.CharField(required=True)
+    experience = serializers.IntegerField(required=True, min_value=0)
+    clinicaladdress = serializers.CharField(required=True)
+    phone_number = serializers.CharField(required=True)
+    license_number = serializers.CharField(required=True)
+    medical_degree = serializers.FileField(required=True)
+    license_certificate = serializers.FileField(required=True)
+    university = serializers.CharField(required=True)
+    
+    def validate(self, data):
+        required_fields = ['date_of_birth', 'gender', 'specialization', 'department', 'experience', 'clinicaladdress', 'phone_number', 'license_number', 'medical_degree', 'license_certificate', 'university']
+        
+        for field in required_fields:
+            if not data.get(field):
+                raise serializers.ValidationError(f"{field} is required")
+        
+        return data
+    
+    def create(self, validated_data, user):
+        doctor = Doctors.objects.create(
+            user=user,
+            date_of_birth=validated_data['date_of_birth'],
+            gender=validated_data['gender'],
+            specialization=validated_data['specialization'],
+            department=validated_data['department'],
+            experience=validated_data['experience'],
+            clinicaladdress=validated_data['clinicaladdress'],
+            phone_number=validated_data['phone_number'],
+            license_number=validated_data['license_number'],
+            medical_degree=validated_data['medical_degree'],
+            license_certificate=validated_data['license_certificate'],
+            university=validated_data['university']
         )
+        user.is_active = True
+        user.is_verified = True
+        user.save()
+        return doctor
+
+
+class PatientDetailsSerializer(serializers.Serializer):
+    date_of_birth = serializers.DateField(required=True)
+    gender = serializers.CharField(required=True)
+    address = serializers.CharField(required=True)
+    phone_number = serializers.CharField(required=True)
+    is_insurance = serializers.BooleanField(required=False, default=False)
+    ins_company_name = serializers.CharField(required=False, allow_blank=True)
+    ins_id_number = serializers.CharField(required=False, allow_blank=True)
+    tobacco_user = serializers.BooleanField(required=False, default=False)
+    is_alcoholic = serializers.BooleanField(required=False, default=False)
+    known_allergies = serializers.CharField(required=False, allow_blank=True)
+    current_medications = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, data):
+        required_fields = ['date_of_birth', 'gender', 'address', 'phone_number']
+        
+        for field in required_fields:
+            if not data.get(field):
+                raise serializers.ValidationError(f"{field} is required")
+        
+        if data.get('is_insurance'):
+            if not data.get('ins_company_name') or not data.get('ins_id_number'):
+                raise serializers.ValidationError("Insurance company name and ID are required when insurance is selected")
+        
+        return data
+    
+    def create(self, validated_data, user):
+        patient = Patient.objects.create(
+            user=user,
+            date_of_birth=validated_data['date_of_birth'],
+            gender=validated_data['gender'],
+            address=validated_data['address'],
+            phone_number=validated_data['phone_number'],
+            is_insurance=validated_data.get('is_insurance', False),
+            ins_company_name=validated_data.get('ins_company_name', ''),
+            ins_id_number=validated_data.get('ins_id_number', ''),
+            tobacco_user=validated_data.get('tobacco_user', False),
+            is_alcoholic=validated_data.get('is_alcoholic', False),
+            known_allergies=validated_data.get('known_allergies', ''),
+            current_medications=validated_data.get('current_medications', '')
+        )
+        user.is_active = True
+        user.is_verified = True
+        user.save()
+        return patient

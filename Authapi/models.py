@@ -16,6 +16,13 @@ class CustomUser(AbstractUser):
     otp = models.CharField(max_length=6, blank=True, null=True)
     otp_created_at = models.DateTimeField(blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    otp_attempts = models.IntegerField(default=0)
+    otp_locked_until = models.DateTimeField(blank=True, null=True)
+    is_active = models.BooleanField(default=False)
+
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -41,6 +48,8 @@ class Doctors(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.specialization}"
+    
+
 class Patient(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
