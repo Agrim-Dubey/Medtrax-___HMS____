@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-q7&0gu6s$(a1s_r&pti!d93(7jqt4rve=q=qfelta+fgnw^m)y')
 
 DEBUG = config('DEBUG', default=False, cast=bool)
-
+print("DEBUGGING ALLOWED_HOSTS =", config('ALLOWED_HOSTS', default='NOT FOUND'))
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 INSTALLED_APPS = [
