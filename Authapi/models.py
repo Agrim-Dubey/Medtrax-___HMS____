@@ -1,90 +1,154 @@
-
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin  
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
-from django.core.validators import MinValueValidator
-from django.core.validators import RegexValidator
-# from . import CustomUser
-from django.conf import settings
+from datetime import timedelta
+
 
 class CustomUser(AbstractUser):
-    ROLE_CHOICES = (
+    ROLE_CHOICES = [
         ('doctor', 'Doctor'),
         ('patient', 'Patient'),
-    )
-    email = models.EmailField(unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    otp = models.CharField(max_length=6, blank=True, null=True)
-    otp_created_at = models.DateTimeField(blank=True, null=True)
-    is_verified = models.BooleanField(default=False)
-    otp_attempts = models.IntegerField(default=0)
-    otp_locked_until = models.DateTimeField(blank=True, null=True)
-    is_active = models.BooleanField(default=False)
+    ]
 
-    
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, null=True, blank=True)
+    email = models.EmailField(unique=True)
+    is_verified = models.BooleanField(default=False)
+    is_profile_complete = models.BooleanField(default=False)
+
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    otp_created_at = models.DateTimeField(null=True, blank=True)
+    otp_attempts = models.IntegerField(default=0)
+    otp_locked_until = models.DateTimeField(null=True, blank=True)
+    otp_type = models.CharField(max_length=15, null=True, blank=True)
+
+    login_attempts = models.IntegerField(default=0)
+    login_locked_until = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['username']),
+            models.Index(fields=['role']),
+            models.Index(fields=['is_verified']),
+            models.Index(fields=['is_profile_complete']),
+        ]
 
     def __str__(self):
-        return f"{self.username} ({self.role})"
+        return f"{self.username if self.username else self.email} ({self.role if self.role else 'unassigned'})"
+
+    def is_otp_locked(self):
+        if self.otp_locked_until and timezone.now() < self.otp_locked_until:
+            return True
+        if self.otp_locked_until and timezone.now() >= self.otp_locked_until:
+            self.otp_locked_until = None
+            self.otp_attempts = 0
+            self.save(update_fields=['otp_locked_until', 'otp_attempts'])
+        return False
+
+    def is_login_locked(self):
+        if self.login_locked_until and timezone.now() < self.login_locked_until:
+            return True
+        if self.login_locked_until and timezone.now() >= self.login_locked_until:
+            self.login_locked_until = None
+            self.login_attempts = 0
+            self.save(update_fields=['login_locked_until', 'login_attempts'])
+        return False
+
+    def is_otp_expired(self):
+        if not self.otp_created_at:
+            return True
+        return timezone.now() - self.otp_created_at > timedelta(minutes=3)
+
+    def reset_otp_attempts(self):
+        self.otp_attempts = 0
+        self.otp_locked_until = None
+        self.save(update_fields=['otp_attempts', 'otp_locked_until'])
+
+    def reset_login_attempts(self):
+        self.login_attempts = 0
+        self.login_locked_until = None
+        self.save(update_fields=['login_attempts', 'login_locked_until'])
+
+    def clear_otp(self):
+        self.otp = None
+        self.otp_created_at = None
+        self.otp_attempts = 0
+        self.otp_locked_until = None
+        self.otp_type = None
+        self.save(update_fields=['otp', 'otp_created_at', 'otp_attempts', 'otp_locked_until', 'otp_type'])
 
 
 class Doctor(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    ]
 
-    gender_choice = (('male','Male'),('female','Female'), ('Prefer not to say','Prefer not to say'))
-    phone_validator = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be in format '+999999999'.")
-    
-    date_of_birth = models.DateField(help_text="DD-MM-YYYY", verbose_name="Date")
-    gender = models.CharField(max_length=20, choices=gender_choice)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='doctor_profile')
+    date_of_birth = models.DateField()
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     specialization = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
-    experience = models.IntegerField(validators=[MinValueValidator(0)])
-    clinicaladdress = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=15, validators=[phone_validator])
-    license_number = models.CharField(max_length=30)
-    medical_degree = models.FileField(upload_to='degrees/')
-    license_certificate = models.FileField(upload_to='licenses/')
-    university = models.CharField(max_length=60)
+    experience = models.IntegerField()
+    clinicaladdress = models.TextField()
+    phone_number = models.CharField(max_length=15, unique=True)
+    license_number = models.CharField(max_length=50, unique=True)
+    medical_degree = models.FileField(upload_to='medical_documents/degrees/')
+    license_certificate = models.FileField(upload_to='medical_documents/licenses/')
+    university = models.CharField(max_length=100)
+    is_approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['license_number']),
+            models.Index(fields=['user']),
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['is_approved']),
+            models.Index(fields=['specialization']),
+        ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.specialization}"
-    
+        return f"Dr. {self.user.username} - {self.specialization}"
+
 
 class Patient(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    ]
 
-    gender_choice = (('male','Male'),('female','Female'), ('Prefer not to say','Prefer not to say'))
-    phone_validator = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be in format '+999999999'.")
-    insurance_id_validator = RegexValidator(regex=r'^\d{2}-\d{7}$', message="Insurance ID must be of the format XX-XXXXXXX")
-
-    date_of_birth = models.DateField(verbose_name="Date")
-    gender = models.CharField(max_length=20, choices=gender_choice)
-    address = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=15, validators=[phone_validator])
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='patient_profile')
+    date_of_birth = models.DateField()
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    address = models.TextField()
+    phone_number = models.CharField(max_length=15, unique=True)
+    emergency_contact = models.CharField(max_length=15, blank=True, null=True)
     is_insurance = models.BooleanField(default=False)
-    ins_company_name = models.CharField(max_length=50, null=True, blank=True)
-    ins_id_number = models.CharField(max_length=15, validators=[insurance_id_validator], null=True, blank=True)
+    ins_company_name = models.CharField(max_length=100, blank=True, null=True)
+    ins_id_number = models.CharField(max_length=50, blank=True, null=True)
     tobacco_user = models.BooleanField(default=False)
     is_alcoholic = models.BooleanField(default=False)
-    known_allergies = models.TextField(null=True, blank=True)
-    current_medications = models.TextField(null=True, blank=True)
+    known_allergies = models.TextField(blank=True, null=True)
+    current_medications = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['is_insurance']),
+        ]
 
     def __str__(self):
-        return f"Patient - {self.phone_number}"
-
-
-
-##################################################################################################################
-# class CustomUser(AbstractUser):
-#     ROLE_CHOICES = (
-#         ('doctor', 'Doctor'),
-#         ('patient', 'Patient'),
-#     )
-#     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-#     otp = models.CharField(max_length=6, blank = True, null = True)
-#     otp_created_at = models.DateTimeField(blank=True, null=True)
-#     is_verified = models.BooleanField(default=False)
-
-#     def __str__(self):
-#         return f"{self.username} ({self.role})"
+        return f"{self.user.username} - Patient"
