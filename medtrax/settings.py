@@ -60,7 +60,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'medtrax.wsgi.application'
 
-database_url = config('DATABASE_URL', default='postgresql://medtraxdata_user:lZRCfyLqxR0flABF62RLartNc9JbtAd4@dpg-d3pfqj49c44c73c0k4qg-a/medtraxdata')
+database_url = config('DATABASE_URL', default='postgresql://medtraxdata_user:lZRCfyLqxR0flABF62RLartNc9JbtAd4@dpg-d3pfqj49c44c73c0k4qg-a.oregon-postgres.render.com/medtraxdata')
 if database_url and not database_url.startswith('sqlite'):
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
