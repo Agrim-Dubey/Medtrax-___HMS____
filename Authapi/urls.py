@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+
+
 urlpatterns = [
     path('api/signup/', views.SignupView.as_view(), name='signup'),
     path('api/verify-signup-otp/', views.VerifySignupOTPView.as_view(), name='verify_signup_otp'),

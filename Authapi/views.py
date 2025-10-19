@@ -5,6 +5,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 import logging
 import random
 
@@ -24,6 +26,48 @@ logger = logging.getLogger(__name__)
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Register a new user account (Doctor or Patient)",
+        operation_summary="User Signup",
+        request_body=SignupSerializer,
+        responses={
+            201: openapi.Response(
+                description="Account created successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Account created! OTP sent to your email. Valid for 3 minutes.",
+                        "email": "user@example.com",
+                        "username": "johndoe",
+                        "role": "doctor",
+                        "next_step": "verify_otp"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Validation error",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "errors": {
+                            "email": ["User with this email already exists."],
+                            "username": ["This field is required."]
+                        }
+                    }
+                }
+            ),
+            500: openapi.Response(
+                description="Server error",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "error": "Signup failed. Please try again."
+                    }
+                }
+            )
+        },
+        tags=['Authentication']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -85,6 +129,40 @@ class SignupView(APIView):
 class VerifySignupOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Verify email using OTP sent during signup",
+        operation_summary="Verify Signup OTP",
+        request_body=VerifySignupOTPSerializer,
+        responses={
+            200: openapi.Response(
+                description="Email verified successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Email verified successfully! Please complete your profile.",
+                        "email": "user@example.com",
+                        "username": "johndoe",
+                        "role": "doctor",
+                        "next_step": "complete_profile"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Invalid or expired OTP",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "errors": {
+                            "otp": ["Invalid OTP"],
+                            "non_field_errors": ["OTP has expired"]
+                        }
+                    }
+                }
+            ),
+            500: "Server error"
+        },
+        tags=['Authentication']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -122,6 +200,26 @@ class VerifySignupOTPView(APIView):
 class ResendSignupOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Request a new OTP for email verification",
+        operation_summary="Resend Signup OTP",
+        request_body=ResendSignupOTPSerializer,
+        responses={
+            200: openapi.Response(
+                description="New OTP sent successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "New OTP sent to your email. Valid for 3 minutes.",
+                        "email": "user@example.com"
+                    }
+                }
+            ),
+            400: "Invalid request or user not found",
+            500: "Failed to send OTP"
+        },
+        tags=['Authentication']
+    )
     def post(self, request):
         try:
             serializer = ResendSignupOTPSerializer(data=request.data)
@@ -168,6 +266,32 @@ class ResendSignupOTPView(APIView):
 class DoctorDetailsView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Create complete doctor profile with medical credentials",
+        operation_summary="Complete Doctor Profile",
+        request_body=DoctorDetailsSerializer,
+        responses={
+            201: openapi.Response(
+                description="Doctor profile created successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Doctor profile created successfully! You can now login.",
+                        "doctor_id": 123,
+                        "specialization": "Cardiology",
+                        "department": "Cardiology",
+                        "username": "Dr. Smith",
+                        "email": "doctor@example.com",
+                        "next_step": "login"
+                    }
+                }
+            ),
+            400: "Validation error or profile already exists",
+            404: "User account not found",
+            500: "Profile creation failed"
+        },
+        tags=['Profile Management']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -247,6 +371,30 @@ class DoctorDetailsView(APIView):
 class PatientDetailsView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Create complete patient profile with medical history",
+        operation_summary="Complete Patient Profile",
+        request_body=PatientDetailsSerializer,
+        responses={
+            201: openapi.Response(
+                description="Patient profile created successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Patient profile created successfully! You can now login.",
+                        "patient_id": 456,
+                        "username": "John Doe",
+                        "email": "patient@example.com",
+                        "next_step": "login"
+                    }
+                }
+            ),
+            400: "Validation error or profile already exists",
+            404: "User account not found",
+            500: "Profile creation failed"
+        },
+        tags=['Profile Management']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -325,6 +473,38 @@ class PatientDetailsView(APIView):
 class DoctorLoginView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Authenticate doctor and receive JWT tokens",
+        operation_summary="Doctor Login",
+        request_body=DoctorLoginSerializer,
+        responses={
+            200: openapi.Response(
+                description="Login successful",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Login successful!",
+                        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "user": {
+                            "user_id": 1,
+                            "username": "Dr. Smith",
+                            "email": "doctor@example.com",
+                            "role": "doctor",
+                            "doctor_id": 123,
+                            "specialization": "Cardiology",
+                            "department": "Cardiology",
+                            "is_approved": True
+                        }
+                    }
+                }
+            ),
+            400: "Invalid credentials",
+            404: "Profile not found",
+            500: "Login failed"
+        },
+        tags=['Authentication']
+    )
     def post(self, request):
         try:
             serializer = DoctorLoginSerializer(data=request.data)
@@ -376,6 +556,37 @@ class DoctorLoginView(APIView):
 class PatientLoginView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Authenticate patient and receive JWT tokens",
+        operation_summary="Patient Login",
+        request_body=PatientLoginSerializer,
+        responses={
+            200: openapi.Response(
+                description="Login successful",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Login successful!",
+                        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "user": {
+                            "user_id": 2,
+                            "username": "John Doe",
+                            "email": "patient@example.com",
+                            "role": "patient",
+                            "patient_id": 456,
+                            "gender": "Male",
+                            "phone_number": "+1234567890"
+                        }
+                    }
+                }
+            ),
+            400: "Invalid credentials",
+            404: "Profile not found",
+            500: "Login failed"
+        },
+        tags=['Authentication']
+    )
     def post(self, request):
         try:
             serializer = PatientLoginSerializer(data=request.data)
@@ -426,6 +637,27 @@ class PatientLoginView(APIView):
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Request password reset OTP via email",
+        operation_summary="Forgot Password",
+        request_body=ForgotPasswordSerializer,
+        responses={
+            200: openapi.Response(
+                description="OTP sent successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "OTP sent to your email. Valid for 3 minutes.",
+                        "email": "user@example.com",
+                        "next_step": "verify_reset_otp"
+                    }
+                }
+            ),
+            400: "Invalid email or user not found",
+            500: "Failed to send OTP"
+        },
+        tags=['Password Management']
+    )
     def post(self, request):
         try:
             serializer = ForgotPasswordSerializer(data=request.data)
@@ -454,6 +686,27 @@ class ForgotPasswordView(APIView):
 class VerifyPasswordResetOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Verify OTP for password reset",
+        operation_summary="Verify Password Reset OTP",
+        request_body=VerifyPasswordResetOTPSerializer,
+        responses={
+            200: openapi.Response(
+                description="OTP verified successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "OTP verified successfully! You can now reset your password.",
+                        "email": "user@example.com",
+                        "next_step": "reset_password"
+                    }
+                }
+            ),
+            400: "Invalid or expired OTP",
+            500: "Verification failed"
+        },
+        tags=['Password Management']
+    )
     def post(self, request):
         try:
             serializer = VerifyPasswordResetOTPSerializer(data=request.data)
@@ -482,6 +735,26 @@ class VerifyPasswordResetOTPView(APIView):
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Set new password after OTP verification",
+        operation_summary="Reset Password",
+        request_body=ResetPasswordSerializer,
+        responses={
+            200: openapi.Response(
+                description="Password reset successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Password reset successfully! Please login with your new password.",
+                        "next_step": "login"
+                    }
+                }
+            ),
+            400: "Validation error or passwords don't match",
+            500: "Password reset failed"
+        },
+        tags=['Password Management']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -510,8 +783,29 @@ class ResetPasswordView(APIView):
 
 
 class ResendPasswordResetOTPView(APIView):
+
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Request a new OTP for password reset",
+        operation_summary="Resend Password Reset OTP",
+        request_body=ResendPasswordResetOTPSerializer,
+        responses={
+            200: openapi.Response(
+                description="New OTP sent successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "New OTP sent to your email. Valid for 3 minutes.",
+                        "email": "user@example.com"
+                    }
+                }
+            ),
+            400: "Invalid request or user not found",
+            500: "Failed to resend OTP"
+        },
+        tags=['Password Management']
+    )
     def post(self, request):
         try:
             serializer = ResendPasswordResetOTPSerializer(data=request.data)
@@ -558,6 +852,47 @@ class ResendPasswordResetOTPView(APIView):
 class CheckAccountStatusView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_description="Check account status and get next registration step",
+        operation_summary="Check Account Status",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['email'],
+            properties={
+                'email': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_EMAIL,
+                    description='Email address to check',
+                    example='user@example.com'
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Account status retrieved",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "status": "registered",
+                        "message": "Account fully registered. Please login.",
+                        "role": "doctor",
+                        "next_step": "login"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Email not provided",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "error": "Email is required."
+                    }
+                }
+            ),
+            500: "Status check failed"
+        },
+        tags=['Utility']
+    )
     def post(self, request):
         try:
             email = request.data.get('email', '').strip()
