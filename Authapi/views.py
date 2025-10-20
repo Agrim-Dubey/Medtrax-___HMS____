@@ -79,15 +79,14 @@ class SignupView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            username = serializer.validated_data['username']
             email = serializer.validated_data['email']
-            password = serializer.validated_data['password']
+            password = serializer.validated_data['password1']
             role = serializer.validated_data['role']
 
             otp = str(random.randint(100000, 999999))
 
             user = CustomUser.objects.create(
-                username=username,
+                username=email,
                 email=email,
                 role=role,
                 otp=otp,
@@ -113,7 +112,6 @@ class SignupView(APIView):
                 'success': True,
                 'message': 'Account created! OTP sent to your email. Valid for 3 minutes.',
                 'email': email,
-                'username': username,
                 'role': role,
                 'next_step': 'verify_otp'
             }, status=status.HTTP_201_CREATED)
@@ -184,7 +182,6 @@ class VerifySignupOTPView(APIView):
                 'success': True,
                 'message': 'Email verified successfully! Please complete your profile.',
                 'email': user.email,
-                'username': user.username,
                 'role': user.role,
                 'next_step': 'complete_profile'
             }, status=status.HTTP_200_OK)
@@ -919,7 +916,7 @@ class CheckAccountStatusView(APIView):
                     'status': 'pending_verification',
                     'message': 'Email verification pending.',
                     'email': user.email,
-                    'username': user.username,
+                    
                     'role': user.role,
                     'next_step': 'verify_otp'
                 }, status=status.HTTP_200_OK)
@@ -930,7 +927,7 @@ class CheckAccountStatusView(APIView):
                     'status': 'pending_profile',
                     'message': 'Please complete your profile.',
                     'email': user.email,
-                    'username': user.username,
+                    
                     'role': user.role,
                     'next_step': 'complete_profile'
                 }, status=status.HTTP_200_OK)

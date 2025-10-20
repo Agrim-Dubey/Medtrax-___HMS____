@@ -71,35 +71,24 @@ class PhoneValidator:
 
 
 class SignupSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True, min_length=3, max_length=20)
     email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True, min_length=8,max_length=20,
-    trim_whitespace=False)
+    password1 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
+    password2 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)    
     role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True)
-
-    def validate_username(self, value):
-        value = value.strip()
-        if not value:
-            raise serializers.ValidationError("Username cannot be empty.")
-        if len(value) < 3:
-            raise serializers.ValidationError(f"Username too short. You entered {len(value)} characters, minimum is 3.")
-        if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError(f"Username too long. You entered {len(value)} characters, maximun is 20.")
-        if len(value) > 20:
-            raise serializers.ValidationError("Username cannot exceed 20 characters.")
-        if not re.match(r'^[a-zA-Z0-9_]*$', value):
-            raise serializers.ValidationError("Username can only contain letters, numbers, and underscores.")
-        return value
-
     def validate_email(self, value):
         value = value.strip().lower()
         if CustomUser.objects.filter(email=value).exists():
             raise serializers.ValidationError("This email is already registered.")
         return value
 
-    def validate_password(self, value):
+    def validate_password1(self, value):
         PasswordValidator.validate(value)
         return value
+    
+    def validate(self, data):
+        if data['password1'] != data['password2']:
+            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        return data
 
     def validate_role(self, value):
         if value not in ['doctor', 'patient']:
