@@ -49,10 +49,16 @@ class PasswordValidator:
             raise serializers.ValidationError("Password must be at least 8 characters long.")
         if not re.search(r'[A-Z]', password):
             raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        if len(password) > 20:
+            raise serializers.ValidationError("Password must be only 20 characters long.")
+        if ' ' in password:
+            raise serializers.ValidationError("Password cannot contain spaces.")
         if not re.search(r'[a-z]', password):
             raise serializers.ValidationError("Password must contain at least one lowercase letter.")
         if not re.search(r'[0-9]', password):
             raise serializers.ValidationError("Password must contain at least one digit.")
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;]', password):
+            raise serializers.ValidationError("Password must contain at least one special character (!@#$%^&* etc.).")
         return True
 
 
@@ -65,17 +71,22 @@ class PhoneValidator:
 
 
 class SignupSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True, min_length=3, max_length=150)
+    username = serializers.CharField(required=True, min_length=3, max_length=20)
     email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True, min_length=8)
+    password = serializers.CharField(required=True, min_length=8,max_length=20,
+    trim_whitespace=False)
     role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True)
 
     def validate_username(self, value):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Username cannot be empty.")
+        if len(value) < 3:
+            raise serializers.ValidationError(f"Username too short. You entered {len(value)} characters, minimum is 3.")
         if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError("This username is already taken.")
+            raise serializers.ValidationError(f"Username too long. You entered {len(value)} characters, maximun is 20.")
+        if len(value) > 20:
+            raise serializers.ValidationError("Username cannot exceed 20 characters.")
         if not re.match(r'^[a-zA-Z0-9_]*$', value):
             raise serializers.ValidationError("Username can only contain letters, numbers, and underscores.")
         return value
