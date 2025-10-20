@@ -90,17 +90,28 @@ class Doctor(models.Model):
     ]
 
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='doctor_profile')
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    specialization = models.CharField(max_length=100)
-    department = models.CharField(max_length=100)
-    experience = models.IntegerField()
-    clinicaladdress = models.TextField()
+    blood_group = models.CharField(max_length=5)
+    marital_status = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=10, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    registration_number = models.CharField(max_length=50, blank=True, null=True)
+    specialization = models.CharField(max_length=100, blank=True, null=True)
+    qualification = models.CharField(max_length=200, blank=True, null=True)
+    years_of_experience = models.IntegerField(blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+    clinic_name = models.CharField(max_length=200, blank=True, null=True)
     phone_number = models.CharField(max_length=15, unique=True)
-    license_number = models.CharField(max_length=50, unique=True)
-    medical_degree = models.FileField(upload_to='medical_documents/degrees/')
-    license_certificate = models.FileField(upload_to='medical_documents/licenses/')
-    university = models.CharField(max_length=100)
+    alternate_phone_number = models.CharField(max_length=15, blank=True, null=True)
+    alternate_email = models.EmailField(blank=True, null=True)
+    emergency_contact_person = models.CharField(max_length=100, blank=True, null=True)
+    emergency_contact_number = models.CharField(max_length=15, blank=True, null=True)
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -108,12 +119,11 @@ class Doctor(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['license_number']),
-            models.Index(fields=['user']),
-            models.Index(fields=['phone_number']),
-            models.Index(fields=['is_approved']),
-            models.Index(fields=['specialization']),
-        ]
+             models.Index(fields=['user']),
+             models.Index(fields=['phone_number']),
+             models.Index(fields=['is_approved']),
+             models.Index(fields=['city']),
+]
 
     def __str__(self):
         return f"Dr. {self.user.username} - {self.specialization}"

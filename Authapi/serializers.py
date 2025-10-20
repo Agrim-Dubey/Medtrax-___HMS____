@@ -424,20 +424,41 @@ class ResendPasswordResetOTPSerializer(serializers.Serializer):
 
 class DoctorDetailsSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+    first_name = serializers.CharField(required=True, max_length=50)
+    last_name = serializers.CharField(required=True, max_length=50)
     date_of_birth = serializers.DateField(required=True)
     gender = serializers.ChoiceField(choices=['M', 'F', 'O'], required=True)
-    specialization = serializers.CharField(required=True, max_length=100)
-    department = serializers.CharField(required=True, max_length=100)
-    experience = serializers.IntegerField(required=True, min_value=0, max_value=70)
-    clinicaladdress = serializers.CharField(required=True, max_length=500)
+    blood_group = serializers.ChoiceField(choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], required=True)
+    marital_status = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    address = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    city = serializers.CharField(required=True, max_length=100)
+    state = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    pincode = serializers.CharField(required=False, allow_blank=True, max_length=10)
+    country = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    registration_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    specialization = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    qualification = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    years_of_experience = serializers.IntegerField(required=False, allow_null=True)
+    department = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    clinic_name = serializers.CharField(required=False, allow_blank=True, max_length=200)
     phone_number = serializers.CharField(required=True, max_length=15)
-    license_number = serializers.CharField(required=True, max_length=50)
-    medical_degree = serializers.FileField(required=True)
-    license_certificate = serializers.FileField(required=True)
-    university = serializers.CharField(required=True, max_length=100)
+    alternate_phone_number = serializers.CharField(required=False, allow_blank=True, max_length=15)
+    alternate_email = serializers.EmailField(required=False, allow_blank=True)
+    emergency_contact_person = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    emergency_contact_number = serializers.CharField(required=False, allow_blank=True, max_length=15)
 
     def validate_email(self, value):
         return value.strip().lower()
+
+    def validate_first_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("First name cannot be empty.")
+        return value.strip()
+
+    def validate_last_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Last name cannot be empty.")
+        return value.strip()
 
     def validate_date_of_birth(self, value):
         today = date.today()
@@ -450,6 +471,11 @@ class DoctorDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
 
+    def validate_city(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("City cannot be empty.")
+        return value.strip()
+
     def validate_phone_number(self, value):
         value = value.strip()
         PhoneValidator.validate(value)
@@ -457,51 +483,83 @@ class DoctorDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("This phone number is already registered.")
         return value
 
-    def validate_license_number(self, value):
-        value = value.strip().upper()
-        if Doctor.objects.filter(license_number=value).exists():
-            raise serializers.ValidationError("License number already registered.")
+    def validate_alternate_phone_number(self, value):
+        if value and value.strip():
+            value = value.strip()
+            PhoneValidator.validate(value)
+        return value
+
+    def validate_alternate_email(self, value):
+        if value:
+            return value.strip().lower()
+        return value
+
+    def validate_emergency_contact_number(self, value):
+        if value and value.strip():
+            value = value.strip()
+            PhoneValidator.validate(value)
+        return value
+
+    def validate_marital_status(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_address(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_state(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_pincode(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_country(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_registration_number(self, value):
+        if value:
+            return value.strip().upper()
         return value
 
     def validate_specialization(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Specialization cannot be empty.")
-        return value.strip()
+        if value:
+            return value.strip()
+        return value
+
+    def validate_qualification(self, value):
+        if value:
+            return value.strip()
+        return value
 
     def validate_department(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Department cannot be empty.")
-        return value.strip()
-
-    def validate_clinicaladdress(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Clinical address cannot be empty.")
-        return value.strip()
-
-    def validate_university(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("University cannot be empty.")
-        return value.strip()
-
-    def validate_medical_degree(self, value):
-        if not value:
-            raise serializers.ValidationError("Medical degree file is required.")
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("Medical degree file must be under 5MB.")
+        if value:
+            return value.strip()
         return value
 
-    def validate_license_certificate(self, value):
-        if not value:
-            raise serializers.ValidationError("License certificate file is required.")
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("License certificate file must be under 5MB.")
+    def validate_clinic_name(self, value):
+        if value:
+            return value.strip()
         return value
 
+    def validate_emergency_contact_person(self, value):
+        if value:
+            return value.strip()
+        return value
+    
     def validate(self, data):
-        if data['experience'] < 0:
-            raise serializers.ValidationError("Experience cannot be negative.")
+        years_exp = data.get('years_of_experience')
+        if years_exp is not None and years_exp < 0:
+            raise serializers.ValidationError("Years of experience cannot be negative.")
         return data
-
 
 class PatientDetailsSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
