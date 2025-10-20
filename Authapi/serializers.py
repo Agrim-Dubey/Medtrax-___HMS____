@@ -505,21 +505,35 @@ class DoctorDetailsSerializer(serializers.Serializer):
 
 class PatientDetailsSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+    first_name = serializers.CharField(required=True, max_length=50)
+    last_name = serializers.CharField(required=True, max_length=50)
     date_of_birth = serializers.DateField(required=True)
+    blood_group = serializers.ChoiceField(choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], required=True)
     gender = serializers.ChoiceField(choices=['M', 'F', 'O'], required=True)
-    address = serializers.CharField(required=True, max_length=500)
+    city = serializers.CharField(required=True, max_length=100)
     phone_number = serializers.CharField(required=True, max_length=15)
     emergency_contact = serializers.CharField(required=False, allow_blank=True, max_length=15)
+    emergency_email = serializers.EmailField(required=False, allow_blank=True)
     is_insurance = serializers.BooleanField(required=False, default=False)
     ins_company_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
-    ins_id_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    tobacco_user = serializers.BooleanField(required=False, default=False)
-    is_alcoholic = serializers.BooleanField(required=False, default=False)
+    ins_policy_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
     known_allergies = serializers.CharField(required=False, allow_blank=True, max_length=500)
-    current_medications = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    chronic_diseases = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    previous_surgeries = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    family_medical_history = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
     def validate_email(self, value):
         return value.strip().lower()
+
+    def validate_first_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("First name cannot be empty.")
+        return value.strip()
+
+    def validate_last_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Last name cannot be empty.")
+        return value.strip()
 
     def validate_date_of_birth(self, value):
         today = date.today()
@@ -527,10 +541,15 @@ class PatientDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("Date of birth cannot be in the future.")
         age = (today - value).days // 365
         if age < 18:
-            raise serializers.ValidationError("Patient must be at least 18 years old.")
+             raise serializers.ValidationError("Patient must be at least 18 years old.")
         if age > 150:
-            raise serializers.ValidationError("Please enter a valid date of birth.")
+             raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
+
+    def validate_city(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("City cannot be empty.")
+        return value.strip()
 
     def validate_phone_number(self, value):
         value = value.strip()
@@ -545,17 +564,17 @@ class PatientDetailsSerializer(serializers.Serializer):
             PhoneValidator.validate(value)
         return value
 
-    def validate_address(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Address cannot be empty.")
-        return value.strip()
+    def validate_emergency_email(self, value):
+        if value:
+            return value.strip().lower()
+        return value
 
     def validate_ins_company_name(self, value):
         if value:
             return value.strip()
         return value
 
-    def validate_ins_id_number(self, value):
+    def validate_ins_policy_number(self, value):
         if value:
             return value.strip()
         return value
@@ -565,20 +584,29 @@ class PatientDetailsSerializer(serializers.Serializer):
             return value.strip()
         return value
 
-    def validate_current_medications(self, value):
+    def validate_chronic_diseases(self, value):
         if value:
             return value.strip()
         return value
 
+    def validate_previous_surgeries(self, value):
+        if value:
+            return value.strip()
+        return value
+
+    def validate_family_medical_history(self, value):
+        if value:
+            return value.strip()
+        return value
     def validate(self, data):
         is_insurance = data.get('is_insurance', False)
         ins_company = data.get('ins_company_name', '').strip() if data.get('ins_company_name') else ''
-        ins_id = data.get('ins_id_number', '').strip() if data.get('ins_id_number') else ''
+        ins_policy = data.get('ins_policy_number', '').strip() if data.get('ins_policy_number') else ''
 
         if is_insurance:
             if not ins_company:
                 raise serializers.ValidationError("Insurance company name is required when insurance is selected.")
-            if not ins_id:
-                raise serializers.ValidationError("Insurance ID number is required when insurance is selected.")
+            if not ins_policy:
+                raise serializers.ValidationError("Insurance policy number is required when insurance is selected.")
 
         return data

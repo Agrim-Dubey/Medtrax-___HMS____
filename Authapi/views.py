@@ -364,108 +364,92 @@ class DoctorDetailsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+try:
+    serializer = PatientDetailsSerializer(data=request.data)
 
-class PatientDetailsView(APIView):
-    permission_classes = [AllowAny]
+    if not serializer.is_valid():
+        return Response(
+            {'success': False, 'errors': serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    @swagger_auto_schema(
-        operation_description="Create complete patient profile with medical history",
-        operation_summary="Complete Patient Profile",
-        request_body=PatientDetailsSerializer,
-        responses={
-            201: openapi.Response(
-                description="Patient profile created successfully",
-                examples={
-                    "application/json": {
-                        "success": True,
-                        "message": "Patient profile created successfully! You can now login.",
-                        "patient_id": 456,
-                        "username": "John Doe",
-                        "email": "patient@example.com",
-                        "next_step": "login"
-                    }
-                }
-            ),
-            400: "Validation error or profile already exists",
-            404: "User account not found",
-            500: "Profile creation failed"
-        },
-        tags=['Profile Management']
+    email = serializer.validated_data['email']
+
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        return Response(
+            {'success': False, 'error': 'No account found. Please sign up first.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not user.is_verified:
+        return Response(
+            {'success': False, 'error': 'Please verify your email first.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if user.role != 'patient':
+        return Response(
+            {'success': False, 'error': 'This account is not registered as a patient.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if Patient.objects.filter(user=user).exists():
+        return Response(
+            {'success': False, 'error': 'Patient profile already exists for this account.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    patient = Patient.objects.create(
+        user=user,
+        first_name=serializer.validated_data['first_name'],
+        last_name=serializer.validated_data['last_name'],
+        date_of_birth=serializer.validated_data['date_of_birth'],
+        blood_group=serializer.validated_data['blood_group'],
+        gender=serializer.validated_data['gender'],
+        city=serializer.validated_data['city'],
+        phone_number=serializer.validated_data['phone_number'],
+        emergency_contact=serializer.validated_data.get('emergency_contact', ''),
+        emergency_email=serializer.validated_data.get('emergency_email', ''),
+        is_insurance=serializer.validated_data.get('is_insurance', False),
+        ins_company_name=serializer.validated_data.get('ins_company_name', ''),
+        ins_policy_number=serializer.validated_data.get('ins_policy_number', ''),
+        known_allergies=serializer.validated_data.get('known_allergies', ''),
+        chronic_diseases=serializer.validated_data.get('chronic_diseases', ''),
+        previous_surgeries=serializer.validated_data.get('previous_surgeries', ''),
+        family_medical_history=serializer.validated_data.get('family_medical_history', '')
     )
-    @transaction.atomic
-    def post(self, request):
-        try:
-            serializer = PatientDetailsSerializer(data=request.data)
 
-            if not serializer.is_valid():
-                return Response(
-                    {'success': False, 'errors': serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+    username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
+    base_username = username
+    counter = 1
+    while CustomUser.objects.filter(username=username).exists():
+        username = f"{base_username}{counter}"
+        counter += 1
 
-            email = serializer.validated_data['email']
+    user.username = username
+    user.is_profile_complete = True
+    user.save()
 
-            try:
-                user = CustomUser.objects.get(email=email)
-            except CustomUser.DoesNotExist:
-                return Response(
-                    {'success': False, 'error': 'No account found. Please sign up first.'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            if not user.is_verified:
-                return Response(
-                    {'success': False, 'error': 'Please verify your email first.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if user.role != 'patient':
-                return Response(
-                    {'success': False, 'error': 'This account is not registered as a patient.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if Patient.objects.filter(user=user).exists():
-                return Response(
-                    {'success': False, 'error': 'Patient profile already exists for this account.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            patient = Patient.objects.create(
-                user=user,
-                date_of_birth=serializer.validated_data['date_of_birth'],
-                gender=serializer.validated_data['gender'],
-                address=serializer.validated_data['address'],
-                phone_number=serializer.validated_data['phone_number'],
-                emergency_contact=serializer.validated_data.get('emergency_contact', ''),
-                is_insurance=serializer.validated_data.get('is_insurance', False),
-                ins_company_name=serializer.validated_data.get('ins_company_name', ''),
-                ins_id_number=serializer.validated_data.get('ins_id_number', ''),
-                tobacco_user=serializer.validated_data.get('tobacco_user', False),
-                is_alcoholic=serializer.validated_data.get('is_alcoholic', False),
-                known_allergies=serializer.validated_data.get('known_allergies', ''),
-                current_medications=serializer.validated_data.get('current_medications', '')
-            )
-
-            user.is_profile_complete = True
-            user.save()
-
-            return Response({
-                'success': True,
-                'message': 'Patient profile created successfully! You can now login.',
-                'patient_id': patient.id,
-                'username': patient.user.username,
-                'email': patient.user.email,
-                'next_step': 'login'
-            }, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            logger.error(f"Patient profile creation error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Profile creation failed. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
+    return Response({
+        'success': True,
+        'message': 'Patient profile created successfully! You can now login.',
+        'patient_id': patient.id,
+        'username': patient.user.username,
+        'email': patient.user.email,
+        'next_step': 'login'
+    }, status=status.HTTP_201_CREATED)
+``
+except Exception as e:
+    logger.error(f"Patient profile creation error: {str(e)}")
+        return Response(
+        {
+            "success": False,
+            "error": "Profile creation failed. Please try again.",
+        },
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
 
 class DoctorLoginView(APIView):
     permission_classes = [AllowAny]

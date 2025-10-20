@@ -127,18 +127,22 @@ class Patient(models.Model):
     ]
 
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='patient_profile')
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
     date_of_birth = models.DateField()
+    blood_group = models.CharField(max_length=5)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    address = models.TextField()
+    city = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=15, unique=True)
     emergency_contact = models.CharField(max_length=15, blank=True, null=True)
+    emergency_email = models.EmailField(blank=True, null=True)
     is_insurance = models.BooleanField(default=False)
     ins_company_name = models.CharField(max_length=100, blank=True, null=True)
-    ins_id_number = models.CharField(max_length=50, blank=True, null=True)
-    tobacco_user = models.BooleanField(default=False)
-    is_alcoholic = models.BooleanField(default=False)
+    ins_policy_number = models.CharField(max_length=50, blank=True, null=True)
     known_allergies = models.TextField(blank=True, null=True)
-    current_medications = models.TextField(blank=True, null=True)
+    chronic_diseases = models.TextField(blank=True, null=True)
+    previous_surgeries = models.TextField(blank=True, null=True)
+    family_medical_history = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -147,7 +151,6 @@ class Patient(models.Model):
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['phone_number']),
-            models.Index(fields=['is_insurance']),
         ]
 
     def __str__(self):
