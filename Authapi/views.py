@@ -329,56 +329,56 @@ class DoctorDetailsView(APIView):
                 )
 
             doctor = Doctor.objects.create(
-            user=user,
-            first_name=serializer.validated_data['first_name'],
-            last_name=serializer.validated_data['last_name'],
-            date_of_birth=serializer.validated_data['date_of_birth'],
-            gender=serializer.validated_data['gender'],
-            blood_group=serializer.validated_data['blood_group'],
-            marital_status=serializer.validated_data.get('marital_status', ''),
-            address=serializer.validated_data.get('address', ''),
-            city=serializer.validated_data['city'],
-            state=serializer.validated_data.get('state', ''),
-            pincode=serializer.validated_data.get('pincode', ''),
-            country=serializer.validated_data.get('country', ''),
-            registration_number=serializer.validated_data.get('registration_number', ''),
-            specialization=serializer.validated_data.get('specialization', ''),
-            qualification=serializer.validated_data.get('qualification', ''),
-            years_of_experience=serializer.validated_data.get('years_of_experience'),
-            department=serializer.validated_data.get('department', ''),
-            clinic_name=serializer.validated_data.get('clinic_name', ''),
-            phone_number=serializer.validated_data['phone_number'],
-            alternate_phone_number=serializer.validated_data.get('alternate_phone_number', ''),
-            alternate_email=serializer.validated_data.get('alternate_email', ''),
-            emergency_contact_person=serializer.validated_data.get('emergency_contact_person', ''),
-            emergency_contact_number=serializer.validated_data.get('emergency_contact_number', '')
-        )
+                user=user,
+                first_name=serializer.validated_data['first_name'],
+                last_name=serializer.validated_data['last_name'],
+                date_of_birth=serializer.validated_data['date_of_birth'],
+                gender=serializer.validated_data['gender'],
+                blood_group=serializer.validated_data['blood_group'],
+                marital_status=serializer.validated_data.get('marital_status', ''),
+                address=serializer.validated_data.get('address', ''),
+                city=serializer.validated_data['city'],
+                state=serializer.validated_data.get('state', ''),
+                pincode=serializer.validated_data.get('pincode', ''),
+                country=serializer.validated_data.get('country', ''),
+                registration_number=serializer.validated_data.get('registration_number', ''),
+                specialization=serializer.validated_data.get('specialization', ''),
+                qualification=serializer.validated_data.get('qualification', ''),
+                years_of_experience=serializer.validated_data.get('years_of_experience'),
+                department=serializer.validated_data.get('department', ''),
+                clinic_name=serializer.validated_data.get('clinic_name', ''),
+                phone_number=serializer.validated_data['phone_number'],
+                alternate_phone_number=serializer.validated_data.get('alternate_phone_number', ''),
+                alternate_email=serializer.validated_data.get('alternate_email', ''),
+                emergency_contact_person=serializer.validated_data.get('emergency_contact_person', ''),
+                emergency_contact_number=serializer.validated_data.get('emergency_contact_number', '')
+            )
 
-        username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
-        base_username = username
-        counter = 1
-        while CustomUser.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
+            username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
+            base_username = username
+            counter = 1
+            while CustomUser.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
 
-        user.username = username
-        user.is_profile_complete = True
-        user.save()
+            user.username = username
+            user.is_profile_complete = True
+            user.save()
 
-        return Response({
-    'success': True,
-    'message': 'Doctor profile created successfully! You can now login.',
-    'doctor_id': doctor.id,
-    'specialization': doctor.specialization,
-    'department': doctor.department,
-    'username': user.username,
-    'email': user.email,
-    'next_step': 'login'
-}, status=status.HTTP_201_CREATED)
-    
+            return Response({
+                'success': True,
+                'message': 'Doctor profile created successfully! You can now login.',
+                'doctor_id': doctor.id,
+                'specialization': doctor.specialization,
+                'department': doctor.department,
+                'username': user.username,
+                'email': user.email,
+                'next_step': 'login'
+            }, status=status.HTTP_201_CREATED)
+
         except Exception as e:
-            logger.error(f"Patient profile creation error: {str(e)}")
-                return Response(
+            logger.error(f"Doctor profile creation error: {str(e)}")
+            return Response(
                 {'success': False, 'error': 'Profile creation failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
