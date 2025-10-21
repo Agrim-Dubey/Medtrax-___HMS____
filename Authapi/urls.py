@@ -4,6 +4,8 @@ from . import views
 
 
 urlpatterns = [
+    path('api/select-role/', views.SelectRoleView.as_view(), name='select_role'),
+    path('api/clear-role/', views.ClearRoleView.as_view(), name='clear_role'),
     path('api/signup/', views.SignupView.as_view(), name='signup'),
     path('api/verify-signup-otp/', views.VerifySignupOTPView.as_view(), name='verify_signup_otp'),
     path('api/resend-signup-otp/', views.ResendSignupOTPView.as_view(), name='resend_signup_otp'),

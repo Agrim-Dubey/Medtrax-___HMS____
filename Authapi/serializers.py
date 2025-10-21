@@ -60,8 +60,8 @@ class PhoneValidator:
 class SignupSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password1 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
-    password2 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)    
-    role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True)
+    password2 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
+    
     def validate_email(self, value):
         value = value.strip().lower()
         if CustomUser.objects.filter(email=value).exists():
@@ -75,13 +75,22 @@ class SignupSerializer(serializers.Serializer):
     def validate(self, data):
         if data['password1'] != data['password2']:
             raise serializers.ValidationError({"password2": "Passwords do not match."})
+        
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+        
+        role = request.session.get('selected_role')
+        
+        if not role:
+            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
+        
+        if role not in ['doctor', 'patient']:
+            raise serializers.ValidationError("Invalid role in session. Please select a role again.")
+        
+        data['role'] = role
+        
         return data
-
-    def validate_role(self, value):
-        if value not in ['doctor', 'patient']:
-            raise serializers.ValidationError("Invalid role. Choose either 'doctor' or 'patient'.")
-        return value
-
 
 class VerifySignupOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -170,6 +179,18 @@ class DoctorLoginSerializer(serializers.Serializer):
         email = data.get('email')
         password = data.get('password')
 
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+        
+        role = request.session.get('selected_role')
+        
+        if not role:
+            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
+        
+        if role != 'doctor':
+            raise serializers.ValidationError("Invalid role selection. Please select 'doctor' role to login as doctor.")
+
         try:
             user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
@@ -202,7 +223,6 @@ class DoctorLoginSerializer(serializers.Serializer):
         data['user'] = user
         return data
 
-
 class PatientLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True)
@@ -213,6 +233,18 @@ class PatientLoginSerializer(serializers.Serializer):
     def validate(self, data):
         email = data.get('email')
         password = data.get('password')
+
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+        
+        role = request.session.get('selected_role')
+        
+        if not role:
+            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
+        
+        if role != 'patient':
+            raise serializers.ValidationError("Invalid role selection. Please select 'patient' role to login as patient.")
 
         try:
             user = CustomUser.objects.get(email=email)
