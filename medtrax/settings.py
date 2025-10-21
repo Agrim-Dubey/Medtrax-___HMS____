@@ -53,8 +53,6 @@ Q_CLUSTER = {
         'db': 0,
         'password': None,
         'socket_timeout': None,
-        'charset': 'utf-8',
-        'errors': 'strict',
         'unix_socket_path': None
     }
 }
