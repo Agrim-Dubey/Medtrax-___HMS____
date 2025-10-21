@@ -29,12 +29,34 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Authapi',
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
     'drf_yasg',
+    'corsheaders',
+    'Authapi',
+    'django_q',
 ]
+Q_CLUSTER = {
+    'name': 'MedtraxQueue',
+    'workers': 4,
+    'recycle': 500,
+    'timeout': 90,
+    'compress': True,
+    'save_limit': 250,
+    'queue_limit': 500,
+    'cpu_affinity': 1,
+    'label': 'Django Q',
+    'redis': {
+        'host': '127.0.0.1',
+        'port': 6379,
+        'db': 0,
+        'password': None,
+        'socket_timeout': None,
+        'charset': 'utf-8',
+        'errors': 'strict',
+        'unix_socket_path': None
+    }
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -134,6 +156,7 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER', default='Medtrax.HospitalManagement@gmail.com')
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

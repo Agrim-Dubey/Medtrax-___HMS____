@@ -4,42 +4,29 @@ from datetime import timedelta, date
 from django.core.mail import send_mail
 from django.conf import settings
 import re
+from django_q.tasks import async_task
+import logging
 import random
-
 from Authapi.models import CustomUser, Doctor, Patient
 
+logger = logging.getLogger(__name__)
 
 class OTPEmailService:
     @staticmethod
     def send_email(email, otp, email_type='verification'):
-        templates = {
-            'verification': {
-                'subject': 'Verify Your Email with OTP - MedTrax Hospital Management',
-                'message': f'Hello,\n\nThank you for registering with MedTrax!\n\nYour OTP for email verification is: {otp}\n\nThis OTP will expire in 3 minutes.\n\nIf you did not trigger this request, please ignore this email.\n\nBest regards,\nMedTrax Team'
-            },
-            'reset': {
-                'subject': 'Password Reset OTP - MedTrax Hospital Management',
-                'message': f'Hello,\n\nWe received a request to reset your password for your MedTrax account.\n\nYour OTP for password reset is: {otp}\n\nThis OTP will expire in 3 minutes for security reasons.\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nMedTrax Support Team'
-            },
-            'resend': {
-                'subject': 'Your New OTP - MedTrax Hospital Management',
-                'message': f'Hello,\n\nYour new OTP for verification is: {otp}\n\nThis OTP will expire in 3 minutes.\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nMedTrax Team'
-            }
-        }
-
-        template = templates.get(email_type, templates['verification'])
-
         try:
-            send_mail(
-                template['subject'],
-                template['message'],
-                settings.EMAIL_HOST_USER,
-                [email],
-                fail_silently=False,
+            task_id = async_task(
+                'Authapi.tasks.send_otp_email_task',
+                email,
+                otp,
+                email_type,
+                timeout=30
             )
-            return True
+            logger.info(f"Email task queued for {email} with task_id: {task_id}")
+            return task_id
         except Exception as e:
-            raise Exception(f"Failed to send email: {str(e)}")
+            logger.error(f"Failed to queue email task: {str(e)}")
+            raise
 
 
 class PasswordValidator:
