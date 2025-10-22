@@ -9,6 +9,9 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
+from django_q.tasks import async_task
+from django.core.mail import send_mail
+from django.conf import settings
 import random
 from datetime import timedelta
 
@@ -220,7 +223,18 @@ class SignupView(APIView):
             user.set_password(password)
             user.save()
 
-            
+            try:
+                async_task("Authapi.tasks.send_otp_email_task", email, otp)
+                logger.info(f"OTP email queued via Django Q for {email}")
+            except Exception as e:
+                logger.warning(f"Django Q failed, sending directly: {e}")
+                send_mail(
+                    "Your Med-Trax Verification Code",
+                    f"Your verification code is {otp}. It is valid for 3 minutes.",
+                    settings.EMAIL_HOST_USER,
+                    [email],
+                    fail_silently=False,
+                )
 
             logger.info(f"User registered successfully: {email} as {role}")
 
@@ -238,6 +252,7 @@ class SignupView(APIView):
                 {'success': False, 'error': 'Signup failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 
 class VerifySignupOTPView(APIView):
