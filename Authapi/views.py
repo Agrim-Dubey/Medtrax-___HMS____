@@ -10,6 +10,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
 import random
+from datetime import timedelta
+
 
 from Authapi.models import CustomUser, Doctor, Patient
 from .serializers import (
