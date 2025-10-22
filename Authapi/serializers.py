@@ -92,6 +92,7 @@ class SignupSerializer(serializers.Serializer):
         
         return data
 
+
 class VerifySignupOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     otp = serializers.CharField(required=True, max_length=6, min_length=6)
@@ -168,7 +169,8 @@ class ResendSignupOTPSerializer(serializers.Serializer):
         return data
 
 
-class DoctorLoginSerializer(serializers.Serializer):
+class LoginSerializer(serializers.Serializer):
+    """UNIFIED LOGIN SERIALIZER - Works for both Doctor and Patient based on session role"""
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True)
 
@@ -188,20 +190,22 @@ class DoctorLoginSerializer(serializers.Serializer):
         if not role:
             raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
         
-        if role != 'doctor':
-            raise serializers.ValidationError("Invalid role selection. Please select 'doctor' role to login as doctor.")
+        if role not in ['doctor', 'patient']:
+            raise serializers.ValidationError("Invalid role in session. Please select a role again.")
 
         try:
             user = CustomUser.objects.get(email=email)
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError("Invalid email or password.")
 
+        # Check login lock
         if user.is_login_locked():
             if user.login_locked_until:
                 remaining = max(0, (user.login_locked_until - timezone.now()).total_seconds() // 60)
                 raise serializers.ValidationError(f"Account locked due to multiple failed attempts. Try again in {int(remaining) + 1} minutes.")
             raise serializers.ValidationError("Account temporarily locked. Try again later.")
 
+        # Validate password
         if not user.check_password(password):
             user.login_attempts += 1
             if user.login_attempts >= 5:
@@ -209,69 +213,18 @@ class DoctorLoginSerializer(serializers.Serializer):
             user.save()
             raise serializers.ValidationError("Invalid email or password.")
 
+        # Reset login attempts on success
         user.reset_login_attempts()
 
-        if user.role != 'doctor':
-            raise serializers.ValidationError("This account is not authorized for doctor login.")
+        # Check if user role matches session role
+        if user.role != role:
+            raise serializers.ValidationError(f"This account is not registered as a {role}. Please select the correct role.")
 
+        # Check verification status
         if not user.is_verified:
             raise serializers.ValidationError("Your account is not verified. Please verify your email first.")
 
-        if not user.is_profile_complete:
-            raise serializers.ValidationError("Your profile is incomplete. Please complete your profile details.")
-
-        data['user'] = user
-        return data
-
-class PatientLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True)
-
-    def validate_email(self, value):
-        return value.strip().lower()
-
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
-
-        request = self.context.get('request')
-        if not request:
-            raise serializers.ValidationError("Request context is required.")
-        
-        role = request.session.get('selected_role')
-        
-        if not role:
-            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
-        
-        if role != 'patient':
-            raise serializers.ValidationError("Invalid role selection. Please select 'patient' role to login as patient.")
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("Invalid email or password.")
-
-        if user.is_login_locked():
-            if user.login_locked_until:
-                remaining = max(0, (user.login_locked_until - timezone.now()).total_seconds() // 60)
-                raise serializers.ValidationError(f"Account locked due to multiple failed attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        if not user.check_password(password):
-            user.login_attempts += 1
-            if user.login_attempts >= 5:
-                user.login_locked_until = timezone.now() + timedelta(minutes=15)
-            user.save()
-            raise serializers.ValidationError("Invalid email or password.")
-
-        user.reset_login_attempts()
-
-        if user.role != 'patient':
-            raise serializers.ValidationError("This account is not authorized for patient login.")
-
-        if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified. Please verify your email first.")
-
+        # Check profile completion
         if not user.is_profile_complete:
             raise serializers.ValidationError("Your profile is incomplete. Please complete your profile details.")
 
@@ -361,17 +314,14 @@ class VerifyPasswordResetOTPSerializer(serializers.Serializer):
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
-    new_password = serializers.CharField(required=True, min_length=8)
-    confirm_password = serializers.CharField(required=True, min_length=8)
+    new_password = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
+    confirm_password = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
 
     def validate_email(self, value):
         return value.strip().lower()
 
     def validate_new_password(self, value):
         PasswordValidator.validate(value)
-        return value
-
-    def validate_confirm_password(self, value):
         return value
 
     def validate(self, data):
@@ -423,19 +373,6 @@ class ResendPasswordResetOTPSerializer(serializers.Serializer):
                 remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
                 raise serializers.ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
             raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        otp = str(random.randint(100000, 999999))
-        user.otp = otp
-        user.otp_created_at = timezone.now()
-        user.otp_type = 'reset'
-        user.otp_attempts = 0
-        user.otp_locked_until = None
-        user.save()
-
-        try:
-            OTPEmailService.send_email(email, otp, 'reset')
-        except Exception as e:
-            raise serializers.ValidationError(f"Failed to send OTP. {str(e)}")
 
         data['user'] = user
         return data
@@ -580,6 +517,7 @@ class DoctorDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("Years of experience cannot be negative.")
         return data
 
+
 class PatientDetailsSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     first_name = serializers.CharField(required=True, max_length=50)
@@ -617,10 +555,10 @@ class PatientDetailsSerializer(serializers.Serializer):
         if value > today:
             raise serializers.ValidationError("Date of birth cannot be in the future.")
         age = (today - value).days // 365
-        if age < 18:
-             raise serializers.ValidationError("Patient must be at least 18 years old.")
+        if age < 0:
+            raise serializers.ValidationError("Please enter a valid date of birth.")
         if age > 150:
-             raise serializers.ValidationError("Please enter a valid date of birth.")
+            raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
 
     def validate_city(self, value):
@@ -675,6 +613,7 @@ class PatientDetailsSerializer(serializers.Serializer):
         if value:
             return value.strip()
         return value
+    
     def validate(self, data):
         is_insurance = data.get('is_insurance', False)
         ins_company = data.get('ins_company_name', '').strip() if data.get('ins_company_name') else ''

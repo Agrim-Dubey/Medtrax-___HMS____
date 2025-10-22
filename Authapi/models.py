@@ -11,7 +11,7 @@ class CustomUser(AbstractUser):
     ]
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, null=True, blank=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, db_index=True)
     is_verified = models.BooleanField(default=False)
     is_profile_complete = models.BooleanField(default=False)
 
@@ -19,7 +19,7 @@ class CustomUser(AbstractUser):
     otp_created_at = models.DateTimeField(null=True, blank=True)
     otp_attempts = models.IntegerField(default=0)
     otp_locked_until = models.DateTimeField(null=True, blank=True)
-    otp_type = models.CharField(max_length=15, null=True, blank=True)
+    otp_type = models.CharField(max_length=15, null=True, blank=True, help_text="verification or reset")
 
     login_attempts = models.IntegerField(default=0)
     login_locked_until = models.DateTimeField(null=True, blank=True)
@@ -36,11 +36,14 @@ class CustomUser(AbstractUser):
             models.Index(fields=['is_verified']),
             models.Index(fields=['is_profile_complete']),
         ]
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
 
     def __str__(self):
         return f"{self.username if self.username else self.email} ({self.role if self.role else 'unassigned'})"
 
     def is_otp_locked(self):
+        """Check if OTP attempts are locked due to too many failed attempts"""
         if self.otp_locked_until and timezone.now() < self.otp_locked_until:
             return True
         if self.otp_locked_until and timezone.now() >= self.otp_locked_until:
@@ -50,6 +53,7 @@ class CustomUser(AbstractUser):
         return False
 
     def is_login_locked(self):
+    
         if self.login_locked_until and timezone.now() < self.login_locked_until:
             return True
         if self.login_locked_until and timezone.now() >= self.login_locked_until:
@@ -59,6 +63,7 @@ class CustomUser(AbstractUser):
         return False
 
     def is_otp_expired(self):
+       
         if not self.otp_created_at:
             return True
         return timezone.now() - self.otp_created_at > timedelta(minutes=3)
@@ -89,70 +94,47 @@ class Doctor(models.Model):
         ('O', 'Other'),
     ]
 
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A+'),
+        ('A-', 'A-'),
+        ('B+', 'B+'),
+        ('B-', 'B-'),
+        ('AB+', 'AB+'),
+        ('AB-', 'AB-'),
+        ('O+', 'O+'),
+        ('O-', 'O-'),
+    ]
+
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='doctor_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    blood_group = models.CharField(max_length=5)
+    blood_group = models.CharField(max_length=5, choices=BLOOD_GROUP_CHOICES)
     marital_status = models.CharField(max_length=20, blank=True, null=True)
+
     address = models.TextField(blank=True, null=True)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100, blank=True, null=True)
     pincode = models.CharField(max_length=10, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
-    registration_number = models.CharField(max_length=50, blank=True, null=True)
+
+    registration_number = models.CharField(max_length=50, blank=True, null=True, help_text="Medical Council Registration Number")
     specialization = models.CharField(max_length=100, blank=True, null=True)
     qualification = models.CharField(max_length=200, blank=True, null=True)
     years_of_experience = models.IntegerField(blank=True, null=True)
     department = models.CharField(max_length=100, blank=True, null=True)
     clinic_name = models.CharField(max_length=200, blank=True, null=True)
+
     phone_number = models.CharField(max_length=15, unique=True)
     alternate_phone_number = models.CharField(max_length=15, blank=True, null=True)
     alternate_email = models.EmailField(blank=True, null=True)
+ 
     emergency_contact_person = models.CharField(max_length=100, blank=True, null=True)
     emergency_contact_number = models.CharField(max_length=15, blank=True, null=True)
-    is_approved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        indexes = [
-             models.Index(fields=['user']),
-             models.Index(fields=['phone_number']),
-             models.Index(fields=['is_approved']),
-             models.Index(fields=['city']),
-]
-
-    def __str__(self):
-        return f"Dr. {self.user.username} - {self.specialization}"
-
-
-class Patient(models.Model):
-    GENDER_CHOICES = [
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
-    ]
-
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='patient_profile')
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
-    date_of_birth = models.DateField()
-    blood_group = models.CharField(max_length=5)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    city = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=15, unique=True)
-    emergency_contact = models.CharField(max_length=15, blank=True, null=True)
-    emergency_email = models.EmailField(blank=True, null=True)
-    is_insurance = models.BooleanField(default=False)
-    ins_company_name = models.CharField(max_length=100, blank=True, null=True)
-    ins_policy_number = models.CharField(max_length=50, blank=True, null=True)
-    known_allergies = models.TextField(blank=True, null=True)
-    chronic_diseases = models.TextField(blank=True, null=True)
-    previous_surgeries = models.TextField(blank=True, null=True)
-    family_medical_history = models.TextField(blank=True, null=True)
+ 
+    is_approved = models.BooleanField(default=False, help_text="Admin approval for doctor account")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -161,7 +143,76 @@ class Patient(models.Model):
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['phone_number']),
+            models.Index(fields=['is_approved']),
+            models.Index(fields=['city']),
+            models.Index(fields=['specialization']),
         ]
+        verbose_name = 'Doctor'
+        verbose_name_plural = 'Doctors'
 
     def __str__(self):
-        return f"{self.user.username} - Patient"
+        return f"Dr. {self.first_name} {self.last_name} - {self.specialization if self.specialization else 'General'}"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+
+class Patient(models.Model):
+
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    ]
+
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A+'),
+        ('A-', 'A-'),
+        ('B+', 'B+'),
+        ('B-', 'B-'),
+        ('AB+', 'AB+'),
+        ('AB-', 'AB-'),
+        ('O+', 'O+'),
+        ('O-', 'O-'),
+    ]
+
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='patient_profile')
+
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    date_of_birth = models.DateField()
+    blood_group = models.CharField(max_length=5, choices=BLOOD_GROUP_CHOICES)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    city = models.CharField(max_length=100)
+
+    phone_number = models.CharField(max_length=15, unique=True)
+    emergency_contact = models.CharField(max_length=15, blank=True, null=True, help_text="Emergency contact number")
+    emergency_email = models.EmailField(blank=True, null=True, help_text="Emergency contact email")
+ 
+    is_insurance = models.BooleanField(default=False, help_text="Has medical insurance")
+    ins_company_name = models.CharField(max_length=100, blank=True, null=True)
+    ins_policy_number = models.CharField(max_length=50, blank=True, null=True)
+
+    known_allergies = models.TextField(blank=True, null=True, help_text="Known allergies (comma separated)")
+    chronic_diseases = models.TextField(blank=True, null=True, help_text="Chronic diseases (comma separated)")
+    previous_surgeries = models.TextField(blank=True, null=True, help_text="Previous surgeries history")
+    family_medical_history = models.TextField(blank=True, null=True, help_text="Family medical history")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['phone_number']),
+            models.Index(fields=['city']),
+        ]
+        verbose_name = 'Patient'
+        verbose_name_plural = 'Patients'
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - Patient"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"

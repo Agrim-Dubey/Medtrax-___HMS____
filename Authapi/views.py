@@ -14,13 +14,14 @@ from Authapi.models import CustomUser, Doctor, Patient
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
-    DoctorLoginSerializer, PatientLoginSerializer,
+    LoginSerializer,
     ForgotPasswordSerializer, VerifyPasswordResetOTPSerializer,
     ResetPasswordSerializer, ResendPasswordResetOTPSerializer,
     OTPEmailService
 )
 
 logger = logging.getLogger(__name__)
+
 
 class SelectRoleView(APIView):
     permission_classes = [AllowAny]
@@ -83,6 +84,8 @@ class SelectRoleView(APIView):
             request.session['role_selected_at'] = timezone.now().isoformat()
             request.session.modified = True
 
+            logger.info(f"Role selected: {role} - Session ID: {request.session.session_key}")
+
             return Response({
                 'success': True,
                 'message': 'Role selected successfully',
@@ -95,6 +98,7 @@ class SelectRoleView(APIView):
                 {'success': False, 'error': 'Role selection failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class ClearRoleView(APIView):
     permission_classes = [AllowAny]
@@ -137,52 +141,52 @@ class ClearRoleView(APIView):
                 {'success': False, 'error': 'Failed to clear role.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+
+
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-    operation_description="Register a new user account (Doctor or Patient). User must select role via /api/select-role/ before signup.",
-    operation_summary="User Signup",
-    request_body=SignupSerializer,
-    responses={
-        201: openapi.Response(
-            description="Account created successfully",
-            examples={
-                "application/json": {
-                    "success": True,
-                    "message": "Account created! OTP sent to your email. Valid for 3 minutes.",
-                    "email": "user@example.com",
-                    "role": "doctor",
-                    "next_step": "verify_otp"
-                }
-            }
-        ),
-        400: openapi.Response(
-            description="Validation error",
-            examples={
-                "application/json": {
-                    "success": False,
-                    "errors": {
-                        "email": ["This email is already registered."],
-                        "non_field_errors": ["No role selected. Please select a role first from the landing page."]
+        operation_description="Register a new user account (Doctor or Patient). User must select role via /api/select-role/ before signup.",
+        operation_summary="User Signup",
+        request_body=SignupSerializer,
+        responses={
+            201: openapi.Response(
+                description="Account created successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Account created! OTP sent to your email. Valid for 3 minutes.",
+                        "email": "user@example.com",
+                        "role": "doctor",
+                        "next_step": "verify_otp"
                     }
                 }
-            }
-        ),
-        500: openapi.Response(
-            description="Server error",
-            examples={
-                "application/json": {
-                    "success": False,
-                    "error": "Signup failed. Please try again."
+            ),
+            400: openapi.Response(
+                description="Validation error",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "errors": {
+                            "email": ["This email is already registered."],
+                            "non_field_errors": ["No role selected. Please select a role first from the landing page."]
+                        }
+                    }
                 }
-            }
-        )
-    },
-    tags=['Authentication']
-)
-    
+            ),
+            500: openapi.Response(
+                description="Server error",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "error": "Signup failed. Please try again."
+                    }
+                }
+            )
+        },
+        tags=['Authentication']
+    )
     @transaction.atomic
     def post(self, request):
         try:
@@ -223,6 +227,8 @@ class SignupView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
+            logger.info(f"User registered successfully: {email} as {role}")
+
             return Response({
                 'success': True,
                 'message': 'Account created! OTP sent to your email. Valid for 3 minutes.',
@@ -254,7 +260,6 @@ class VerifySignupOTPView(APIView):
                         "success": True,
                         "message": "Email verified successfully! Please complete your profile.",
                         "email": "user@example.com",
-                        "username": "johndoe",
                         "role": "doctor",
                         "next_step": "complete_profile"
                     }
@@ -292,6 +297,8 @@ class VerifySignupOTPView(APIView):
             user.is_verified = True
             user.clear_otp()
             user.save()
+
+            logger.info(f"Email verified successfully: {user.email}")
 
             return Response({
                 'success': True,
@@ -480,6 +487,8 @@ class DoctorDetailsView(APIView):
             user.is_profile_complete = True
             user.save()
 
+            logger.info(f"Doctor profile created: {email}")
+
             return Response({
                 'success': True,
                 'message': 'Doctor profile created successfully! You can now login.',
@@ -497,6 +506,7 @@ class DoctorDetailsView(APIView):
                 {'success': False, 'error': 'Profile creation failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class PatientDetailsView(APIView):
     permission_classes = [AllowAny]
@@ -595,6 +605,8 @@ class PatientDetailsView(APIView):
             user.is_profile_complete = True
             user.save()
 
+            logger.info(f"Patient profile created: {email}")
+
             return Response({
                 'success': True,
                 'message': 'Patient profile created successfully! You can now login.',
@@ -611,54 +623,52 @@ class PatientDetailsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class DoctorLoginView(APIView):
+
+class LoginView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-    operation_description="Authenticate doctor and receive JWT tokens. User must select 'doctor' role via /api/select-role/ before login.",
-    operation_summary="Doctor Login",
-    request_body=DoctorLoginSerializer,
-    responses={
-        200: openapi.Response(
-            description="Login successful",
-            examples={
-                "application/json": {
-                    "success": True,
-                    "message": "Login successful!",
-                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                    "user": {
-                        "user_id": 1,
-                        "username": "Dr. Smith",
-                        "email": "doctor@example.com",
-                        "role": "doctor",
-                        "doctor_id": 123,
-                        "specialization": "Cardiology",
-                        "department": "Cardiology",
-                        "is_approved": True
+        operation_description="Unified login endpoint for both doctors and patients. Validates credentials against role stored in session.",
+        operation_summary="User Login",
+        request_body=LoginSerializer,
+        responses={
+            200: openapi.Response(
+                description="Login successful",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Login successful!",
+                        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                        "user": {
+                            "user_id": 1,
+                            "username": "johndoe",
+                            "email": "user@example.com",
+                            "role": "doctor",
+                            "profile_id": 123
+                        }
                     }
                 }
-            }
-        ),
-        400: openapi.Response(
-            description="Invalid credentials or role not selected",
-            examples={
-                "application/json": {
-                    "success": False,
-                    "errors": {
-                        "non_field_errors": ["No role selected. Please select a role first from the landing page."]
+            ),
+            400: openapi.Response(
+                description="Invalid credentials or role not selected",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "errors": {
+                            "non_field_errors": ["No role selected. Please select a role first from the landing page."]
+                        }
                     }
                 }
-            }
-        ),
-        404: "Profile not found",
-        500: "Login failed"
-    },
-    tags=['Authentication']
-)
+            ),
+            404: "Profile not found",
+            500: "Login failed"
+        },
+        tags=['Authentication']
+    )
     def post(self, request):
         try:
-            serializer = DoctorLoginSerializer(data=request.data, context={'request': request})
+            serializer = LoginSerializer(data=request.data, context={'request': request})
 
             if not serializer.is_valid():
                 return Response(
@@ -667,19 +677,45 @@ class DoctorLoginView(APIView):
                 )
 
             user = serializer.validated_data['user']
+            role = user.role
 
-            try:
-                doctor = Doctor.objects.get(user=user)
-            except Doctor.DoesNotExist:
-                logger.error(f"Doctor profile not found for user: {user.email}")
-                return Response(
-                    {'success': False, 'error': 'Profile not found. Please complete your profile.'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            profile_data = {}
+            
+            if role == 'doctor':
+                try:
+                    doctor = Doctor.objects.get(user=user)
+                    profile_data = {
+                        'profile_id': doctor.id,
+                        'specialization': doctor.specialization,
+                        'department': doctor.department,
+                        'is_approved': doctor.is_approved
+                    }
+                except Doctor.DoesNotExist:
+                    logger.error(f"Doctor profile not found for user: {user.email}")
+                    return Response(
+                        {'success': False, 'error': 'Profile not found. Please complete your profile.'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                try:
+                    patient = Patient.objects.get(user=user)
+                    profile_data = {
+                        'profile_id': patient.id,
+                        'gender': patient.gender,
+                        'phone_number': patient.phone_number
+                    }
+                except Patient.DoesNotExist:
+                    logger.error(f"Patient profile not found for user: {user.email}")
+                    return Response(
+                        {'success': False, 'error': 'Profile not found. Please complete your profile.'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
             refresh = RefreshToken.for_user(user)
 
-            return Response({
+            logger.info(f"Login successful: {user.email} as {role}")
+
+            response_data = {
                 'success': True,
                 'message': 'Login successful!',
                 'access_token': str(refresh.access_token),
@@ -688,107 +724,15 @@ class DoctorLoginView(APIView):
                     'user_id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'role': user.role,
-                    'doctor_id': doctor.id,
-                    'specialization': doctor.specialization,
-                    'department': doctor.department,
-                    'is_approved': doctor.is_approved
-                }
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            logger.error(f"Doctor login error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Login failed. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class PatientLoginView(APIView):
-    permission_classes = [AllowAny]
-
-    @swagger_auto_schema(
-    operation_description="Authenticate patient and receive JWT tokens. User must select 'patient' role via /api/select-role/ before login.",
-    operation_summary="Patient Login",
-    request_body=PatientLoginSerializer,
-    responses={
-        200: openapi.Response(
-            description="Login successful",
-            examples={
-                "application/json": {
-                    "success": True,
-                    "message": "Login successful!",
-                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-                    "user": {
-                        "user_id": 2,
-                        "username": "John Doe",
-                        "email": "patient@example.com",
-                        "role": "patient",
-                        "patient_id": 456,
-                        "gender": "Male",
-                        "phone_number": "+1234567890"
-                    }
+                    'role': role,
+                    **profile_data
                 }
             }
-        ),
-        400: openapi.Response(
-            description="Invalid credentials or role not selected",
-            examples={
-                "application/json": {
-                    "success": False,
-                    "errors": {
-                        "non_field_errors": ["No role selected. Please select a role first from the landing page."]
-                    }
-                }
-            }
-        ),
-        404: "Profile not found",
-        500: "Login failed"
-    },
-    tags=['Authentication']
-)
-    def post(self, request):
-        try:
-            serializer = PatientLoginSerializer(data=request.data, context={'request': request})
 
-            if not serializer.is_valid():
-                return Response(
-                    {'success': False, 'errors': serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            user = serializer.validated_data['user']
-
-            try:
-                patient = Patient.objects.get(user=user)
-            except Patient.DoesNotExist:
-                logger.error(f"Patient profile not found for user: {user.email}")
-                return Response(
-                    {'success': False, 'error': 'Profile not found. Please complete your profile.'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            refresh = RefreshToken.for_user(user)
-
-            return Response({
-                'success': True,
-                'message': 'Login successful!',
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
-                'user': {
-                    'user_id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'role': user.role,
-                    'patient_id': patient.id,
-                    'gender': patient.gender,
-                    'phone_number': patient.phone_number
-                }
-            }, status=status.HTTP_200_OK)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f"Patient login error: {str(e)}")
+            logger.error(f"Login error: {str(e)}")
             return Response(
                 {'success': False, 'error': 'Login failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -944,7 +888,6 @@ class ResetPasswordView(APIView):
 
 
 class ResendPasswordResetOTPView(APIView):
-
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
@@ -1080,7 +1023,6 @@ class CheckAccountStatusView(APIView):
                     'status': 'pending_verification',
                     'message': 'Email verification pending.',
                     'email': user.email,
-                    
                     'role': user.role,
                     'next_step': 'verify_otp'
                 }, status=status.HTTP_200_OK)
@@ -1091,7 +1033,6 @@ class CheckAccountStatusView(APIView):
                     'status': 'pending_profile',
                     'message': 'Please complete your profile.',
                     'email': user.email,
-                    
                     'role': user.role,
                     'next_step': 'complete_profile'
                 }, status=status.HTTP_200_OK)

@@ -9,17 +9,18 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-q7&0gu6s$(a1s_r&pti!d93(7jqt4rve=q=qfelta+fgnw^m)y')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-q7&0gu6s$(a1s_r&pti!d93(7jqt4rve=q=qfgnw^m)y')
 
 DEBUG = config('DEBUG', default=False, cast=bool)
-print("DEBUGGING ALLOWED_HOSTS =", config('ALLOWED_HOSTS', default='NOT FOUND'))
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
-    SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
-    CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
+    SESSION_COOKIE_SECURE = True  # FIXED: Must be True in production
+    CSRF_COOKIE_SECURE = True     # FIXED: Must be True in production
     SECURE_BROWSER_XSS_FILTER = config('SECURE_BROWSER_XSS_FILTER', default=True, cast=bool)
     SECURE_CONTENT_TYPE_NOSNIFF = config('SECURE_CONTENT_TYPE_NOSNIFF', default=True, cast=bool)
     X_FRAME_OPTIONS = config('X_FRAME_OPTIONS', default='DENY')
+
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 INSTALLED_APPS = [
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'Authapi',
     'django_q',
 ]
+
 Q_CLUSTER = {
     'name': 'MedtraxQueue',
     'workers': 4,
@@ -48,12 +50,10 @@ Q_CLUSTER = {
     'cpu_affinity': 1,
     'label': 'Django Q',
     'redis': {
-        'host': '127.0.0.1',
-        'port': 6379,
+        'host': config('REDIS_HOST', default='127.0.0.1'),
+        'port': config('REDIS_PORT', default=6379, cast=int),
         'db': 0,
-        'password': None,
-        'socket_timeout': None,
-        'unix_socket_path': None
+        'password': config('REDIS_PASSWORD', default=None),
     }
 }
 
@@ -106,18 +106,10 @@ else:
 AUTH_USER_MODEL = 'Authapi.CustomUser'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 REST_FRAMEWORK = {
@@ -139,19 +131,25 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'ALGORITHM': 'HS256',
 }
+
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  
+SESSION_COOKIE_AGE = 3600 
+SESSION_SAVE_EVERY_REQUEST = False 
+SESSION_COOKIE_HTTPONLY = True  
+
 if DEBUG:
     SESSION_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = 'Lax'
     CSRF_COOKIE_SECURE = False
 else:
-    SESSION_COOKIE_SAMESITE = 'None'  
-    SESSION_COOKIE_SECURE = True   
-    CSRF_COOKIE_SECURE = True
-    
-SESSION_COOKIE_HTTPONLY = True
 
-CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'None' 
+    SESSION_COOKIE_SECURE = True     
+    CSRF_COOKIE_SAMESITE = 'None'     
+    CSRF_COOKIE_SECURE = True        
+
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = []
@@ -160,6 +158,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
@@ -170,14 +169,24 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER', default='Medtrax.HospitalManagement@gmail.com')
 
+# LOCALIZATION
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_HEADERS = ['content-type','authorization','x-csrftoken','x-requested-with']
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
+CORS_ALLOW_CREDENTIALS = True  
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -208,6 +217,3 @@ LOGGING = {
         },
     },
 }
-
-
-
