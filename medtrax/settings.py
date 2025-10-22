@@ -9,7 +9,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-q7&0gu6s$(a1s_r&pti!d93(7jqt4rve=q=qfgnw^m)y')
+SECRET_KEY = config('SECRET_KEY')
 
 DEBUG = config('DEBUG', default=False, cast=bool)
 
@@ -88,7 +88,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'medtrax.wsgi.application'
 
-database_url = config('DATABASE_URL', default='postgresql://medtraxdata_user:lZRCfyLqxR0flABF62RLartNc9JbtAd4@dpg-d3pfqj49c44c73c0k4qg-a.oregon-postgres.render.com/medtraxdata')
+database_url = config('DATABASE_URL', default=None)
 if database_url and not database_url.startswith('sqlite'):
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -139,10 +139,10 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True  
 
 if DEBUG:
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_DOMAIN = config('SESSION_COOKIE_DOMAIN', default=None)  # Set to '.yourdomain.com' in production
+SESSION_COOKIE_PATH = '/'
+SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True  
 else:
 
     SESSION_COOKIE_SAMESITE = 'None' 

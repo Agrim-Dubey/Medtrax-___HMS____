@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.db import transaction, IntegrityError
 from django.db import transaction
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
@@ -217,15 +218,7 @@ class SignupView(APIView):
             user.set_password(password)
             user.save()
 
-            try:
-                OTPEmailService.send_email(email, otp, 'verification')
-            except Exception as e:
-                logger.error(f"Failed to send OTP email for signup: {str(e)}")
-                user.delete()
-                return Response(
-                    {'success': False, 'error': 'Failed to send verification email. Please try again.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            
 
             logger.info(f"User registered successfully: {email} as {role}")
 
@@ -350,9 +343,22 @@ class ResendSignupOTPView(APIView):
                 )
 
             user = serializer.validated_data['user']
+            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
+                return Response(
+                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
             email = user.email
             otp = str(random.randint(100000, 999999))
+    
 
+            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
+                return Response(
+                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+            email = user.email
             user.otp = otp
             user.otp_created_at = timezone.now()
             user.otp_attempts = 0
@@ -380,6 +386,7 @@ class ResendSignupOTPView(APIView):
                 {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 
 class DoctorDetailsView(APIView):
@@ -449,33 +456,35 @@ class DoctorDetailsView(APIView):
                     {'success': False, 'error': 'Doctor profile already exists for this account.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            doctor = Doctor.objects.create(
-                user=user,
-                first_name=serializer.validated_data['first_name'],
-                last_name=serializer.validated_data['last_name'],
-                date_of_birth=serializer.validated_data['date_of_birth'],
-                gender=serializer.validated_data['gender'],
-                blood_group=serializer.validated_data['blood_group'],
-                marital_status=serializer.validated_data.get('marital_status', ''),
-                address=serializer.validated_data.get('address', ''),
-                city=serializer.validated_data['city'],
-                state=serializer.validated_data.get('state', ''),
-                pincode=serializer.validated_data.get('pincode', ''),
-                country=serializer.validated_data.get('country', ''),
-                registration_number=serializer.validated_data.get('registration_number', ''),
-                specialization=serializer.validated_data.get('specialization', ''),
-                qualification=serializer.validated_data.get('qualification', ''),
-                years_of_experience=serializer.validated_data.get('years_of_experience'),
-                department=serializer.validated_data.get('department', ''),
-                clinic_name=serializer.validated_data.get('clinic_name', ''),
-                phone_number=serializer.validated_data['phone_number'],
-                alternate_phone_number=serializer.validated_data.get('alternate_phone_number', ''),
-                alternate_email=serializer.validated_data.get('alternate_email', ''),
-                emergency_contact_person=serializer.validated_data.get('emergency_contact_person', ''),
-                emergency_contact_number=serializer.validated_data.get('emergency_contact_number', '')
-            )
-
+            try:
+                doctor = Doctor.objects.create(
+                    user=user,
+                    first_name=serializer.validated_data['first_name'],
+                    last_name=serializer.validated_data['last_name'],
+                    date_of_birth=serializer.validated_data['date_of_birth'],
+                    gender=serializer.validated_data['gender'],
+                    blood_group=serializer.validated_data['blood_group'],
+                    marital_status=serializer.validated_data.get('marital_status', ''),
+                    address=serializer.validated_data.get('address', ''),
+                    city=serializer.validated_data['city'],
+                    state=serializer.validated_data.get('state', ''),
+                    pincode=serializer.validated_data.get('pincode', ''),
+                    country=serializer.validated_data.get('country', ''),
+                    registration_number=serializer.validated_data.get('registration_number', ''),
+                    specialization=serializer.validated_data.get('specialization', ''),
+                    qualification=serializer.validated_data.get('qualification', ''),
+                    years_of_experience=serializer.validated_data.get('years_of_experience'),
+                    department=serializer.validated_data.get('department', ''),
+                    clinic_name=serializer.validated_data.get('clinic_name', ''),
+                    phone_number=serializer.validated_data['phone_number'],
+                    alternate_phone_number=serializer.validated_data.get('alternate_phone_number', ''),
+                    alternate_email=serializer.validated_data.get('alternate_email', ''),
+                    emergency_contact_person=serializer.validated_data.get('emergency_contact_person', ''),
+                    emergency_contact_number=serializer.validated_data.get('emergency_contact_number', '')
+                )
+            except IntegrityError:
+                return Response({'success':False, 'error':'Phone number alreadyregistered. Please use a different number.'},status = status.HTTP_400_BAD_REQUEST)
+                
             username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
             base_username = username
             counter = 1
@@ -573,26 +582,28 @@ class PatientDetailsView(APIView):
                     {'success': False, 'error': 'Patient profile already exists for this account.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            patient = Patient.objects.create(
-                user=user,
-                first_name=serializer.validated_data['first_name'],
-                last_name=serializer.validated_data['last_name'],
-                date_of_birth=serializer.validated_data['date_of_birth'],
-                blood_group=serializer.validated_data['blood_group'],
-                gender=serializer.validated_data['gender'],
-                city=serializer.validated_data['city'],
-                phone_number=serializer.validated_data['phone_number'],
-                emergency_contact=serializer.validated_data.get('emergency_contact', ''),
-                emergency_email=serializer.validated_data.get('emergency_email', ''),
-                is_insurance=serializer.validated_data.get('is_insurance', False),
-                ins_company_name=serializer.validated_data.get('ins_company_name', ''),
-                ins_policy_number=serializer.validated_data.get('ins_policy_number', ''),
-                known_allergies=serializer.validated_data.get('known_allergies', ''),
-                chronic_diseases=serializer.validated_data.get('chronic_diseases', ''),
-                previous_surgeries=serializer.validated_data.get('previous_surgeries', ''),
-                family_medical_history=serializer.validated_data.get('family_medical_history', '')
-            )
+            try:
+                patient = Patient.objects.create(
+                    user=user,
+                    first_name=serializer.validated_data['first_name'],
+                    last_name=serializer.validated_data['last_name'],
+                    date_of_birth=serializer.validated_data['date_of_birth'],
+                    blood_group=serializer.validated_data['blood_group'],
+                    gender=serializer.validated_data['gender'],
+                    city=serializer.validated_data['city'],
+                    phone_number=serializer.validated_data['phone_number'],
+                    emergency_contact=serializer.validated_data.get('emergency_contact', ''),
+                    emergency_email=serializer.validated_data.get('emergency_email', ''),
+                    is_insurance=serializer.validated_data.get('is_insurance', False),
+                    ins_company_name=serializer.validated_data.get('ins_company_name', ''),
+                    ins_policy_number=serializer.validated_data.get('ins_policy_number', ''),
+                    known_allergies=serializer.validated_data.get('known_allergies', ''),
+                    chronic_diseases=serializer.validated_data.get('chronic_diseases', ''),
+                    previous_surgeries=serializer.validated_data.get('previous_surgeries', ''),
+                    family_medical_history=serializer.validated_data.get('family_medical_history', '')
+                )
+            except IntegrityError:
+                return Response({'success':False,'error':'Phone number already registered. Please use a different number.'}, status = status.HTTP_400_BAD_REQUEST)
 
             username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
             base_username = username
@@ -921,6 +932,11 @@ class ResendPasswordResetOTPView(APIView):
                 )
 
             user = serializer.validated_data['user']
+            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
+                return Response(
+                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
             email = user.email
             otp = str(random.randint(100000, 999999))
 
