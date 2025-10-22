@@ -224,7 +224,7 @@ class SignupView(APIView):
             user.save()
 
             try:
-                async_task("Authapi.tasks.send_otp_email_task", email, otp)
+                async_task("Authapi.tasks.send_otp_email_task", email, otp,"Verification")
                 logger.info(f"OTP email queued via Django Q for {email}")
             except Exception as e:
                 logger.warning(f"Django Q failed, sending directly: {e}")
