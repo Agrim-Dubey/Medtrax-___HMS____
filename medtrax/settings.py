@@ -139,10 +139,10 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True  
 
 if DEBUG:
-SESSION_COOKIE_DOMAIN = config('SESSION_COOKIE_DOMAIN', default=None)  # Set to '.yourdomain.com' in production
-SESSION_COOKIE_PATH = '/'
-SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
-SESSION_SAVE_EVERY_REQUEST = True  
+    SESSION_COOKIE_DOMAIN = config('SESSION_COOKIE_DOMAIN', default=None)  # Set to '.yourdomain.com' in production
+    SESSION_COOKIE_PATH = '/'
+    SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+    SESSION_SAVE_EVERY_REQUEST = True  
 else:
 
     SESSION_COOKIE_SAMESITE = 'None' 

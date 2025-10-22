@@ -81,9 +81,16 @@ class SignupSerializer(serializers.Serializer):
             raise serializers.ValidationError("Request context is required.")
         
         role = request.session.get('selected_role')
-        
+        role_selected_at = request.session.get('role_selected_at')
+
         if not role:
             raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
+
+        if role_selected_at:
+            from dateutil import parser
+            selected_time = parser.isoparse(role_selected_at)
+            if timezone.now() - selected_time > timedelta(minutes=15):
+                raise serializers.ValidationError("Role selection expired. Please select your role again.")
         
         if role not in ['doctor', 'patient']:
             raise serializers.ValidationError("Invalid role in session. Please select a role again.")

@@ -14,7 +14,6 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True, db_index=True)
     is_verified = models.BooleanField(default=False)
     is_profile_complete = models.BooleanField(default=False)
-
     otp = models.CharField(max_length=6, null=True, blank=True)
     otp_created_at = models.DateTimeField(null=True, blank=True)
     otp_attempts = models.IntegerField(default=0)
@@ -140,6 +139,9 @@ class Doctor(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+        models.UniqueConstraint(fields=['phone_number'], name='unique_doctor_phone')
+    ]
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['phone_number']),
@@ -203,6 +205,9 @@ class Patient(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+        models.UniqueConstraint(fields=['phone_number'], name='unique_patient_phone')
+    ]
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['phone_number']),
