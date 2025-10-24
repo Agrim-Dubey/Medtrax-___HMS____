@@ -19,10 +19,8 @@ class CustomUser(AbstractUser):
     otp_attempts = models.IntegerField(default=0)
     otp_locked_until = models.DateTimeField(null=True, blank=True)
     otp_type = models.CharField(max_length=15, null=True, blank=True, help_text="verification or reset")
-
     login_attempts = models.IntegerField(default=0)
     login_locked_until = models.DateTimeField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -42,7 +40,6 @@ class CustomUser(AbstractUser):
         return f"{self.username if self.username else self.email} ({self.role if self.role else 'unassigned'})"
 
     def is_otp_locked(self):
-        """Check if OTP attempts are locked due to too many failed attempts"""
         if self.otp_locked_until and timezone.now() < self.otp_locked_until:
             return True
         if self.otp_locked_until and timezone.now() >= self.otp_locked_until:

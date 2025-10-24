@@ -14,6 +14,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random
 from datetime import timedelta
+from dateutil import parser
 
 
 from Authapi.models import CustomUser, Doctor, Patient
@@ -195,64 +196,61 @@ class SignupView(APIView):
     )
     @transaction.atomic
     def post(self, request):
-        try:
-            serializer = SignupSerializer(data=request.data, context={'request': request})
-            
-            if not serializer.is_valid():
-                return Response(
-                    {'success': False, 'errors': serializer.errors},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            email = serializer.validated_data['email']
-            password = serializer.validated_data['password1']
-            role = serializer.validated_data['role']
-
-            otp = str(random.randint(100000, 999999))
-
-            user = CustomUser.objects.create(
-                username=email,
-                email=email,
-                role=role,
-                otp=otp,
-                otp_created_at=timezone.now(),
-                otp_type='verification',
-                is_verified=False,
-                is_profile_complete=False
-            )
-            user.set_password(password)
-            user.save()
-
             try:
-                async_task("Authapi.tasks.send_otp_email_task", email, otp,"Verification")
-                logger.info(f"OTP email queued via Django Q for {email}")
+                serializer = SignupSerializer(data=request.data, context={'request': request})
+                
+                if not serializer.is_valid():
+                    return Response(
+                        {'success': False, 'errors': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                email = serializer.validated_data['email']
+                password = serializer.validated_data['password1']
+                role = serializer.validated_data['role']
+
+                otp = str(random.randint(100000, 999999))
+
+                request.session['temp_signup_data'] = {
+                    'email': email,
+                    'password': password,
+                    'role': role,
+                    'otp': otp,
+                    'otp_created_at': timezone.now().isoformat(),
+                    'otp_attempts': 0,
+                    'otp_locked_until': None
+                }
+                request.session.modified = True
+
+                try:
+                    async_task("Authapi.tasks.send_otp_email_task", email, otp, "Verification")
+                    logger.info(f"OTP email queued via Django Q for {email}")
+                except Exception as e:
+                    logger.warning(f"Django Q failed, sending directly: {e}")
+                    send_mail(
+                        "Your Med-Trax Verification Code",
+                        f"Your verification code is {otp}. It is valid for 3 minutes.",
+                        settings.EMAIL_HOST_USER,
+                        [email],
+                        fail_silently=False,
+                    )
+
+                logger.info(f"Signup data stored in session for: {email} as {role}")
+
+                return Response({
+                    'success': True,
+                    'message': 'OTP sent to your email. Valid for 3 minutes.',
+                    'email': email,
+                    'role': role,
+                    'next_step': 'verify_otp'
+                }, status=status.HTTP_201_CREATED)
+
             except Exception as e:
-                logger.warning(f"Django Q failed, sending directly: {e}")
-                send_mail(
-                    "Your Med-Trax Verification Code",
-                    f"Your verification code is {otp}. It is valid for 3 minutes.",
-                    settings.EMAIL_HOST_USER,
-                    [email],
-                    fail_silently=False,
+                logger.error(f"Signup error: {str(e)}")
+                return Response(
+                    {'success': False, 'error': 'Signup failed. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
-            logger.info(f"User registered successfully: {email} as {role}")
-
-            return Response({
-                'success': True,
-                'message': 'Account created! OTP sent to your email. Valid for 3 minutes.',
-                'email': email,
-                'role': role,
-                'next_step': 'verify_otp'
-            }, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            logger.error(f"Signup error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Signup failed. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
 
 
 class VerifySignupOTPView(APIView):
@@ -294,7 +292,10 @@ class VerifySignupOTPView(APIView):
     @transaction.atomic
     def post(self, request):
         try:
-            serializer = VerifySignupOTPSerializer(data=request.data)
+            serializer = VerifySignupOTPSerializer(
+                data=request.data, 
+                context={'request': request}
+            )
 
             if not serializer.is_valid():
                 return Response(
@@ -302,13 +303,27 @@ class VerifySignupOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            user = serializer.validated_data['user']
+            temp_signup_data = serializer.validated_data['temp_signup_data']
+            
+            email = temp_signup_data['email']
+            password = temp_signup_data['password']
+            role = temp_signup_data['role']
 
-            user.is_verified = True
-            user.clear_otp()
+            user = CustomUser.objects.create(
+                username=email,
+                email=email,
+                role=role,
+                is_verified=True,
+                is_profile_complete=False
+            )
+            user.set_password(password)
             user.save()
 
-            logger.info(f"Email verified successfully: {user.email}")
+            if 'temp_signup_data' in request.session:
+                del request.session['temp_signup_data']
+            request.session.modified = True
+
+            logger.info(f"User created and verified: {email} as {role}")
 
             return Response({
                 'success': True,
@@ -351,7 +366,10 @@ class ResendSignupOTPView(APIView):
     )
     def post(self, request):
         try:
-            serializer = ResendSignupOTPSerializer(data=request.data)
+            serializer = ResendSignupOTPSerializer(
+                data=request.data,
+                context={'request': request}
+            )
 
             if not serializer.is_valid():
                 return Response(
@@ -359,31 +377,27 @@ class ResendSignupOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            user = serializer.validated_data['user']
-            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
-                return Response(
-                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            email = user.email
+            temp_signup_data = serializer.validated_data['temp_signup_data']
+            email = temp_signup_data['email']
+            
+            if temp_signup_data.get('otp_created_at'):
+                created_time = parser.isoparse(temp_signup_data['otp_created_at'])
+                if (timezone.now() - created_time) < timedelta(seconds=30):
+                    return Response(
+                        {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
+                        status=status.HTTP_429_TOO_MANY_REQUESTS
+                    )
+
             otp = str(random.randint(100000, 999999))
-    
-
-            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
-                return Response(
-                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-
-            email = user.email
-            user.otp = otp
-            user.otp_created_at = timezone.now()
-            user.otp_attempts = 0
-            user.otp_locked_until = None
-            user.save()
+            
+            temp_signup_data['otp'] = otp
+            temp_signup_data['otp_created_at'] = timezone.now().isoformat()
+            temp_signup_data['otp_attempts'] = 0
+            temp_signup_data['otp_locked_until'] = None
+            request.session.modified = True
 
             try:
-                OTPEmailService.send_email(email, otp, 'resend')
+                OTPEmailService.send_email(email, otp, 'verification')
             except Exception as e:
                 logger.error(f"Failed to resend OTP email: {str(e)}")
                 return Response(
@@ -705,7 +719,18 @@ class LoginView(APIView):
                 )
 
             user = serializer.validated_data['user']
+            is_profile_complete = serializer.validated_data['is_profile_complete']
             role = user.role
+
+            if not is_profile_complete:
+                return Response({
+                    'success': False,
+                    'is_profile_complete': False,
+                    'message': 'Please complete your profile first.',
+                    'email': user.email,
+                    'role': role,
+                    'next_step': 'complete_profile'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             profile_data = {}
             

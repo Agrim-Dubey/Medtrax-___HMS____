@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 import dj_database_url
 
 load_dotenv()
-
+env_file = '.env.local' if os.path.exists('.env.local') else '.env'
+load_dotenv(env_file)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'Authapi',
     'django_q',
+    'chat_room'
 ]
 
 Q_CLUSTER = {
@@ -225,6 +227,15 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
+        },
+    },
+}
+ASGI_APPLICATION = 'medtrax.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],  # or "redis" if using docker-compose
         },
     },
 }

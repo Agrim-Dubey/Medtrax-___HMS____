@@ -64,7 +64,7 @@ class SignupSerializer(serializers.Serializer):
     
     def validate_email(self, value):
         value = value.strip().lower()
-        if CustomUser.objects.filter(email=value).exists():
+        if CustomUser.objects.filter(email=value, is_verified=True).exists():
             raise serializers.ValidationError("This email is already registered.")
         return value
 
@@ -115,37 +115,51 @@ class VerifySignupOTPSerializer(serializers.Serializer):
     def validate(self, data):
         email = data.get('email')
         otp = data.get('otp')
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("Email not found. Please register first.")
-
-        if user.is_verified:
-            raise serializers.ValidationError("This email is already verified. Please log in.")
-
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+        
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+        temp_signup_data = request.session.get('temp_signup_data')
+        
+        if not temp_signup_data:
+            raise serializers.ValidationError("No pending signup found. Please register first.")
+        if temp_signup_data.get('email') != email:
+            raise serializers.ValidationError("Email does not match signup email.")
+        otp_locked_until = temp_signup_data.get('otp_locked_until')
+        if otp_locked_until:
+            from dateutil import parser
+            locked_time = parser.isoparse(otp_locked_until)
+            if timezone.now() < locked_time:
+                remaining = max(0, (locked_time - timezone.now()).total_seconds() // 60)
                 raise serializers.ValidationError(f"Too many OTP attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
+            else:
+                temp_signup_data['otp_locked_until'] = None
+                temp_signup_data['otp_attempts'] = 0
+                request.session.modified = True
 
-        if not user.otp:
+        if not temp_signup_data.get('otp'):
             raise serializers.ValidationError("No OTP found. Request a new one.")
-
-        if user.is_otp_expired():
-            user.clear_otp()
-            raise serializers.ValidationError("OTP expired. Request a new one.")
-
-        if user.otp != otp:
-            user.otp_attempts += 1
-            if user.otp_attempts >= 3:
-                user.otp_locked_until = timezone.now() + timedelta(minutes=10)
-            user.save()
-            attempts_left = max(0, 3 - user.otp_attempts)
+        otp_created_at = temp_signup_data.get('otp_created_at')
+        if otp_created_at:
+            from dateutil import parser
+            created_time = parser.isoparse(otp_created_at)
+            if timezone.now() - created_time > timedelta(minutes=3):
+                raise serializers.ValidationError("OTP expired. Request a new one.")
+        else:
+            raise serializers.ValidationError("No OTP found. Request a new one.")
+        if temp_signup_data.get('otp') != otp:
+            temp_signup_data['otp_attempts'] = temp_signup_data.get('otp_attempts', 0) + 1
+            
+            if temp_signup_data['otp_attempts'] >= 3:
+                temp_signup_data['otp_locked_until'] = (timezone.now() + timedelta(minutes=10)).isoformat()
+            
+            request.session.modified = True
+            
+            attempts_left = max(0, 3 - temp_signup_data['otp_attempts'])
             raise serializers.ValidationError(f"Invalid OTP. {attempts_left} attempts remaining.")
-
-        data['user'] = user
+        
+        
+        data['temp_signup_data'] = temp_signup_data
         return data
 
 
@@ -157,27 +171,36 @@ class ResendSignupOTPSerializer(serializers.Serializer):
 
     def validate(self, data):
         email = data.get('email')
+        
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Request context is required.")
+        
+        temp_signup_data = request.session.get('temp_signup_data')
+        
+        if not temp_signup_data:
+            raise serializers.ValidationError("No pending signup found. Please register first.")
+        if temp_signup_data.get('email') != email:
+            raise serializers.ValidationError("Email does not match signup email.")
 
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email.")
-
-        if user.is_verified:
-            raise serializers.ValidationError("This email is already verified. Please log in.")
-
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+        otp_locked_until = temp_signup_data.get('otp_locked_until')
+        if otp_locked_until:
+            from dateutil import parser
+            locked_time = parser.isoparse(otp_locked_until)
+            if timezone.now() < locked_time:
+                remaining = max(0, (locked_time - timezone.now()).total_seconds() // 60)
                 raise serializers.ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        data['user'] = user
+            else:
+             
+                temp_signup_data['otp_locked_until'] = None
+                temp_signup_data['otp_attempts'] = 0
+                request.session.modified = True
+        
+        data['temp_signup_data'] = temp_signup_data
         return data
 
 
 class LoginSerializer(serializers.Serializer):
-    """UNIFIED LOGIN SERIALIZER - Works for both Doctor and Patient based on session role"""
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True)
 
@@ -205,14 +228,12 @@ class LoginSerializer(serializers.Serializer):
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError("Invalid email or password.")
 
-        # Check login lock
         if user.is_login_locked():
             if user.login_locked_until:
                 remaining = max(0, (user.login_locked_until - timezone.now()).total_seconds() // 60)
                 raise serializers.ValidationError(f"Account locked due to multiple failed attempts. Try again in {int(remaining) + 1} minutes.")
             raise serializers.ValidationError("Account temporarily locked. Try again later.")
 
-        # Validate password
         if not user.check_password(password):
             user.login_attempts += 1
             if user.login_attempts >= 5:
@@ -220,22 +241,15 @@ class LoginSerializer(serializers.Serializer):
             user.save()
             raise serializers.ValidationError("Invalid email or password.")
 
-        # Reset login attempts on success
         user.reset_login_attempts()
 
-        # Check if user role matches session role
         if user.role != role:
             raise serializers.ValidationError(f"This account is not registered as a {role}. Please select the correct role.")
 
-        # Check verification status
         if not user.is_verified:
             raise serializers.ValidationError("Your account is not verified. Please verify your email first.")
-
-        # Check profile completion
-        if not user.is_profile_complete:
-            raise serializers.ValidationError("Your profile is incomplete. Please complete your profile details.")
-
         data['user'] = user
+        data['is_profile_complete'] = user.is_profile_complete
         return data
 
 
