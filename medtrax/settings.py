@@ -138,18 +138,36 @@ SESSION_COOKIE_HTTPONLY = True
 ALLOW_HTTP_ORIGINS = config('ALLOW_HTTP_ORIGINS', default=False, cast=bool)
 
 if ALLOW_HTTP_ORIGINS:
- 
     SESSION_COOKIE_SECURE = False  
     SESSION_COOKIE_SAMESITE = 'Lax' 
     CSRF_COOKIE_SECURE = False
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_SAVE_EVERY_REQUEST = True
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 else:
-  
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_SAMESITE = 'None'
     CSRF_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = 'None'
+    CSRF_TRUSTED_ORIGINS = [
+        "https://medtrax.me",
+        "https://www.medtrax.me",
+    ]
+    CORS_ALLOWED_ORIGINS = [
+        "https://medtrax.me",
+        "https://www.medtrax.me",
+    ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = []
@@ -173,21 +191,9 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://medtrax.me",
-    "https://www.medtrax.me",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
 
-CORS_ALLOWED_ORIGINS = [
-    "https://medtrax.me",
-    "https://www.medtrax.me",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+
+
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
