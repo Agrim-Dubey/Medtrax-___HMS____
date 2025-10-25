@@ -163,10 +163,22 @@ else:
     CSRF_TRUSTED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
     ]
     CORS_ALLOWED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
     ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
