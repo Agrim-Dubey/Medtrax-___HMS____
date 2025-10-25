@@ -6,9 +6,8 @@ from dotenv import load_dotenv
 import dj_database_url
 
 load_dotenv()
-env_file = '.env.local' if os.path.exists('.env.local') else '.env'
-load_dotenv(env_file)
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+BASE_DIR = Path(_file_).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
 
@@ -38,7 +37,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'Authapi',
     'django_q',
-    'chat_room'
+    'django_extensions',
 ]
 
 Q_CLUSTER = {
@@ -134,23 +133,25 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
 }
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 3600
+SESSION_COOKIE_HTTPONLY = True
+ALLOW_HTTP_ORIGINS = config('ALLOW_HTTP_ORIGINS', default=False, cast=bool)
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  
-SESSION_COOKIE_AGE = 3600 
-SESSION_SAVE_EVERY_REQUEST = False 
-SESSION_COOKIE_HTTPONLY = True  
-
-if DEBUG:
-    SESSION_COOKIE_DOMAIN = config('SESSION_COOKIE_DOMAIN', default='medtrax.me')  # Set to '.yourdomain.com' in production
-    SESSION_COOKIE_PATH = '/'
-    SESSION_COOKIE_SAMESITE = 'None' 
-    SESSION_SAVE_EVERY_REQUEST = True  
+if ALLOW_HTTP_ORIGINS:
+   
+    SESSION_COOKIE_SECURE = False  
+    SESSION_COOKIE_SAMESITE = 'Lax'  
+    CSRF_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_SAVE_EVERY_REQUEST = True
 else:
-
-    SESSION_COOKIE_SAMESITE = 'None' 
-    SESSION_COOKIE_SECURE = True     
-    CSRF_COOKIE_SAMESITE = 'None'     
-    CSRF_COOKIE_SECURE = True        
+   
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'None'
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = 'None'
+        
 
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -227,15 +228,6 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
-        },
-    },
-}
-ASGI_APPLICATION = 'medtrax.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],  # or "redis" if using docker-compose
         },
     },
 }

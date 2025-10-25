@@ -1,5 +1,4 @@
-
-__pycache__/
+_pycache_/
 *.py[cod]
 
 venv/
@@ -7,13 +6,14 @@ env/
 
 
 .env
-
+.env.development
+.env.production
 
 *.log
 
 
-**/migrations/*.py
-!**/migrations/__init__.py
+*/migrations/.py
+!/migrations/_init_.py
 
 *.sqlite3
 
