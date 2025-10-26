@@ -105,8 +105,6 @@ class SelectRoleView(APIView):
                 {'success': False, 'error': 'Role selection failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class ClearRoleView(APIView):
     permission_classes = [AllowAny]
 
@@ -148,8 +146,6 @@ class ClearRoleView(APIView):
                 {'success': False, 'error': 'Failed to clear role.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
@@ -251,8 +247,6 @@ class SignupView(APIView):
                     {'success': False, 'error': 'Signup failed. Please try again.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
-
 class VerifySignupOTPView(APIView):
     permission_classes = [AllowAny]
 
@@ -938,8 +932,6 @@ class ResetPasswordView(APIView):
                 {'success': False, 'error': 'Password reset failed. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class ResendPasswordResetOTPView(APIView):
     permission_classes = [AllowAny]
 
@@ -996,7 +988,6 @@ class ResendPasswordResetOTPView(APIView):
                     {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
             return Response({
                 'success': True,
                 'message': 'New OTP sent to your email. Valid for 3 minutes.',
@@ -1009,8 +1000,6 @@ class ResendPasswordResetOTPView(APIView):
                 {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class CheckAccountStatusView(APIView):
     permission_classes = [AllowAny]
 
