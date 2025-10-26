@@ -165,10 +165,12 @@ else:
     CSRF_TRUSTED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
+        "https://med-trax.vercel.app",
     ]
     CORS_ALLOWED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
+        "https://med-trax.vercel.app",
     ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
