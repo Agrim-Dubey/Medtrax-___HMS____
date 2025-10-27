@@ -146,12 +146,14 @@ if ALLOW_HTTP_ORIGINS:
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://med-trax.vercel.app",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://med-trax.vercel.app",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -163,22 +165,12 @@ else:
     CSRF_TRUSTED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
+        "https://med-trax.vercel.app",
     ]
     CORS_ALLOWED_ORIGINS = [
         "https://medtrax.me",
         "https://www.medtrax.me",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
+        "https://med-trax.vercel.app",
     ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
