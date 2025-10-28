@@ -141,7 +141,12 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_SAMESITE = None
 CSRF_COOKIE_HTTPONLY = False
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+    'https://medtrax.me',
+    'https://www.medtrax.me',
+    'https://med-trax.vercel.app',
+    'https://*.vercel.app',
+]
 CSRF_USE_SESSIONS = False
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
