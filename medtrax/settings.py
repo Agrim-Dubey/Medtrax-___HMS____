@@ -133,11 +133,7 @@ SESSION_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_SAMESITE = None
 
-CORS_ALLOWED_ORIGINS = [
-    'https://med-trax.vercel.app',
-    'https://medtrax.me',
-    'https://www.medtrax.me',
-]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
