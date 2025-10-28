@@ -22,6 +22,7 @@ X_FRAME_OPTIONS = config('X_FRAME_OPTIONS', default='DENY')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -135,43 +136,28 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 3600
 SESSION_COOKIE_HTTPONLY = True
 
-ALLOW_HTTP_ORIGINS = config('ALLOW_HTTP_ORIGINS', default=False, cast=bool)
+# CORS - Allow all origins (WARNING: NOT FOR PRODUCTION!)
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ['*']
+CORS_ALLOW_METHODS = ['*']
 
-if ALLOW_HTTP_ORIGINS:
-    SESSION_COOKIE_SECURE = False  
-    SESSION_COOKIE_SAMESITE = 'Lax' 
-    CSRF_COOKIE_SECURE = False
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_SAVE_EVERY_REQUEST = True
-    CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://med-trax.vercel.app",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://med-trax.vercel.app",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-else:
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_SAMESITE = 'None'
-    CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_SAMESITE = 'None'
-    CSRF_TRUSTED_ORIGINS = [
-        "https://medtrax.me",
-        "https://www.medtrax.me",
-        "https://med-trax.vercel.app",
-    ]
-    CORS_ALLOWED_ORIGINS = [
-        "https://medtrax.me",
-        "https://www.medtrax.me",
-        "https://med-trax.vercel.app",
-    ]
+# Session and CSRF settings
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://med-trax.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://medtrax.me",
+    "https://www.medtrax.me",
+]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = []
@@ -194,13 +180,6 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = [
-    "content-type",
-    "authorization",
-    "x-csrftoken",
-    "x-requested-with",
-]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -228,6 +207,16 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
+        },
+    },
+}
+
+ASGI_APPLICATION = 'medtrax.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
         },
     },
 }
