@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'Authapi',
     'django_q',
     'django_extensions',
+    'chat_room'
 ]
 
 Q_CLUSTER = {
@@ -140,7 +141,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
-    'GET',
+    'GET', 
     'OPTIONS',
     'PATCH',
     'POST',
