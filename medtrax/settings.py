@@ -234,3 +234,16 @@ CHANNEL_LAYERS = {
         },
     },
 }
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+        }
+    },
+    'DEFAULT_MODEL_RENDERING': 'example',
+    'VALIDATOR_URL': None,
+}
+SCHEMA_URL = 'https://medtrax.me'

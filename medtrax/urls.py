@@ -48,7 +48,7 @@ schema_view = get_schema_view(
         ),
         license=openapi.License(
             name="Proprietary License",
-            url="https://www.healthcare.com/license"
+            url="https://medtrax.me/"
         ),
     ),
     public=True,
