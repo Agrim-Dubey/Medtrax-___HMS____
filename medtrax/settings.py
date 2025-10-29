@@ -141,7 +141,8 @@ CORS_ALLOWED_ORIGINS = [
     'https://med-trax.vercel.app',
     'http://localhost:5175',
     'https://medtrax.me',
-    'https://www.medtrax.me'
+    'https://www.medtrax.me',
+    'http://localhost:5173'
 ]
 CORS_ALLOW_CREDENTIALS = True
 
