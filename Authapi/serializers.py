@@ -98,37 +98,9 @@ class VerifySignupOTPSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
-        email = data.get('email')
-        otp = data.get('otp')
-        
-        try:
-            user = CustomUser.objects.get(email=email, is_verified=False)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No pending signup found for this email.")
-        
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
-                raise serializers.ValidationError(f"Too many OTP attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        if not user.otp:
-            raise serializers.ValidationError("No OTP found. Request a new one.")
-        
-        if user.is_otp_expired():
-            user.clear_otp()
-            raise serializers.ValidationError("OTP expired. Request a new one.")
-        
-        if user.otp != otp:
-            user.otp_attempts += 1
-            if user.otp_attempts >= 3:
-                user.otp_locked_until = timezone.now() + timedelta(minutes=10)
-            user.save()
-            
-            attempts_left = max(0, 3 - user.otp_attempts)
-            raise serializers.ValidationError(f"Invalid OTP. {attempts_left} attempts remaining.")
-        
-        data['user'] = user
+        # OTP verification happens BEFORE user creation in signup flow
+        # No database validation needed here - the view will handle OTP validation
+        # against whatever temporary storage mechanism you're using (cache, temp model, etc.)
         return data
 
 
@@ -139,20 +111,8 @@ class ResendSignupOTPSerializer(serializers.Serializer):
         return value.strip().lower()
 
     def validate(self, data):
-        email = data.get('email')
-        
-        try:
-            user = CustomUser.objects.get(email=email, is_verified=False)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No pending signup found for this email.")
-
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
-                raise serializers.ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-        
-        data['user'] = user
+        # Similar to verify OTP - just validate the email format
+        # The view will handle checking if there's a pending signup for this email
         return data
 
 
