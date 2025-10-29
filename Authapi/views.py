@@ -265,7 +265,7 @@ class SignupView(APIView):
                     'message': 'OTP sent to your email. Valid for 3 minutes.',
                     'email': email,
                     'role': role,
-                    'next_step': 'verify_otp'
+                    
                 }, status=status.HTTP_201_CREATED)
 
             except Exception as e:
@@ -351,7 +351,6 @@ class VerifySignupOTPView(APIView):
                 'message': 'Email verified successfully! Please complete your profile.',
                 'email': user.email,
                 'role': user.role,
-                'next_step': 'complete_profile'
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -547,19 +546,27 @@ class DoctorDetailsView(APIView):
             user.username = username
             user.is_profile_complete = True
             user.save()
-
+           
+            refresh = RefreshToken.for_user(user)
             logger.info(f"Doctor profile created: {email}")
 
             return Response({
                 'success': True,
-                'message': 'Doctor profile created successfully! You can now login.',
-                'doctor_id': doctor.id,
-                'specialization': doctor.specialization,
-                'department': doctor.department,
-                'username': user.username,
-                'email': user.email,
-                'next_step': 'login'
+                'message': 'Doctor profile created successfully!',
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'user': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': 'doctor',
+                    'profile_id': doctor.id,
+                    'specialization': doctor.specialization,
+                    'department': doctor.department,
+                    'is_approved': doctor.is_approved
+                }
             }, status=status.HTTP_201_CREATED)
+
 
         except Exception as e:
             logger.error(f"Doctor profile creation error: {str(e)}")
@@ -667,16 +674,23 @@ class PatientDetailsView(APIView):
             user.username = username
             user.is_profile_complete = True
             user.save()
-
+            refresh = RefreshToken.for_user(user)
             logger.info(f"Patient profile created: {email}")
 
             return Response({
                 'success': True,
-                'message': 'Patient profile created successfully! You can now login.',
-                'patient_id': patient.id,
-                'username': user.username,
-                'email': user.email,
-                'next_step': 'login'
+                'message': 'Patient profile created successfully!',
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'user': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': 'patient',
+                    'profile_id': patient.id,
+                    'gender': patient.gender,
+                    'phone_number': patient.phone_number
+                }
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -749,7 +763,6 @@ class LoginView(APIView):
                     'message': 'Please complete your profile first.',
                     'email': user.email,
                     'role': role,
-                    'next_step': 'complete_profile'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             profile_data = {}
@@ -850,7 +863,7 @@ class ForgotPasswordView(APIView):
                 'success': True,
                 'message': 'OTP sent to your email. Valid for 3 minutes.',
                 'email': request.data.get('email'),
-                'next_step': 'verify_reset_otp'
+                
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -876,7 +889,6 @@ class VerifyPasswordResetOTPView(APIView):
                         "success": True,
                         "message": "OTP verified successfully! You can now reset your password.",
                         "email": "user@example.com",
-                        "next_step": "reset_password"
                     }
                 }
             ),
@@ -899,7 +911,6 @@ class VerifyPasswordResetOTPView(APIView):
                 'success': True,
                 'message': 'OTP verified successfully! You can now reset your password.',
                 'email': request.data.get('email'),
-                'next_step': 'reset_password'
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -924,7 +935,7 @@ class ResetPasswordView(APIView):
                     "application/json": {
                         "success": True,
                         "message": "Password reset successfully! Please login with your new password.",
-                        "next_step": "login"
+
                     }
                 }
             ),
@@ -949,7 +960,7 @@ class ResetPasswordView(APIView):
             return Response({
                 'success': True,
                 'message': 'Password reset successfully! Please login with your new password.',
-                'next_step': 'login'
+
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -1026,101 +1037,101 @@ class ResendPasswordResetOTPView(APIView):
                 {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-class CheckAccountStatusView(APIView):
-    permission_classes = [AllowAny]
+# class CheckAccountStatusView(APIView):
+#     permission_classes = [AllowAny]
 
-    @swagger_auto_schema(
-        operation_description="Check account status and get next registration step",
-        operation_summary="Check Account Status",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['email'],
-            properties={
-                'email': openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    format=openapi.FORMAT_EMAIL,
-                    description='Email address to check',
-                    example='user@example.com'
-                )
-            }
-        ),
-        responses={
-            200: openapi.Response(
-                description="Account status retrieved",
-                examples={
-                    "application/json": {
-                        "success": True,
-                        "status": "registered",
-                        "message": "Account fully registered. Please login.",
-                        "role": "doctor",
-                        "next_step": "login"
-                    }
-                }
-            ),
-            400: openapi.Response(
-                description="Email not provided",
-                examples={
-                    "application/json": {
-                        "success": False,
-                        "error": "Email is required."
-                    }
-                }
-            ),
-            500: "Status check failed"
-        },
-        tags=['Utility']
-    )
-    def post(self, request):
-        try:
-            email = request.data.get('email', '').strip()
+#     @swagger_auto_schema(
+#         operation_description="Check account status and get next registration step",
+#         operation_summary="Check Account Status",
+#         request_body=openapi.Schema(
+#             type=openapi.TYPE_OBJECT,
+#             required=['email'],
+#             properties={
+#                 'email': openapi.Schema(
+#                     type=openapi.TYPE_STRING,
+#                     format=openapi.FORMAT_EMAIL,
+#                     description='Email address to check',
+#                     example='user@example.com'
+#                 )
+#             }
+#         ),
+#         responses={
+#             200: openapi.Response(
+#                 description="Account status retrieved",
+#                 examples={
+#                     "application/json": {
+#                         "success": True,
+#                         "status": "registered",
+#                         "message": "Account fully registered. Please login.",
+#                         "role": "doctor",
+#                         "next_step": "login"
+#                     }
+#                 }
+#             ),
+#             400: openapi.Response(
+#                 description="Email not provided",
+#                 examples={
+#                     "application/json": {
+#                         "success": False,
+#                         "error": "Email is required."
+#                     }
+#                 }
+#             ),
+#             500: "Status check failed"
+#         },
+#         tags=['Utility']
+#     )
+#     def post(self, request):
+#         try:
+#             email = request.data.get('email', '').strip()
 
-            if not email:
-                return Response(
-                    {'success': False, 'error': 'Email is required.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+#             if not email:
+#                 return Response(
+#                     {'success': False, 'error': 'Email is required.'},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
 
-            try:
-                user = CustomUser.objects.get(email=email)
-            except CustomUser.DoesNotExist:
-                return Response({
-                    'success': True,
-                    'status': 'not_registered',
-                    'message': 'No account found. Please sign up.',
-                    'next_step': 'signup'
-                }, status=status.HTTP_200_OK)
+#             try:
+#                 user = CustomUser.objects.get(email=email)
+#             except CustomUser.DoesNotExist:
+#                 return Response({
+#                     'success': True,
+#                     'status': 'not_registered',
+#                     'message': 'No account found. Please sign up.',
+#                     'next_step': 'signup'
+#                 }, status=status.HTTP_200_OK)
 
-            if not user.is_verified:
-                return Response({
-                    'success': True,
-                    'status': 'pending_verification',
-                    'message': 'Email verification pending.',
-                    'email': user.email,
-                    'role': user.role,
-                    'next_step': 'verify_otp'
-                }, status=status.HTTP_200_OK)
+#             if not user.is_verified:
+#                 return Response({
+#                     'success': True,
+#                     'status': 'pending_verification',
+#                     'message': 'Email verification pending.',
+#                     'email': user.email,
+#                     'role': user.role,
+#                     'next_step': 'verify_otp'
+#                 }, status=status.HTTP_200_OK)
 
-            if user.is_verified and not user.is_profile_complete:
-                return Response({
-                    'success': True,
-                    'status': 'pending_profile',
-                    'message': 'Please complete your profile.',
-                    'email': user.email,
-                    'role': user.role,
-                    'next_step': 'complete_profile'
-                }, status=status.HTTP_200_OK)
+#             if user.is_verified and not user.is_profile_complete:
+#                 return Response({
+#                     'success': True,
+#                     'status': 'pending_profile',
+#                     'message': 'Please complete your profile.',
+#                     'email': user.email,
+#                     'role': user.role,
+#                     'next_step': 'complete_profile'
+#                 }, status=status.HTTP_200_OK)
 
-            return Response({
-                'success': True,
-                'status': 'registered',
-                'message': 'Account fully registered. Please login.',
-                'role': user.role,
-                'next_step': 'login'
-            }, status=status.HTTP_200_OK)
+#             return Response({
+#                 'success': True,
+#                 'status': 'registered',
+#                 'message': 'Account fully registered. Please login.',
+#                 'role': user.role,
+#                 'next_step': 'login'
+#             }, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Account status check error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Status check failed.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+#         except Exception as e:
+#             logger.error(f"Account status check error: {str(e)}")
+#             return Response(
+#                 {'success': False, 'error': 'Status check failed.'},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
