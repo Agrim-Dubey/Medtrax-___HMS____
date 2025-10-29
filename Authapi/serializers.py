@@ -98,9 +98,6 @@ class VerifySignupOTPSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
-        # OTP verification happens BEFORE user creation in signup flow
-        # No database validation needed here - the view will handle OTP validation
-        # against whatever temporary storage mechanism you're using (cache, temp model, etc.)
         return data
 
 
@@ -111,8 +108,6 @@ class ResendSignupOTPSerializer(serializers.Serializer):
         return value.strip().lower()
 
     def validate(self, data):
-        # Similar to verify OTP - just validate the email format
-        # The view will handle checking if there's a pending signup for this email
         return data
 
 

@@ -117,16 +117,29 @@ class SignupView(APIView):
 
                 otp = str(random.randint(100000, 999999))
 
-                request.session['temp_signup_data'] = {
-                    'email': email,
-                    'password': password,
-                    'role': role,
-                    'otp': otp,
-                    'otp_created_at': timezone.now().isoformat(),
-                    'otp_attempts': 0,
-                    'otp_locked_until': None
-                }
-                request.session.modified = True
+                user, created = CustomUser.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        'username': email,
+                        'role': role,
+                        'is_verified': False,
+                        'is_profile_complete': False
+                    }
+                )
+
+                if not created and user.is_verified:
+                    return Response(
+                        {'success': False, 'error': 'This email is already registered.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                user.set_password(password)
+                user.role = role
+                user.otp = otp
+                user.otp_created_at = timezone.now()
+                user.otp_attempts = 0
+                user.otp_locked_until = None
+                user.save()
 
                 try:
                     async_task("Authapi.tasks.send_otp_email_task", email, otp, "Verification")
@@ -141,7 +154,7 @@ class SignupView(APIView):
                         fail_silently=False,
                     )
 
-                logger.info(f"Signup data stored in session for: {email} as {role}")
+                logger.info(f"Signup OTP sent for: {email} as {role}")
 
                 return Response({
                     'success': True,
@@ -196,10 +209,7 @@ class VerifySignupOTPView(APIView):
     @transaction.atomic
     def post(self, request):
         try:
-            serializer = VerifySignupOTPSerializer(
-                data=request.data, 
-                context={'request': request}
-            )
+            serializer = VerifySignupOTPSerializer(data=request.data)
 
             if not serializer.is_valid():
                 return Response(
@@ -207,25 +217,48 @@ class VerifySignupOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            temp_signup_data = serializer.validated_data['temp_signup_data']
-            
-            email = temp_signup_data['email']
-            password = temp_signup_data['password']
-            role = temp_signup_data['role']
+            email = request.data.get('email')
+            otp = request.data.get('otp')
 
-            user = CustomUser.objects.create(
-                username=email,
-                email=email,
-                role=role,
-                is_verified=True,
-                is_profile_complete=False
-            )
-            user.set_password(password)
+            try:
+                user = CustomUser.objects.get(email=email, is_verified=False)
+            except CustomUser.DoesNotExist:
+                return Response(
+                    {'success': False, 'error': 'No pending signup found for this email.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+                return Response(
+                    {'success': False, 'error': f'Too many attempts. Try again in {int(remaining) + 1} minutes.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if not user.otp_created_at or timezone.now() - user.otp_created_at > timedelta(minutes=3):
+                return Response(
+                    {'success': False, 'error': 'OTP expired. Request a new one.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if user.otp != otp:
+                user.otp_attempts += 1
+                if user.otp_attempts >= 3:
+                    user.otp_locked_until = timezone.now() + timedelta(minutes=10)
+                user.save()
+                
+                attempts_left = max(0, 3 - user.otp_attempts)
+                return Response(
+                    {'success': False, 'error': f'Invalid OTP. {attempts_left} attempts remaining.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            role = user.role
+
+            user.is_verified = True
+            user.otp = None
+            user.otp_created_at = None
+            user.otp_attempts = 0
+            user.otp_locked_until = None
             user.save()
-
-            if 'temp_signup_data' in request.session:
-                del request.session['temp_signup_data']
-            request.session.modified = True
 
             logger.info(f"User created and verified: {email} as {role}")
 
@@ -269,35 +302,44 @@ class ResendSignupOTPView(APIView):
     )
     def post(self, request):
         try:
-            serializer = ResendSignupOTPSerializer(
-                data=request.data,
-                context={'request': request}
-            )
-
+            serializer = ResendSignupOTPSerializer(data=request.data)
+            
             if not serializer.is_valid():
                 return Response(
                     {'success': False, 'errors': serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            temp_signup_data = serializer.validated_data['temp_signup_data']
-            email = temp_signup_data['email']
+            email = request.data.get('email')
+
+            try:
+                user = CustomUser.objects.get(email=email, is_verified=False)
+            except CustomUser.DoesNotExist:
+                return Response(
+                    {'success': False, 'error': 'No pending signup found for this email.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+                return Response(
+                    {'success': False, 'error': f'Too many attempts. Try again in {int(remaining) + 1} minutes.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                ) 
             
-            if temp_signup_data.get('otp_created_at'):
-                created_time = parser.isoparse(temp_signup_data['otp_created_at'])
-                if (timezone.now() - created_time) < timedelta(seconds=30):
-                    return Response(
-                        {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
-                        status=status.HTTP_429_TOO_MANY_REQUESTS
-                    )
+          
+            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
+                return Response(
+                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
 
             otp = str(random.randint(100000, 999999))
-            
-            temp_signup_data['otp'] = otp
-            temp_signup_data['otp_created_at'] = timezone.now().isoformat()
-            temp_signup_data['otp_attempts'] = 0
-            temp_signup_data['otp_locked_until'] = None
-            request.session.modified = True
+            user.otp = otp
+            user.otp_created_at = timezone.now()
+            user.otp_attempts = 0
+            user.otp_locked_until = None
+            user.save()
 
             try:
                 OTPEmailService.send_email(email, otp, 'verification')
