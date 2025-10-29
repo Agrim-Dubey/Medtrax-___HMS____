@@ -30,16 +30,148 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-class SelectRoleView(APIView):
+# class SelectRoleView(APIView):
+#     permission_classes = [AllowAny]
+
+#     @swagger_auto_schema(
+#         operation_description="Select user role (doctor or patient) before signup/login. Role is stored in session.",
+#         operation_summary="Select Role",
+#         request_body=openapi.Schema(
+#             type=openapi.TYPE_OBJECT,
+#             required=['role'],
+#             properties={
+#                 'role': openapi.Schema(
+#                     type=openapi.TYPE_STRING,
+#                     description='User role selection',
+#                     enum=['doctor', 'patient'],
+#                     example='doctor'
+#                 )
+#             }
+#         ),
+#         responses={
+#             200: openapi.Response(
+#                 description="Role selected and stored in session",
+#                 examples={
+#                     "application/json": {
+#                         "success": True,
+#                         "message": "Role selected successfully",
+#                         "role": "doctor"
+#                     }
+#                 }
+#             ),
+#             400: openapi.Response(
+#                 description="Invalid role selection",
+#                 examples={
+#                     "application/json": {
+#                         "success": False,
+#                         "error": "Invalid role. Choose either 'doctor' or 'patient'."
+#                     }
+#                 }
+#             )
+#         },
+#         tags=['Authentication']
+#     )
+#     def post(self, request):
+#         try:
+#             role = request.data.get('role', '').strip().lower()
+
+#             if not role:
+#                 return Response(
+#                     {'success': False, 'error': 'Role is required.'},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+
+#             if role not in ['doctor', 'patient']:
+#                 return Response(
+#                     {'success': False, 'error': "Invalid role. Choose either 'doctor' or 'patient'."},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+
+#             request.session['selected_role'] = role
+#             request.session['role_selected_at'] = timezone.now().isoformat()
+#             request.session.modified = True
+
+#             logger.info(f"Role selected: {role} - Session ID: {request.session.session_key}")
+
+#             return Response({
+#                 'success': True,
+#                 'message': 'Role selected successfully',
+#                 'role': role
+#             }, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             logger.error(f"Role selection error: {str(e)}")
+#             return Response(
+#                 {'success': False, 'error': 'Role selection failed. Please try again.'},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+# class ClearRoleView(APIView):
+#     permission_classes = [AllowAny]
+
+#     @swagger_auto_schema(
+#         operation_description="Clear selected role from session when user navigates back to landing page",
+#         operation_summary="Clear Role Selection",
+#         responses={
+#             200: openapi.Response(
+#                 description="Role cleared successfully",
+#                 examples={
+#                     "application/json": {
+#                         "success": True,
+#                         "message": "Role cleared successfully"
+#                     }
+#                 }
+#             ),
+#             500: "Server error"
+#         },
+#         tags=['Authentication']
+#     )
+#     def post(self, request):
+#         try:
+#             if 'selected_role' in request.session:
+#                 del request.session['selected_role']
+            
+#             if 'role_selected_at' in request.session:
+#                 del request.session['role_selected_at']
+            
+#             request.session.modified = True
+
+#             return Response({
+#                 'success': True,
+#                 'message': 'Role cleared successfully'
+#             }, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             logger.error(f"Clear role error: {str(e)}")
+#             return Response(
+#                 {'success': False, 'error': 'Failed to clear role.'},
+#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+class SignupView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Select user role (doctor or patient) before signup/login. Role is stored in session.",
-        operation_summary="Select Role",
+        operation_description="Register a new user account (Doctor or Patient). Role must be provided in the request body.",
+        operation_summary="User Signup",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['role'],
+            required=['email', 'password1', 'password2', 'role'],
             properties={
+                'email': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_EMAIL,
+                    description='User email address',
+                    example='user@example.com'
+                ),
+                'password1': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Password (8-20 characters, must include uppercase, lowercase, digit, and special character)',
+                    example='SecurePass@123'
+                ),
+                'password2': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Confirm password',
+                    example='SecurePass@123'
+                ),
                 'role': openapi.Schema(
                     type=openapi.TYPE_STRING,
                     description='User role selection',
@@ -48,111 +180,6 @@ class SelectRoleView(APIView):
                 )
             }
         ),
-        responses={
-            200: openapi.Response(
-                description="Role selected and stored in session",
-                examples={
-                    "application/json": {
-                        "success": True,
-                        "message": "Role selected successfully",
-                        "role": "doctor"
-                    }
-                }
-            ),
-            400: openapi.Response(
-                description="Invalid role selection",
-                examples={
-                    "application/json": {
-                        "success": False,
-                        "error": "Invalid role. Choose either 'doctor' or 'patient'."
-                    }
-                }
-            )
-        },
-        tags=['Authentication']
-    )
-    def post(self, request):
-        try:
-            role = request.data.get('role', '').strip().lower()
-
-            if not role:
-                return Response(
-                    {'success': False, 'error': 'Role is required.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if role not in ['doctor', 'patient']:
-                return Response(
-                    {'success': False, 'error': "Invalid role. Choose either 'doctor' or 'patient'."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            request.session['selected_role'] = role
-            request.session['role_selected_at'] = timezone.now().isoformat()
-            request.session.modified = True
-
-            logger.info(f"Role selected: {role} - Session ID: {request.session.session_key}")
-
-            return Response({
-                'success': True,
-                'message': 'Role selected successfully',
-                'role': role
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            logger.error(f"Role selection error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Role selection failed. Please try again.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-class ClearRoleView(APIView):
-    permission_classes = [AllowAny]
-
-    @swagger_auto_schema(
-        operation_description="Clear selected role from session when user navigates back to landing page",
-        operation_summary="Clear Role Selection",
-        responses={
-            200: openapi.Response(
-                description="Role cleared successfully",
-                examples={
-                    "application/json": {
-                        "success": True,
-                        "message": "Role cleared successfully"
-                    }
-                }
-            ),
-            500: "Server error"
-        },
-        tags=['Authentication']
-    )
-    def post(self, request):
-        try:
-            if 'selected_role' in request.session:
-                del request.session['selected_role']
-            
-            if 'role_selected_at' in request.session:
-                del request.session['role_selected_at']
-            
-            request.session.modified = True
-
-            return Response({
-                'success': True,
-                'message': 'Role cleared successfully'
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            logger.error(f"Clear role error: {str(e)}")
-            return Response(
-                {'success': False, 'error': 'Failed to clear role.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-class SignupView(APIView):
-    permission_classes = [AllowAny]
-
-    @swagger_auto_schema(
-        operation_description="Register a new user account (Doctor or Patient). User must select role via /api/select-role/ before signup.",
-        operation_summary="User Signup",
-        request_body=SignupSerializer,
         responses={
             201: openapi.Response(
                 description="Account created successfully",
@@ -193,7 +220,7 @@ class SignupView(APIView):
     @transaction.atomic
     def post(self, request):
             try:
-                serializer = SignupSerializer(data=request.data, context={'request': request})
+                serializer = SignupSerializer(data=request.data)
                 
                 if not serializer.is_valid():
                     return Response(
@@ -664,7 +691,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Unified login endpoint for both doctors and patients. Validates credentials against role stored in session.",
+        operation_description="Unified login endpoint for both doctors and patients. System validates credentials and returns user profile based on registered role.",
         operation_summary="User Login",
         request_body=LoginSerializer,
         responses={
@@ -704,8 +731,7 @@ class LoginView(APIView):
     )
     def post(self, request):
         try:
-            serializer = LoginSerializer(data=request.data, context={'request': request})
-
+            serializer = LoginSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(
                     {'success': False, 'errors': serializer.errors},

@@ -2,8 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('select-role/', views.SelectRoleView.as_view(), name='select_role'),
-    path('clear-role/', views.ClearRoleView.as_view(), name='clear_role'),
+    # path('select-role/', views.SelectRoleView.as_view(), name='select_role'),
+    # path('clear-role/', views.ClearRoleView.as_view(), name='clear_role'),
     path('signup/', views.SignupView.as_view(), name='signup'),
     path('verify-signup-otp/', views.VerifySignupOTPView.as_view(), name='verify_signup_otp'),
     path('resend-signup-otp/', views.ResendSignupOTPView.as_view(), name='resend_signup_otp'),

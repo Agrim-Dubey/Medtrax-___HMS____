@@ -61,7 +61,8 @@ class SignupSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password1 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
     password2 = serializers.CharField(required=True, min_length=8, max_length=20, trim_whitespace=False)
-    
+    role = serializers.ChoiceField(choices=['doctor', 'patient'], required=True)
+
     def validate_email(self, value):
         value = value.strip().lower()
         if CustomUser.objects.filter(email=value, is_verified=True).exists():
@@ -72,33 +73,16 @@ class SignupSerializer(serializers.Serializer):
         PasswordValidator.validate(value)
         return value
     
+    def validate_role(self, value):
+        value = value.strip().lower()
+        if value not in ['doctor', 'patient']:
+            raise serializers.ValidationError("Invalid role. Choose either 'doctor' or 'patient'.")
+        return value
+    
     def validate(self, data):
         if data['password1'] != data['password2']:
             raise serializers.ValidationError({"password2": "Passwords do not match."})
-        
-        request = self.context.get('request')
-        if not request:
-            raise serializers.ValidationError("Request context is required.")
-        
-        role = request.session.get('selected_role')
-        role_selected_at = request.session.get('role_selected_at')
-
-        if not role:
-            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
-
-        if role_selected_at:
-            from dateutil import parser
-            selected_time = parser.isoparse(role_selected_at)
-            if timezone.now() - selected_time > timedelta(minutes=15):
-                raise serializers.ValidationError("Role selection expired. Please select your role again.")
-        
-        if role not in ['doctor', 'patient']:
-            raise serializers.ValidationError("Invalid role in session. Please select a role again.")
-        
-        data['role'] = role
-        
         return data
-
 
 class VerifySignupOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -211,17 +195,7 @@ class LoginSerializer(serializers.Serializer):
         email = data.get('email')
         password = data.get('password')
 
-        request = self.context.get('request')
-        if not request:
-            raise serializers.ValidationError("Request context is required.")
         
-        role = request.session.get('selected_role')
-        
-        if not role:
-            raise serializers.ValidationError("No role selected. Please select a role first from the landing page.")
-        
-        if role not in ['doctor', 'patient']:
-            raise serializers.ValidationError("Invalid role in session. Please select a role again.")
 
         try:
             user = CustomUser.objects.get(email=email)
@@ -242,9 +216,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email or password.")
 
         user.reset_login_attempts()
-
-        if user.role != role:
-            raise serializers.ValidationError(f"This account is not registered as a {role}. Please select the correct role.")
 
         if not user.is_verified:
             raise serializers.ValidationError("Your account is not verified. Please verify your email first.")
