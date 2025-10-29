@@ -29,123 +29,6 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-
-# class SelectRoleView(APIView):
-#     permission_classes = [AllowAny]
-
-#     @swagger_auto_schema(
-#         operation_description="Select user role (doctor or patient) before signup/login. Role is stored in session.",
-#         operation_summary="Select Role",
-#         request_body=openapi.Schema(
-#             type=openapi.TYPE_OBJECT,
-#             required=['role'],
-#             properties={
-#                 'role': openapi.Schema(
-#                     type=openapi.TYPE_STRING,
-#                     description='User role selection',
-#                     enum=['doctor', 'patient'],
-#                     example='doctor'
-#                 )
-#             }
-#         ),
-#         responses={
-#             200: openapi.Response(
-#                 description="Role selected and stored in session",
-#                 examples={
-#                     "application/json": {
-#                         "success": True,
-#                         "message": "Role selected successfully",
-#                         "role": "doctor"
-#                     }
-#                 }
-#             ),
-#             400: openapi.Response(
-#                 description="Invalid role selection",
-#                 examples={
-#                     "application/json": {
-#                         "success": False,
-#                         "error": "Invalid role. Choose either 'doctor' or 'patient'."
-#                     }
-#                 }
-#             )
-#         },
-#         tags=['Authentication']
-#     )
-#     def post(self, request):
-#         try:
-#             role = request.data.get('role', '').strip().lower()
-
-#             if not role:
-#                 return Response(
-#                     {'success': False, 'error': 'Role is required.'},
-#                     status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             if role not in ['doctor', 'patient']:
-#                 return Response(
-#                     {'success': False, 'error': "Invalid role. Choose either 'doctor' or 'patient'."},
-#                     status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             request.session['selected_role'] = role
-#             request.session['role_selected_at'] = timezone.now().isoformat()
-#             request.session.modified = True
-
-#             logger.info(f"Role selected: {role} - Session ID: {request.session.session_key}")
-
-#             return Response({
-#                 'success': True,
-#                 'message': 'Role selected successfully',
-#                 'role': role
-#             }, status=status.HTTP_200_OK)
-
-#         except Exception as e:
-#             logger.error(f"Role selection error: {str(e)}")
-#             return Response(
-#                 {'success': False, 'error': 'Role selection failed. Please try again.'},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
-# class ClearRoleView(APIView):
-#     permission_classes = [AllowAny]
-
-#     @swagger_auto_schema(
-#         operation_description="Clear selected role from session when user navigates back to landing page",
-#         operation_summary="Clear Role Selection",
-#         responses={
-#             200: openapi.Response(
-#                 description="Role cleared successfully",
-#                 examples={
-#                     "application/json": {
-#                         "success": True,
-#                         "message": "Role cleared successfully"
-#                     }
-#                 }
-#             ),
-#             500: "Server error"
-#         },
-#         tags=['Authentication']
-#     )
-#     def post(self, request):
-#         try:
-#             if 'selected_role' in request.session:
-#                 del request.session['selected_role']
-            
-#             if 'role_selected_at' in request.session:
-#                 del request.session['role_selected_at']
-            
-#             request.session.modified = True
-
-#             return Response({
-#                 'success': True,
-#                 'message': 'Role cleared successfully'
-#             }, status=status.HTTP_200_OK)
-
-#         except Exception as e:
-#             logger.error(f"Clear role error: {str(e)}")
-#             return Response(
-#                 {'success': False, 'error': 'Failed to clear role.'},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
@@ -188,7 +71,7 @@ class SignupView(APIView):
                         "success": True,
                         "message": "Account created! OTP sent to your email. Valid for 3 minutes.",
                         "email": "user@example.com",
-                        "role": "doctor",
+                        # "role": "doctor",
                         "next_step": "verify_otp"
                     }
                 }
@@ -264,7 +147,7 @@ class SignupView(APIView):
                     'success': True,
                     'message': 'OTP sent to your email. Valid for 3 minutes.',
                     'email': email,
-                    'role': role,
+                    # 'role': role,
                     
                 }, status=status.HTTP_201_CREATED)
 
@@ -289,7 +172,7 @@ class VerifySignupOTPView(APIView):
                         "success": True,
                         "message": "Email verified successfully! Please complete your profile.",
                         "email": "user@example.com",
-                        "role": "doctor",
+
                         "next_step": "complete_profile"
                     }
                 }
@@ -1037,101 +920,3 @@ class ResendPasswordResetOTPView(APIView):
                 {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-# class CheckAccountStatusView(APIView):
-#     permission_classes = [AllowAny]
-
-#     @swagger_auto_schema(
-#         operation_description="Check account status and get next registration step",
-#         operation_summary="Check Account Status",
-#         request_body=openapi.Schema(
-#             type=openapi.TYPE_OBJECT,
-#             required=['email'],
-#             properties={
-#                 'email': openapi.Schema(
-#                     type=openapi.TYPE_STRING,
-#                     format=openapi.FORMAT_EMAIL,
-#                     description='Email address to check',
-#                     example='user@example.com'
-#                 )
-#             }
-#         ),
-#         responses={
-#             200: openapi.Response(
-#                 description="Account status retrieved",
-#                 examples={
-#                     "application/json": {
-#                         "success": True,
-#                         "status": "registered",
-#                         "message": "Account fully registered. Please login.",
-#                         "role": "doctor",
-#                         "next_step": "login"
-#                     }
-#                 }
-#             ),
-#             400: openapi.Response(
-#                 description="Email not provided",
-#                 examples={
-#                     "application/json": {
-#                         "success": False,
-#                         "error": "Email is required."
-#                     }
-#                 }
-#             ),
-#             500: "Status check failed"
-#         },
-#         tags=['Utility']
-#     )
-#     def post(self, request):
-#         try:
-#             email = request.data.get('email', '').strip()
-
-#             if not email:
-#                 return Response(
-#                     {'success': False, 'error': 'Email is required.'},
-#                     status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             try:
-#                 user = CustomUser.objects.get(email=email)
-#             except CustomUser.DoesNotExist:
-#                 return Response({
-#                     'success': True,
-#                     'status': 'not_registered',
-#                     'message': 'No account found. Please sign up.',
-#                     'next_step': 'signup'
-#                 }, status=status.HTTP_200_OK)
-
-#             if not user.is_verified:
-#                 return Response({
-#                     'success': True,
-#                     'status': 'pending_verification',
-#                     'message': 'Email verification pending.',
-#                     'email': user.email,
-#                     'role': user.role,
-#                     'next_step': 'verify_otp'
-#                 }, status=status.HTTP_200_OK)
-
-#             if user.is_verified and not user.is_profile_complete:
-#                 return Response({
-#                     'success': True,
-#                     'status': 'pending_profile',
-#                     'message': 'Please complete your profile.',
-#                     'email': user.email,
-#                     'role': user.role,
-#                     'next_step': 'complete_profile'
-#                 }, status=status.HTTP_200_OK)
-
-#             return Response({
-#                 'success': True,
-#                 'status': 'registered',
-#                 'message': 'Account fully registered. Please login.',
-#                 'role': user.role,
-#                 'next_step': 'login'
-#             }, status=status.HTTP_200_OK)
-
-#         except Exception as e:
-#             logger.error(f"Account status check error: {str(e)}")
-#             return Response(
-#                 {'success': False, 'error': 'Status check failed.'},
-#                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
