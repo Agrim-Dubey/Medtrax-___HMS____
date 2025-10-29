@@ -36,7 +36,10 @@ INSTALLED_APPS = [
     'Authapi',
     'django_q',
     'django_extensions',
-    'chat_room'
+    'chat_room',
+    'videocounselling',
+    'appointments',
+    'medicalrecords'
 ]
 
 Q_CLUSTER = {
