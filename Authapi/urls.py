@@ -14,5 +14,5 @@ urlpatterns = [
     path('verify-password-reset-otp/', views.VerifyPasswordResetOTPView.as_view(), name='verify_password_reset_otp'),
     path('reset-password/', views.ResetPasswordView.as_view(), name='reset_password'),
     path('resend-password-reset-otp/', views.ResendPasswordResetOTPView.as_view(), name='resend_password_reset_otp'),
-    path('check-account-status/', views.CheckAccountStatusView.as_view(), name='check_account_status'),
+    # path('check-account-status/', views.CheckAccountStatusView.as_view(), name='check_account_status'),
 ]
