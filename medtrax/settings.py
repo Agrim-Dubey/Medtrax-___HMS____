@@ -136,7 +136,7 @@ SESSION_COOKIE_SAMESITE = None
 CORS_ALLOW_ALL_ORIGINS = False 
 CORS_ALLOWED_ORIGINS = [
     'https://med-trax.vercel.app',
-    'localhost:5147'
+    'http://localhost:5175/'
 ]
 CORS_ALLOW_CREDENTIALS = True
 
