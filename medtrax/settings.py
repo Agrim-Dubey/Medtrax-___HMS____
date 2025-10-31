@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     'chat_room',
     'videocounselling',
     'appointments',
-    'medicalrecords'
+    'medicalrecords',
+    'doctor_dashboard'
 ]
 
 Q_CLUSTER = {
