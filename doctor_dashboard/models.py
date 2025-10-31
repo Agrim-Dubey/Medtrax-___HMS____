@@ -61,3 +61,5 @@ class PatientVisit(models.Model):
     
     def __str__(self):
         return f"{self.patient.get_full_name()} visited Dr. {self.doctor.get_full_name()} on {self.visit_date}"
+    
+    
