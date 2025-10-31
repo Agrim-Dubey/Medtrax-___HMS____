@@ -301,7 +301,7 @@ class DoctorDetailsSerializer(serializers.Serializer):
     first_name = serializers.CharField(required=True, max_length=50)
     last_name = serializers.CharField(required=True, max_length=50)
     date_of_birth = serializers.DateField(required=True)
-    gender = serializers.ChoiceField(choices=['M', 'F', 'O'], required=True)
+    gender = serializers.ChoiceField(choices=['M', 'F', 'O','PNTS'], required=True)
     blood_group = serializers.ChoiceField(choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], required=True)
     marital_status = serializers.CharField(required=False, allow_blank=True, max_length=20)
     address = serializers.CharField(required=False, allow_blank=True, max_length=500)
@@ -341,7 +341,7 @@ class DoctorDetailsSerializer(serializers.Serializer):
         age = (today - value).days // 365
         if age < 25:
             raise serializers.ValidationError("Doctor must be at least 25 years old.")
-        if age > 100:
+        if age > 70:
             raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
 

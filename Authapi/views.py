@@ -845,7 +845,6 @@ class VerifyPasswordResetOTPView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
