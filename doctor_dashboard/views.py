@@ -3,9 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Avg, Count
-
 from appointments.models import Appointment
 from .models import DoctorReview, PatientVisit
+from datetime import timedelta
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
