@@ -14,7 +14,7 @@ class PatientDashboardSerializer(serializers.ModelSerializer):
             'chronic_diseases'
         ]
 
-class DashboardAppointmentSerializer(serializers.ModelSerialzier):
+class DashboardAppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.SerializerMethodField()
 
     class Meta:

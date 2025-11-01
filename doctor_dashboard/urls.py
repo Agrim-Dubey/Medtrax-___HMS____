@@ -1,9 +1,18 @@
 from django.urls import path
-from . import views
+from .views import (
+    DoctorDashboardProfileView,
+    DoctorDashboardStatsView,
+    DoctorTodayAppointmentsView,
+    DoctorUpcomingAppointmentsView,
+    DoctorRecentReviewsView,
+    DoctorWeeklyStatsView
+)
 
 urlpatterns = [
-    path('stats/', views.get_dashboard_stats, name='dashboarddoctorstats'),
-    path('appointments/upcoming/', views.get_upcoming_appointments, name='upcomingappointments'),
-    path('reviews/recent/', views.get_recent_reviews, name='recentreviews'),
-    path('stats/weekly-patients/', views.get_weekly_patient_stats, name='weeklypatientstats'),
+    path('profile/', DoctorDashboardProfileView.as_view(), name='doctor-dashboard-profile'),
+    path('stats/', DoctorDashboardStatsView.as_view(), name='doctor-dashboard-stats'),
+    path('appointments/today/', DoctorTodayAppointmentsView.as_view(), name='doctor-today-appointments'),
+    path('appointments/upcoming/', DoctorUpcomingAppointmentsView.as_view(), name='doctor-upcoming-appointments'),
+    path('reviews/recent/', DoctorRecentReviewsView.as_view(), name='doctor-recent-reviews'),
+    path('stats/weekly/', DoctorWeeklyStatsView.as_view(), name='doctor-weekly-stats'),
 ]
