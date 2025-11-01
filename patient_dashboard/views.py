@@ -85,5 +85,49 @@ class PatientRecentAppointmentsView(APIView):
                 {"error": "Something went wrong", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class PatientDashboardStatsView(APIView):
+        permission_classes = [IsAuthenticated]
+        
+        def get(self, request):
+            try:
+        
+                patient = request.user.patient_profile
+
+                total_appointments = patient.appointments.count()
+                
+                upcoming = patient.appointments.filter(
+                    appointment_date__gte=date.today(),
+                    status__in=['pending', 'confirmed']
+                ).count()
+                
+                completed = patient.appointments.filter(
+                    status='completed'
+                ).count()
+                
+                pending = patient.appointments.filter(
+                    status='pending'
+                ).count()
+
+                stats = {
+                    "total_appointments": total_appointments,
+                    "upcoming": upcoming,
+                    "completed": completed,
+                    "pending": pending
+                }
+
+                return Response(stats, status=status.HTTP_200_OK)
+                
+            except AttributeError:
+                return Response(
+                    {"error": "Only patients can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            except Exception as e:
+                return Response(
+                    {"error": "Something went wrong", "detail": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         
