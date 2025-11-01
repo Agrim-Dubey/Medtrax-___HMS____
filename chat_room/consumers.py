@@ -1,13 +1,13 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from Authapi.models import CustomUser
-from .models import Message, UserOnlineStatus
 from django.utils import timezone
+from .models import Message, UserOnlineStatus, Conversation
+from Authapi.models import CustomUser
+from django.db.models import Q
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    
     async def connect(self):
         self.user = self.scope['user']
         
@@ -18,14 +18,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user_id = str(self.user.id)
         self.user_group_name = f'user_{self.user_id}'
         
+
         await self.channel_layer.group_add(
             self.user_group_name,
             self.channel_name
         )
         
+        await self.accept()
+        
+
         await self.set_user_online(True)
         
-        await self.accept()
+
+        await self.channel_layer.group_send(
+            'online_users',
+            {
+                'type': 'user_status',
+                'user_id': self.user_id,
+                'is_online': True
+            }
+        )
     
     async def disconnect(self, close_code):
         if hasattr(self, 'user_group_name'):
@@ -34,8 +46,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
         
-        if hasattr(self, 'user') and not self.user.is_anonymous:
+        if not self.user.is_anonymous:
+
             await self.set_user_online(False)
+ 
+            await self.channel_layer.group_send(
+                'online_users',
+                {
+                    'type': 'user_status',
+                    'user_id': self.user_id,
+                    'is_online': False
+                }
+            )
     
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -44,9 +66,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if message_type == 'chat_message':
             receiver_id = data.get('receiver_id')
             content = data.get('content')
-            
-            message = await self.save_message(self.user.id, receiver_id, content)
-            
+
+            message = await self.save_message(
+                sender_id=self.user.id,
+                receiver_id=receiver_id,
+                content=content
+            )
+
+            await self.update_conversation(
+                sender_id=self.user.id,
+                receiver_id=receiver_id,
+                message_id=message.id
+            )
+
             await self.channel_layer.group_send(
                 f'user_{receiver_id}',
                 {
@@ -54,7 +86,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message': {
                         'id': message.id,
                         'sender_id': self.user.id,
-                        'sender_username': self.user.username,
                         'receiver_id': receiver_id,
                         'content': content,
                         'timestamp': message.timestamp.isoformat(),
@@ -62,13 +93,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 }
             )
-            
+
             await self.send(text_data=json.dumps({
                 'type': 'message_sent',
                 'message': {
                     'id': message.id,
                     'sender_id': self.user.id,
-                    'sender_username': self.user.username,
                     'receiver_id': receiver_id,
                     'content': content,
                     'timestamp': message.timestamp.isoformat(),
@@ -76,40 +106,61 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             }))
         
-        elif message_type == 'mark_as_read':
-            sender_id = data.get('sender_id')
-            await self.mark_messages_as_read(sender_id, self.user.id)
-            
-            await self.send(text_data=json.dumps({
-                'type': 'messages_marked_read',
-                'sender_id': sender_id
-            }))
+        elif message_type == 'mark_read':
+            message_ids = data.get('message_ids', [])
+            await self.mark_messages_read(message_ids)
     
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event['message']))
+    
+    async def user_status(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_status',
+            'user_id': event['user_id'],
+            'is_online': event['is_online']
+        }))
     
     @database_sync_to_async
     def save_message(self, sender_id, receiver_id, content):
         sender = CustomUser.objects.get(id=sender_id)
         receiver = CustomUser.objects.get(id=receiver_id)
-        message = Message.objects.create(
+        return Message.objects.create(
             sender=sender,
             receiver=receiver,
             content=content
         )
-        return message
     
     @database_sync_to_async
-    def mark_messages_as_read(self, sender_id, receiver_id):
-        Message.objects.filter(
-            sender_id=sender_id,
-            receiver_id=receiver_id,
-            is_read=False
-        ).update(is_read=True)
+    def update_conversation(self, sender_id, receiver_id, message_id):
+        sender = CustomUser.objects.get(id=sender_id)
+        receiver = CustomUser.objects.get(id=receiver_id)
+        message = Message.objects.get(id=message_id)
+
+        conversation = Conversation.objects.filter(
+            (Q(participant1=sender) & Q(participant2=receiver)) |
+            (Q(participant1=receiver) & Q(participant2=sender))
+        ).first()
+        
+        if conversation:
+            conversation.last_message = message
+            conversation.save()
+        else:
+            Conversation.objects.create(
+                participant1=sender,
+                participant2=receiver,
+                last_message=message
+            )
     
     @database_sync_to_async
     def set_user_online(self, is_online):
-        status, created = UserOnlineStatus.objects.get_or_create(user=self.user)
-        status.is_online = is_online
-        status.last_seen = timezone.now()
-        status.save()
+        UserOnlineStatus.objects.update_or_create(
+            user=self.user,
+            defaults={'is_online': is_online}
+        )
+    
+    @database_sync_to_async
+    def mark_messages_read(self, message_ids):
+        Message.objects.filter(
+            id__in=message_ids,
+            receiver=self.user
+        ).update(is_read=True, read_at=timezone.now())

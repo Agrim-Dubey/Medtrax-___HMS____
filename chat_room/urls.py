@@ -1,9 +1,16 @@
 from django.urls import path
-from .views import UserListView, ChatHistoryView, UnreadCountView, MarkAsReadView
+from .views import (
+    DoctorListView,
+    PatientListView,
+    ConversationListView,
+    ChatHistoryView,
+    UnreadMessagesCountView
+)
 
 urlpatterns = [
-    path('users/', UserListView.as_view(), name='user-list'),
+    path('doctors/', DoctorListView.as_view(), name='doctor-list'),
+    path('patients/', PatientListView.as_view(), name='patient-list'),
+    path('conversations/', ConversationListView.as_view(), name='conversation-list'),
     path('history/<int:user_id>/', ChatHistoryView.as_view(), name='chat-history'),
-    path('unread-count/', UnreadCountView.as_view(), name='unread-count'),
-    path('mark-as-read/', MarkAsReadView.as_view(), name='mark-as-read'),
+    path('unread-count/', UnreadMessagesCountView.as_view(), name='unread-count'),
 ]
