@@ -34,32 +34,5 @@ class DoctorReview(models.Model):
         return f"{self.patient.get_full_name()} rated Dr. {self.doctor.get_full_name()} - {self.rating}★"
 
 
-class PatientVisit(models.Model):
-    doctor = models.ForeignKey(
-        Doctor, 
-        on_delete=models.CASCADE, 
-        related_name='patient_visits'
-    )
-    patient = models.ForeignKey(
-        Patient, 
-        on_delete=models.CASCADE, 
-        related_name='visits'
-    )
-    visit_date = models.DateField()
-    notes = models.TextField(blank=True, null=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-visit_date']
-        indexes = [
-            models.Index(fields=['doctor', 'visit_date']),
-            models.Index(fields=['visit_date']),
-        ]
-        verbose_name = 'Patient Visit'
-        verbose_name_plural = 'Patient Visits'
-    
-    def __str__(self):
-        return f"{self.patient.get_full_name()} visited Dr. {self.doctor.get_full_name()} on {self.visit_date}"
-    
+
     
