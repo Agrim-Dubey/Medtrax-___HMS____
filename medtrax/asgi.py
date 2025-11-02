@@ -1,15 +1,19 @@
 import os
+import django
+from urllib.parse import parse_qs
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'medtrax.settings')
+
+django.setup()
+
+
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
-import chat_room.routing
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'medtrax.settings')
-
-from urllib.parse import parse_qs
-from django.contrib.auth.models import AnonymousUser
 from channels.db import database_sync_to_async
+from django.contrib.auth.models import AnonymousUser
+import chat_room.routing
 
 class JWTAuthMiddleware:
     def __init__(self, app):
@@ -42,8 +46,10 @@ class JWTAuthMiddleware:
         except CustomUser.DoesNotExist:
             return AnonymousUser()
 
+django_asgi_app = get_asgi_application()
+
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
+    "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         JWTAuthMiddleware(
             URLRouter(
