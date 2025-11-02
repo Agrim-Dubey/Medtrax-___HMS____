@@ -10,18 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 def send_appointment_reminders():
-    """
-    Scheduled task to send appointment reminders 24 hours before appointment
-    This runs every hour via Django Q scheduler
-    """
     now = timezone.now()
-    reminder_time = now + timedelta(hours=24)
-    
+    reminder_time = now + timedelta(minutes=30)
 
     upcoming_appointments = Appointment.objects.filter(
-        appointment_date=reminder_time.date(),
-        status__in=['pending', 'confirmed']
-    ).select_related('doctor', 'patient')
+            appointment_date= reminder_time.date(),
+            appointment_time__hour=reminder_time.hour,
+            appointment_time__minute=reminder_time.minute,
+            status='confirmed'
+        ).select_related('doctor', 'patient')
     
     sent_count = 0
     

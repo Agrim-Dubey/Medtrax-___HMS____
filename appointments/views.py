@@ -209,22 +209,13 @@ class DoctorAvailableSlotsView(APIView):
         permission_classes = [IsAuthenticated]
         
         def get(self, request, doctor_id):
-            """
-            Get available time slots for a doctor on a specific date
-            
-            Query params:
-                date: YYYY-MM-DD format (e.g., 2025-11-05)
-            """
             try:
-                # Get date from query params
                 date_str = request.query_params.get('date')
                 if not date_str:
                     return Response(
                         {"error": "Date parameter is required (format: YYYY-MM-DD)"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
-                # Parse date
                 try:
                     appointment_date = datetime.strptime(date_str, "%Y-%m-%d").date()
                 except ValueError:
