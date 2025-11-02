@@ -12,6 +12,8 @@ from .serializers import (
 )
 from Authapi.models import Doctor
 from django_q.tasks import async_task
+from datetime import datetime
+from .utils import get_available_slots
 
 
 class PatientBookAppointmentView(APIView):
@@ -202,3 +204,58 @@ class AvailableDoctorsListView(APIView):
         
         serializer = DoctorListSerializer(doctors, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class DoctorAvailableSlotsView(APIView):
+        permission_classes = [IsAuthenticated]
+        
+        def get(self, request, doctor_id):
+            """
+            Get available time slots for a doctor on a specific date
+            
+            Query params:
+                date: YYYY-MM-DD format (e.g., 2025-11-05)
+            """
+            try:
+                # Get date from query params
+                date_str = request.query_params.get('date')
+                if not date_str:
+                    return Response(
+                        {"error": "Date parameter is required (format: YYYY-MM-DD)"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Parse date
+                try:
+                    appointment_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    return Response(
+                        {"error": "Invalid date format. Use YYYY-MM-DD"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+               
+                from django.utils import timezone
+                if appointment_date < timezone.now().date():
+                    return Response(
+                        {"error": "Cannot book appointments in the past"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                doctor = get_object_or_404(Doctor, id=doctor_id)
+                available_slots = get_available_slots(doctor, appointment_date)
+                
+                return Response(
+                    {
+                        "doctor_id": doctor.id,
+                        "doctor_name": f"Dr. {doctor.get_full_name()}",
+                        "date": date_str,
+                        "available_slots": available_slots,
+                        "total_available": len(available_slots)
+                    },
+                    status=status.HTTP_200_OK
+                )
+                
+            except Exception as e:
+                return Response(
+                    {"error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
