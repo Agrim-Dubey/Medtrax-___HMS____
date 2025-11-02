@@ -12,8 +12,6 @@ from .serializers import (
 )
 from Authapi.models import Doctor
 
-
-
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -173,7 +171,7 @@ class AvailableDoctorsListView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        from Authapi.serializers import DoctorListSerializer
+        from .serializers import DoctorListSerializer
         
         doctors = Doctor.objects.filter(
             user__is_active=True

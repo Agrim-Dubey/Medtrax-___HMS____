@@ -18,7 +18,7 @@ class DoctorDashboardProfileSerializer(serializers.ModelSerializer):
             'specialization',
             'phone_number',
             'years_of_experience',
-            'license_number'
+            'registration_number'
         ]
     
     def get_full_name(self, obj):

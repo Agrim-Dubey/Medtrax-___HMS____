@@ -79,3 +79,25 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
                 age -= 1
             return age
         return None
+    
+class DoctorListSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    email = serializers.CharField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = Doctor
+        fields = [
+            'id',
+            'full_name',
+            'email',
+            'specialization',
+            'qualification',
+            'years_of_experience',
+            'department',
+            'city',
+            'phone_number',
+            'is_approved'
+        ]
+    
+    def get_full_name(self, obj):
+        return f"Dr. {obj.get_full_name()}"
