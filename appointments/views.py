@@ -11,6 +11,8 @@ from .serializers import (
     DoctorAppointmentListSerializer
 )
 from Authapi.models import Doctor
+from django_q.tasks import async_task
+
 
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -22,6 +24,13 @@ class PatientBookAppointmentView(APIView):
             
             if serializer.is_valid():
                 appointment = serializer.save(patient=patient, status='pending')
+
+                async_task(
+                    'appointments.tasks.send_immediate_appointment_notification',
+                    appointment.id,
+                    'created'
+                )
+                
                 return Response(
                     {
                         "message": "Appointment request sent successfully",
@@ -57,6 +66,8 @@ class PatientAppointmentListView(APIView):
                 {"error": "Only patients can access this endpoint"},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+
 class DoctorAppointmentRequestsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -121,6 +132,12 @@ class DoctorAcceptAppointmentView(APIView):
             appointment.status = 'confirmed'
             appointment.save()
             
+            async_task(
+                'appointments.tasks.send_immediate_appointment_notification',
+                appointment.id,
+                'confirmed'
+            )
+            
             return Response(
                 {
                     "message": "Appointment accepted successfully",
@@ -152,6 +169,12 @@ class DoctorRejectAppointmentView(APIView):
             appointment.status = 'cancelled'
             appointment.save()
             
+            async_task(
+                'appointments.tasks.send_immediate_appointment_notification',
+                appointment.id,
+                'cancelled'
+            )
+            
             return Response(
                 {
                     "message": "Appointment rejected successfully",
@@ -166,8 +189,8 @@ class DoctorRejectAppointmentView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-class AvailableDoctorsListView(APIView):
 
+class AvailableDoctorsListView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
