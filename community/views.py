@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -16,7 +16,6 @@ from .serializers import (
 
 
 class CategoryListView(APIView):
-
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -24,32 +23,30 @@ class CategoryListView(APIView):
         serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-class PostListView(APIView):
+class PostListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = PostListSerializer
     
-    def get(self, request):
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Post.objects.filter(status='published')
 
-        user = request.user
-        posts = Post.objects.filter(status='published')
-        
-    
         if hasattr(user, 'patient_profile'):
-            posts = posts.filter(visible_to_patients=True)
+            queryset = queryset.filter(visible_to_patients=True)
         elif hasattr(user, 'doctor_profile'):
-            posts = posts.filter(visible_to_staff=True)
-        
-   
-        category = request.query_params.get('category', None)
+            queryset = queryset.filter(visible_to_staff=True)
+
+        category = self.request.query_params.get('category', None)
         if category:
-            posts = posts.filter(category__slug=category)
+            queryset = queryset.filter(category__slug=category)
         
-        serializer = PostListSerializer(posts, many=True, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return queryset
+    
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 
 class PostCreateView(APIView):
-
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     
@@ -62,13 +59,11 @@ class PostCreateView(APIView):
 
 
 class PostDetailView(APIView):
-  
     permission_classes = [IsAuthenticated]
     
     def get(self, request, slug):
         try:
             post = Post.objects.get(slug=slug, status='published')
-     
             post.views_count += 1
             post.save(update_fields=['views_count'])
             
@@ -101,7 +96,6 @@ class PostDetailView(APIView):
 
 
 class PostLikeView(APIView):
-    
     permission_classes = [IsAuthenticated]
     
     def post(self, request, slug):
@@ -111,7 +105,6 @@ class PostLikeView(APIView):
             like, created = Like.objects.get_or_create(post=post, user=request.user)
             
             if not created:
-                # Unlike
                 like.delete()
                 return Response(
                     {
@@ -122,7 +115,6 @@ class PostLikeView(APIView):
                     status=status.HTTP_200_OK
                 )
             else:
-                # Like
                 return Response(
                     {
                         "message": "Post liked",
@@ -137,26 +129,20 @@ class PostLikeView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
-class CommentListView(APIView):
-  
+class CommentListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = CommentSerializer
     
-    def get(self, request, slug):
+    def get_queryset(self):
+        slug = self.kwargs.get('slug')
         try:
             post = Post.objects.get(slug=slug, status='published')
-            comments = post.comments.filter(is_approved=True, parent=None)
-            serializer = CommentSerializer(comments, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return post.comments.filter(is_approved=True, parent=None)
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Comment.objects.none()
 
 
 class CommentCreateView(APIView):
-  
     permission_classes = [IsAuthenticated]
     
     def post(self, request, slug):
@@ -174,12 +160,12 @@ class CommentCreateView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
-class MyPostsView(APIView):
- 
+class MyPostsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = PostListSerializer
     
-    def get(self, request):
-        posts = Post.objects.filter(author=request.user)
-        serializer = PostListSerializer(posts, many=True, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        return Post.objects.filter(author=self.request.user)
+    
+    def get_serializer_context(self):
+        return {'request': self.request}
