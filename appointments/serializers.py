@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Appointment
 from Authapi.models import Doctor
-
+from .utils import get_doctor_queue_info
 
 class AppointmentRequestSerializer(serializers.ModelSerializer):
 
@@ -48,6 +48,9 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
     patient_age = serializers.SerializerMethodField()
     patient_gender = serializers.CharField(source='patient.get_gender_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+
+
     
     class Meta:
         model = Appointment
@@ -63,11 +66,17 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
             'status',
             'status_display',
             'notes',
-            'created_at'
+            'created_at',
+            
         ]
     
     def get_patient_name(self, obj):
         return obj.patient.get_full_name()
+    
+  
+    
+
+
     
     def get_patient_age(self, obj):
         from django.utils import timezone
@@ -83,6 +92,8 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
 class DoctorListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     email = serializers.CharField(source='user.email', read_only=True)
+    current_queue_count = serializers.SerializerMethodField()
+    estimated_wait_time = serializers.SerializerMethodField()
     
     class Meta:
         model = Doctor
@@ -96,8 +107,16 @@ class DoctorListSerializer(serializers.ModelSerializer):
             'department',
             'city',
             'phone_number',
-            'is_approved'
+            'is_approved',
+            'current_queue_count',
+            'estimated_wait_time'
         ]
     
     def get_full_name(self, obj):
         return f"Dr. {obj.get_full_name()}"
+    def get_current_queue_count(self, obj):
+        queue_info = get_doctor_queue_info(obj)  
+        return queue_info['current_queue_count']
+    def get_estimated_wait_time(self, obj):
+        queue_info = get_doctor_queue_info(obj)  
+        return queue_info['estimated_wait_time']
