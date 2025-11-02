@@ -71,3 +71,5 @@ class DoctorReviewAdmin(admin.ModelAdmin):
     def short_comment(self, obj):
         return obj.comment[:50] + '...' if len(obj.comment) > 50 else obj.comment
     short_comment.short_description = 'Comment'
+
+    

@@ -475,11 +475,9 @@ class DoctorDetailsView(APIView):
             refresh = RefreshToken.for_user(user)
             logger.info(f"Doctor profile created: {email}")
 
-            return Response({
+            response = Response({
                 'success': True,
                 'message': 'Doctor profile created successfully!',
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -491,6 +489,26 @@ class DoctorDetailsView(APIView):
                     'is_approved': doctor.is_approved
                 }
             }, status=status.HTTP_201_CREATED)
+
+            response.set_cookie(
+                key='access_token',
+                value=str(refresh.access_token),
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=3600
+            )
+
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=604800
+            )
+
+            return response
 
 
         except Exception as e:
@@ -602,11 +620,9 @@ class PatientDetailsView(APIView):
             refresh = RefreshToken.for_user(user)
             logger.info(f"Patient profile created: {email}")
 
-            return Response({
+            response = Response({
                 'success': True,
                 'message': 'Patient profile created successfully!',
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -617,6 +633,26 @@ class PatientDetailsView(APIView):
                     'phone_number': patient.phone_number
                 }
             }, status=status.HTTP_201_CREATED)
+
+            response.set_cookie(
+                key='access_token',
+                value=str(refresh.access_token),
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=3600
+            )
+
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=604800
+            )
+
+            return response
 
         except Exception as e:
             logger.error(f"Patient profile creation error: {str(e)}")
@@ -726,11 +762,9 @@ class LoginView(APIView):
 
             logger.info(f"Login successful: {user.email} as {role}")
 
-            response_data = {
+            response = Response({
                 'success': True,
                 'message': 'Login successful!',
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -738,10 +772,28 @@ class LoginView(APIView):
                     'role': role,
                     **profile_data
                 }
-            }
+            }, status=status.HTTP_200_OK)
 
-            return Response(response_data, status=status.HTTP_200_OK)
+           
+            response.set_cookie(
+                key='access_token',
+                value=str(refresh.access_token),
+                httponly=True,
+                secure=True, 
+                samesite='Strict',
+                max_age=3600  
+            )
 
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,  
+                samesite='Strict',
+                max_age=604800 
+            )
+
+            return response
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
             return Response(
