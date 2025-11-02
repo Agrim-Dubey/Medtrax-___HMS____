@@ -276,37 +276,28 @@ Medtrax Team
         recipient_list=[appointment.doctor.user.email],
         fail_silently=True,
     )
-
-
-def send_appointment_updated_notification(appointment):
-
-    message_base = f"""
-Your appointment details have been UPDATED.
-
-Doctor: Dr. {appointment.doctor.user.get_full_name()}
-Patient: {appointment.patient.user.get_full_name()}
-Date: {appointment.appointment_date.strftime('%B %d, %Y')}
-Time: {appointment.appointment_time.strftime('%I:%M %p')}
-Status: {appointment.get_status_display()}
-
-Please review the updated details.
-
-Best regards,
-Medtrax Team
-    """
-
-    send_mail(
-        subject="Appointment Updated",
-        message=f"Dear {appointment.patient.user.get_full_name()},\n\n{message_base}",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[appointment.patient.user.email],
-        fail_silently=True,
+def auto_complete_appointments():
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    now = timezone.now()
+    cutoff_time = now - timedelta(minutes=30)
+    
+    expired_appointments = Appointment.objects.filter(
+        appointment_date__lte=now.date(), 
+        status='confirmed'
     )
- 
-    send_mail(
-        subject="Appointment Updated",
-        message=f"Dear Dr. {appointment.doctor.user.get_full_name()},\n\n{message_base}",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[appointment.doctor.user.email],
-        fail_silently=True,
-    )
+
+    completed_count = 0
+    for appointment in expired_appointments:
+        appointment_datetime = timezone.make_aware(
+            timezone.datetime.combine(appointment.appointment_date, appointment.appointment_time)
+        )
+        if appointment_datetime + timedelta(minutes=30) <= now:
+            appointment.status = 'completed'
+            appointment.save()
+            completed_count += 1
+            logger.info(f"Auto-completed appointment {appointment.id}")
+    
+    logger.info(f"Auto-completed {completed_count} appointments")
+    return f"Completed {completed_count} appointments"
