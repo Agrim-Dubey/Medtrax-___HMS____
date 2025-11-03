@@ -190,34 +190,51 @@ class DoctorRecentReviewsView(APIView):
             )
 
 
-class DoctorWeeklyStatsView(APIView):
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from django.utils import timezone
+from datetime import timedelta
 
+class DoctorWeeklyStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
             today = timezone.now().date()
+            start_date = today - timedelta(days=6)
+            appointments_by_date = Appointment.objects.filter(
+                doctor=doctor,
+                appointment_date__gte=start_date,
+                appointment_date__lte=today,
+                status='completed'
+            ).values('appointment_date').annotate(
+                patient_count=Count('id')
+            ).order_by('appointment_date')
+            date_counts = {
+                item['appointment_date']: item['patient_count'] 
+                for item in appointments_by_date
+            }
             last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-            
-            weekly_data = []
-            for day in last_7_days:
-                count = Appointment.objects.filter(
-                    doctor=doctor,
-                    appointment_date=day,
-                    status='completed'
-                ).count()
-                
-                weekly_data.append({
+            weekly_data = [
+                {
                     'date': day.strftime('%Y-%m-%d'),
                     'day_name': day.strftime('%a'),
                     'day_short': day.strftime('%d %b'),
-                    'patient_count': count
-                })
+                    'patient_count': date_counts.get(day, 0)
+                }
+                for day in last_7_days
+            ]
+            
+            total_week = sum(date_counts.values())
             
             return Response({
                 'weekly_stats': weekly_data,
-                'total_week': sum(item['patient_count'] for item in weekly_data)
+                'total_week': total_week
             }, status=status.HTTP_200_OK)
             
         except AttributeError:

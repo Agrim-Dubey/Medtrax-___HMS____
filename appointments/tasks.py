@@ -161,8 +161,6 @@ def send_immediate_appointment_notification(appointment_id, notification_type='c
             send_appointment_confirmed_notification(appointment)
         elif notification_type == 'cancelled':
             send_appointment_cancelled_notification(appointment)
-        elif notification_type == 'updated':
-            send_appointment_updated_notification(appointment)
             
         return True
         
