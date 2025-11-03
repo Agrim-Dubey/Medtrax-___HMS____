@@ -247,15 +247,24 @@ CHANNEL_LAYERS = {
     },
 }
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
+            'description': 'JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"'
         }
     },
+    'USE_SESSION_AUTH': False,
+    'JSON_EDITOR': True,
+    'SUPPORTED_SUBMIT_METHODS': [
+        'get',
+        'post',
+        'put',
+        'delete',
+        'patch'
+    ],
     'DEFAULT_MODEL_RENDERING': 'example',
-    'VALIDATOR_URL': None,
+    'DEFAULT_MODEL_DEPTH': 2,
 }
 SCHEMA_URL = 'https://medtrax.me'
