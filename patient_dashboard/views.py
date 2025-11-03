@@ -9,7 +9,6 @@ from datetime import datetime, date
 
 class PatientDashboardView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         try :
             patient = request.user.patient_profile

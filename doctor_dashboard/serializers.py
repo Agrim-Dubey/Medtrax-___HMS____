@@ -3,12 +3,9 @@ from Authapi.models import Doctor
 from appointments.models import Appointment
 from .models import DoctorReview
 from django.utils import timezone
-
-
 class DoctorDashboardProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     email = serializers.CharField(source='user.email', read_only=True)
-    
     class Meta:
         model = Doctor
         fields = [
