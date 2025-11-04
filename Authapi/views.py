@@ -1054,8 +1054,7 @@ class VerifyTokenView(APIView):
     def get(self, request):
         try:
             user = request.user
-            
-            # Get profile data based on role
+
             profile_data = {}
             if user.role == 'doctor':
                 try:
@@ -1086,6 +1085,7 @@ class VerifyTokenView(APIView):
                     'username': user.username,
                     'email': user.email,
                     'role': user.role,
+                    'is_profile_complete': user.is_profile_complete,
                     **profile_data
                 }
             }, status=status.HTTP_200_OK)
@@ -1096,7 +1096,6 @@ class VerifyTokenView(APIView):
                 {'success': False, 'error': 'Token verification failed'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
