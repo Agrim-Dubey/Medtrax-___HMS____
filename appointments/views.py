@@ -206,50 +206,60 @@ class AvailableDoctorsListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class DoctorAvailableSlotsView(APIView):
-        permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, doctor_id):
+
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response(
+                {"error": "Date parameter is required (format: YYYY-MM-DD)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            appointment_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        def get(self, request, doctor_id):
-            try:
-                date_str = request.query_params.get('date')
-                if not date_str:
-                    return Response(
-                        {"error": "Date parameter is required (format: YYYY-MM-DD)"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                try:
-                    appointment_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                except ValueError:
-                    return Response(
-                        {"error": "Invalid date format. Use YYYY-MM-DD"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-               
-                from django.utils import timezone
-                if appointment_date < timezone.now().date():
-                    return Response(
-                        {"error": "Cannot book appointments in the past"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                doctor = get_object_or_404(Doctor, id=doctor_id)
-                available_slots = get_available_slots(doctor, appointment_date)
-                
-                return Response(
-                    {
-                        "doctor_id": doctor.id,
-                        "doctor_name": f"Dr. {doctor.get_full_name()}",
-                        "date": date_str,
-                        "available_slots": available_slots,
-                        "total_available": len(available_slots)
-                    },
-                    status=status.HTTP_200_OK
-                )
-                
-            except Exception as e:
-                return Response(
-                    {"error": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+        if appointment_date < timezone.now().date():
+            return Response(
+                {"error": "Cannot book appointments in the past"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            doctor = Doctor.objects.get(id=doctor_id, user__is_active=True)
+        except Doctor.DoesNotExist:
+            return Response(
+                {"error": f"Doctor with ID {doctor_id} not found or inactive"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            available_slots = get_available_slots(doctor, appointment_date)
+            
+            return Response(
+                {
+                    "doctor_id": doctor.id,
+                    "doctor_name": f"Dr. {doctor.get_full_name()}",
+                    "specialization": doctor.specialization,
+                    "date": date_str,
+                    "available_slots": available_slots,
+                    "total_available": len(available_slots)
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            import traceback
+            print(f"Error in get_available_slots: {str(e)}")
+            print(traceback.format_exc())
+            
+            return Response(
+                {"error": f"Failed to fetch available slots: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
             
 class DoctorDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]

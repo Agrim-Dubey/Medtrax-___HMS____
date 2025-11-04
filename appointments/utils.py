@@ -16,14 +16,11 @@ def get_doctor_queue_info(doctor):
     }
 
 
-def get_available_slots(doctor, date):
-    """
-    Generate available time slots for a doctor on a specific date.
-    Returns slots in HH:MM format (without seconds).
-    """
+def get_available_slots(doctor, appointment_date):
+
     start_hour = 9
     end_hour = 17
-    slot_duration = 30  # minutes
+    slot_duration_minutes = 30
     
     # Generate all possible slots
     all_slots = []
@@ -32,12 +29,11 @@ def get_available_slots(doctor, date):
     
     while current_time < end_time:
         all_slots.append(current_time.strftime("%H:%M"))
-        current_time += timedelta(minutes=slot_duration)
-    
-    # Get booked appointments for this doctor on this date
+        current_time += timedelta(minutes=slot_duration_minutes)
+
     booked_appointments = Appointment.objects.filter(
         doctor=doctor,
-        appointment_date=date,
+        appointment_date=appointment_date,
         status__in=['pending', 'confirmed']
     ).values_list('appointment_time', flat=True)
     
@@ -45,21 +41,20 @@ def get_available_slots(doctor, date):
     booked_slots = set()
     for time_obj in booked_appointments:
         if time_obj:
-            # Convert time object to string in HH:MM format
-            time_str = time_obj.strftime("%H:%M")
-            booked_slots.add(time_str)
+            # Convert time object to HH:MM string format
+            booked_slots.add(time_obj.strftime("%H:%M"))
     
     # Filter out booked slots
     available_slots = [slot for slot in all_slots if slot not in booked_slots]
     
-    # If it's today, also filter out past slots
+    # If booking for today, also filter out past time slots
     today = timezone.now().date()
-    if date == today:
-        current_time = timezone.now().time()
-        current_time_str = current_time.strftime("%H:%M")
-        available_slots = [
-            slot for slot in available_slots 
-            if slot > current_time_str
-        ]
+    if appointment_date == today:
+        current_datetime = timezone.now()
+        current_time_str = current_datetime.strftime("%H:%M")
+        
+        # Only show slots that are at least 30 minutes in the future
+        future_threshold = (current_datetime + timedelta(minutes=30)).strftime("%H:%M")
+        available_slots = [slot for slot in available_slots if slot >= future_threshold]
     
     return available_slots
