@@ -1086,7 +1086,6 @@ class VerifyTokenView(APIView):
                     'email': user.email,
                     'role': user.role,
                     'is_profile_complete': user.is_profile_complete,
-                    **profile_data
                 }
             }, status=status.HTTP_200_OK)
 
