@@ -250,3 +250,101 @@ class DoctorAvailableSlotsView(APIView):
                     {"error": str(e)},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+            
+class DoctorDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            doctor = request.user.doctor_profile
+            today = timezone.now().date()
+            
+            stats = {
+                'total_appointments': Appointment.objects.filter(doctor=doctor).count(),
+                'today_appointments': Appointment.objects.filter(
+                    doctor=doctor,
+                    appointment_date=today,
+                    status__in=['confirmed', 'completed']
+                ).count(),
+                'total_patients': Appointment.objects.filter(doctor=doctor).values('patient').distinct().count(),
+                'pending_requests': Appointment.objects.filter(
+                    doctor=doctor,
+                    status='pending'
+                ).count()
+            }
+            
+            return Response(stats, status=status.HTTP_200_OK)
+        except AttributeError:
+            return Response({"error": "Only doctors can access this"}, status=status.HTTP_403_FORBIDDEN)
+
+
+class PatientDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            patient = request.user.patient_profile
+            
+            stats = {
+                'total_appointments': Appointment.objects.filter(patient=patient).count(),
+                'upcoming': Appointment.objects.filter(
+                    patient=patient,
+                    appointment_date__gte=timezone.now().date(),
+                    status='confirmed'
+                ).count(),
+                'completed': Appointment.objects.filter(patient=patient, status='completed').count(),
+                'pending': Appointment.objects.filter(patient=patient, status='pending').count()
+            }
+            
+            return Response(stats, status=status.HTTP_200_OK)
+        except AttributeError:
+            return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
+
+
+class PatientUpcomingAppointmentsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            patient = request.user.patient_profile
+            appointments = Appointment.objects.filter(
+                patient=patient,
+                appointment_date__gte=timezone.now().date(),
+                status='confirmed'
+            ).select_related('doctor')[:5]
+            
+            data = [{
+                'id': apt.id,
+                'doctor_name': f"Dr. {apt.doctor.get_full_name()}",
+                'specialization': apt.doctor.specialization,
+                'date': apt.appointment_date.strftime('%Y-%m-%d'),
+                'time': apt.appointment_time.strftime('%H:%M')
+            } for apt in appointments]
+            
+            return Response(data, status=status.HTTP_200_OK)
+        except AttributeError:
+            return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
+
+
+class PatientRecentAppointmentsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            patient = request.user.patient_profile
+            appointments = Appointment.objects.filter(
+                patient=patient,
+                status='completed'
+            ).select_related('doctor').order_by('-appointment_date')[:5]
+            
+            data = [{
+                'id': apt.id,
+                'doctor_name': f"Dr. {apt.doctor.get_full_name()}",
+                'specialization': apt.doctor.specialization,
+                'date': apt.appointment_date.strftime('%Y-%m-%d'),
+                'status': apt.get_status_display()
+            } for apt in appointments]
+            
+            return Response(data, status=status.HTTP_200_OK)
+        except AttributeError:
+            return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)

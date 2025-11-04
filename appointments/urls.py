@@ -2,12 +2,16 @@ from django.urls import path
 from .views import (
     PatientBookAppointmentView,
     PatientAppointmentListView,
-    
     DoctorAppointmentRequestsView,
     DoctorAppointmentsListView,
     DoctorAcceptAppointmentView,
     DoctorRejectAppointmentView,
-    AvailableDoctorsListView,DoctorAvailableSlotsView
+    AvailableDoctorsListView,
+    DoctorAvailableSlotsView,
+    DoctorDashboardStatsView,
+    PatientDashboardStatsView,
+    PatientUpcomingAppointmentsView,
+    PatientRecentAppointmentsView
 )
 
 urlpatterns = [
@@ -22,4 +26,9 @@ urlpatterns = [
     path('doctor/appointments/', DoctorAppointmentsListView.as_view(), name='doctor-appointments-list'),
     path('doctor/<int:appointment_id>/accept/', DoctorAcceptAppointmentView.as_view(), name='doctor-accept-appointment'),
     path('doctor/<int:appointment_id>/reject/', DoctorRejectAppointmentView.as_view(), name='doctor-reject-appointment'),
+
+    path('doctor/dashboard/stats/', DoctorDashboardStatsView.as_view(), name='doctor-dashboard-stats'),
+    path('patient/dashboard/stats/', PatientDashboardStatsView.as_view(), name='patient-dashboard-stats'),
+    path('patient/dashboard/appointments/', PatientUpcomingAppointmentsView.as_view(), name='patient-upcoming-appointments'),
+    path('patient/dashboard/appointments/recent/', PatientRecentAppointmentsView.as_view(), name='patient-recent-appointments'),
 ]
