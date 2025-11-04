@@ -191,12 +191,10 @@ class Patient(models.Model):
     is_insurance = models.BooleanField(default=False, help_text="Has medical insurance")
     ins_company_name = models.CharField(max_length=100, blank=True, null=True)
     ins_policy_number = models.CharField(max_length=50, blank=True, null=True)
-
     known_allergies = models.TextField(blank=True, null=True, help_text="Known allergies (comma separated)")
     chronic_diseases = models.TextField(blank=True, null=True, help_text="Chronic diseases (comma separated)")
     previous_surgeries = models.TextField(blank=True, null=True, help_text="Previous surgeries history")
     family_medical_history = models.TextField(blank=True, null=True, help_text="Family medical history")
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
