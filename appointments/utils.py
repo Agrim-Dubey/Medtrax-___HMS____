@@ -18,7 +18,6 @@ def get_doctor_queue_info(doctor):
 
 
 def get_available_slots(doctor, date):
-
     start_hour = 9
     end_hour = 17
     all_slots = []
@@ -26,7 +25,7 @@ def get_available_slots(doctor, date):
     end_time = datetime.strptime(f"{end_hour}:00", "%H:%M")
     
     while current_time < end_time:
-        all_slots.append(current_time.strftime("%H:%M:%S"))
+        all_slots.append(current_time.strftime("%H:%M")) 
         current_time += timedelta(minutes=30)
 
     booked_appointments = Appointment.objects.filter(
@@ -34,7 +33,8 @@ def get_available_slots(doctor, date):
         appointment_date=date,
         status__in=['pending', 'confirmed']
     ).values_list('appointment_time', flat=True)
-    booked_slots = [time.strftime("%H:%M:%S") for time in booked_appointments]
+    
+    booked_slots = [time.strftime("%H:%M") for time in booked_appointments]  # Changed from %H:%M:%S
     available_slots = [slot for slot in all_slots if slot not in booked_slots]
     
     return available_slots
