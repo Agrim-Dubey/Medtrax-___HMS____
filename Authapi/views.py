@@ -494,8 +494,9 @@ class DoctorDetailsView(APIView):
                 value=str(refresh.access_token),
                 httponly=True,
                 secure=True,
-                samesite='Strict',
-                max_age=3600
+                samesite='None',
+                max_age=3600,
+                path='/'
             )
 
             response.set_cookie(
@@ -503,8 +504,9 @@ class DoctorDetailsView(APIView):
                 value=str(refresh),
                 httponly=True,
                 secure=True,
-                samesite='Strict',
-                max_age=604800 
+                samesite='None',
+                max_age=604800,
+                path='/' 
             )
 
             return response
@@ -634,20 +636,22 @@ class PatientDetailsView(APIView):
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=False,
+                secure=True,
                 samesite='None',
                 max_age=3600,
-                domain=None  
+                domain=None,
+                path='/'
             )
 
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=False,
+                secure=True,
                 samesite='None',
                 domain=None,
-                max_age=604800  
+                max_age=604800,
+                path='/'  
             )
             return response
 
@@ -773,20 +777,22 @@ class LoginView(APIView):
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=False,
+                secure=True,
                 samesite='None',
                 max_age=3600,
-                domain=None  
+                domain=None,
+                path='/' 
             )
 
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=False,
+                secure=True,
                 samesite='None',
                 domain=None,
-                max_age=604800  
+                max_age=604800,
+                path='/'  
             )
 
             return response
