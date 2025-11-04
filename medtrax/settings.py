@@ -180,7 +180,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://med-trax.vercel.app',
     'https://*.vercel.app',
     'http://localhost:5173',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    'https://dummy-frontend-xi.vercel.app'
 ]
 CSRF_USE_SESSIONS = False
 
