@@ -634,20 +634,21 @@ class PatientDetailsView(APIView):
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=True,
-                samesite='Strict',
-                max_age=3600  
+                secure=False,
+                samesite='None',
+                max_age=3600,
+                domain=None  
             )
 
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=True,
-                samesite='Strict',
-                max_age=604800 
+                secure=False,
+                samesite='None',
+                domain=None,
+                max_age=604800  
             )
-
             return response
 
         except Exception as e:
@@ -772,17 +773,19 @@ class LoginView(APIView):
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=True,
-                samesite='Strict',
-                max_age=3600  
+                secure=False,
+                samesite='None',
+                max_age=3600,
+                domain=None  
             )
 
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=True,
-                samesite='Strict',
+                secure=False,
+                samesite='None',
+                domain=None,
                 max_age=604800  
             )
 
