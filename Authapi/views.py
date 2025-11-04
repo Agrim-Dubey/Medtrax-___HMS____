@@ -15,6 +15,7 @@ from django.conf import settings
 import random
 from datetime import timedelta
 from dateutil import parser
+from rest_framework.permissions import IsAuthenticated
 
 
 from Authapi.models import CustomUser, Doctor, Patient
@@ -490,6 +491,7 @@ class DoctorDetailsView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
 
+            refresh = RefreshToken.for_user(user)
             response.set_cookie(
                 key='access_token',
                 value=str(refresh.access_token),
@@ -505,7 +507,7 @@ class DoctorDetailsView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='Strict',
-                max_age=604800
+                max_age=604800 
             )
 
             return response
@@ -621,26 +623,26 @@ class PatientDetailsView(APIView):
             logger.info(f"Patient profile created: {email}")
 
             response = Response({
-                'success': True,
-                'message': 'Patient profile created successfully!',
-                'user': {
-                    'user_id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'role': 'patient',
-                    'profile_id': patient.id,
-                    'gender': patient.gender,
-                    'phone_number': patient.phone_number
-                }
-            }, status=status.HTTP_201_CREATED)
-
+            'success': True,
+            'message': 'Patient profile created successfully!',
+            'user': {
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': 'patient',
+                'profile_id': patient.id,
+                'gender': patient.gender,
+                'phone_number': patient.phone_number
+            }
+        }, status=status.HTTP_201_CREATED)
+            refresh = RefreshToken.for_user(user)
             response.set_cookie(
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
                 secure=True,
                 samesite='Strict',
-                max_age=3600
+                max_age=3600  
             )
 
             response.set_cookie(
@@ -649,7 +651,7 @@ class PatientDetailsView(APIView):
                 httponly=True,
                 secure=True,
                 samesite='Strict',
-                max_age=604800
+                max_age=604800 
             )
 
             return response
@@ -760,8 +762,6 @@ class LoginView(APIView):
 
             refresh = RefreshToken.for_user(user)
 
-            logger.info(f"Login successful: {user.email} as {role}")
-
             response = Response({
                 'success': True,
                 'message': 'Login successful!',
@@ -774,12 +774,11 @@ class LoginView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-           
             response.set_cookie(
                 key='access_token',
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=True, 
+                secure=True,
                 samesite='Strict',
                 max_age=3600  
             )
@@ -788,9 +787,9 @@ class LoginView(APIView):
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=True,  
+                secure=True,
                 samesite='Strict',
-                max_age=604800 
+                max_age=604800  
             )
 
             return response
@@ -1011,5 +1010,116 @@ class ResendPasswordResetOTPView(APIView):
             logger.error(f"Resend password reset OTP error: {str(e)}")
             return Response(
                 {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
+class RefreshTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+
+            refresh_token = request.COOKIES.get('refresh_token')
+            
+            if not refresh_token:
+                return Response(
+                    {'success': False, 'error': 'Refresh token not found'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            refresh = RefreshToken(refresh_token)
+            new_access_token = str(refresh.access_token)
+
+            response = Response({
+                'success': True,
+                'message': 'Token refreshed successfully'
+            }, status=status.HTTP_200_OK)
+
+            response.set_cookie(
+                key='access_token',
+                value=new_access_token,
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=3600  # 1 hour
+            )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Token refresh error: {str(e)}")
+            return Response(
+                {'success': False, 'error': 'Token refresh failed'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class VerifyTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+            
+            # Get profile data based on role
+            profile_data = {}
+            if user.role == 'doctor':
+                try:
+                    doctor = Doctor.objects.get(user=user)
+                    profile_data = {
+                        'profile_id': doctor.id,
+                        'specialization': doctor.specialization,
+                        'department': doctor.department,
+                        'is_approved': doctor.is_approved
+                    }
+                except Doctor.DoesNotExist:
+                    pass
+            else:
+                try:
+                    patient = Patient.objects.get(user=user)
+                    profile_data = {
+                        'profile_id': patient.id,
+                        'gender': patient.gender,
+                        'phone_number': patient.phone_number
+                    }
+                except Patient.DoesNotExist:
+                    pass
+
+            return Response({
+                'success': True,
+                'user': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    **profile_data
+                }
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Token verification error: {str(e)}")
+            return Response(
+                {'success': False, 'error': 'Token verification failed'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            response = Response({
+                'success': True,
+                'message': 'Logged out successfully'
+            }, status=status.HTTP_200_OK)
+            response.delete_cookie('access_token')
+            response.delete_cookie('refresh_token')
+            
+            return response
+
+        except Exception as e:
+            logger.error(f"Logout error: {str(e)}")
+            return Response(
+                {'success': False, 'error': 'Logout failed'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
