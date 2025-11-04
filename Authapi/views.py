@@ -472,10 +472,7 @@ class DoctorDetailsView(APIView):
             user.username = username
             user.is_profile_complete = True
             user.save()
-           
-            refresh = RefreshToken.for_user(user)
-            logger.info(f"Doctor profile created: {email}")
-
+    
             response = Response({
                 'success': True,
                 'message': 'Doctor profile created successfully!',
@@ -619,9 +616,6 @@ class PatientDetailsView(APIView):
             user.username = username
             user.is_profile_complete = True
             user.save()
-            refresh = RefreshToken.for_user(user)
-            logger.info(f"Patient profile created: {email}")
-
             response = Response({
             'success': True,
             'message': 'Patient profile created successfully!',
