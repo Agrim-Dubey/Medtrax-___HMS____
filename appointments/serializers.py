@@ -97,7 +97,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
         model = Doctor
         fields = [
             'id',
-            'full_name'
+            'full_name',
             'email',
             'specialization',
             'qualification',
