@@ -17,8 +17,20 @@ from .serializers import (
 
 class CategoryListView(APIView):
     permission_classes = [AllowAny]
-    
     def get(self, request):
+        default_categories = [
+            {'name': 'General Medicine', 'description': 'General health topics'},
+            {'name': 'Cardiology', 'description': 'Heart health'},
+            {'name': 'Pediatrics', 'description': 'Child health'},
+            {'name': 'Mental Health', 'description': 'Mental wellness'},
+            {'name': 'Nutrition', 'description': 'Diet advice'},
+            {'name': 'Fitness', 'description': 'Exercise tips'},
+        ]
+        for cat_data in default_categories:
+            Category.objects.get_or_create(
+                name=cat_data['name'],
+                defaults={'description': cat_data['description']}
+            )
         categories = Category.objects.all()
         serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
