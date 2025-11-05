@@ -313,10 +313,11 @@ class DoctorRecentReviewsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-@method_decorator(csrf_exempt, name='dispatch')
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
 class DoctorCompleteProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    # http_method_names = ['get', 'patch', 'options', 'head']
 
     @swagger_auto_schema(
         operation_description="Get complete doctor profile with all fields",
@@ -371,6 +372,7 @@ class DoctorCompleteProfileView(APIView):
         },
         security=[{'Bearer': []}]
     )
+    @method_decorator(csrf_exempt) 
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -387,6 +389,7 @@ class DoctorCompleteProfileView(APIView):
                 {"error": "Something went wrong", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
     @swagger_auto_schema(
         operation_description="Update doctor profile",
         operation_summary="Update Doctor Profile",
@@ -398,7 +401,7 @@ class DoctorCompleteProfileView(APIView):
             403: "Access denied"
         }
     )
-
+    @method_decorator(csrf_exempt) 
     def patch(self, request):
         try:
             doctor = request.user.doctor_profile
