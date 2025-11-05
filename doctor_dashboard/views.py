@@ -314,7 +314,8 @@ class DoctorRecentReviewsView(APIView):
 
 class DoctorCompleteProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    http_method_names = ['get', 'patch', 'options', 'head']
+
     @swagger_auto_schema(
         operation_description="Get complete doctor profile with all fields",
         operation_summary="Retrieve Complete Doctor Profile",
@@ -384,6 +385,18 @@ class DoctorCompleteProfileView(APIView):
                 {"error": "Something went wrong", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    @swagger_auto_schema(
+        operation_description="Update doctor profile",
+        operation_summary="Update Doctor Profile",
+        tags=['Doctor Profile'],
+        request_body=DoctorCompleteProfileSerializer,
+        responses={
+            200: "Profile updated successfully",
+            400: "Invalid data",
+            403: "Access denied"
+        }
+    )
+
     def patch(self, request):
         try:
             doctor = request.user.doctor_profile
