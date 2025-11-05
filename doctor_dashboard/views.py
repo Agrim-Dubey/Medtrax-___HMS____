@@ -14,6 +14,8 @@ from .serializers import (
     DashboardAppointmentSerializer,
     DoctorReviewSerializer, DoctorCompleteProfileSerializer
 )
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
 class DoctorDashboardProfileView(APIView):
@@ -311,7 +313,7 @@ class DoctorRecentReviewsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class DoctorCompleteProfileView(APIView):
     permission_classes = [IsAuthenticated]
     # http_method_names = ['get', 'patch', 'options', 'head']
