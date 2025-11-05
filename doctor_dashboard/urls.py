@@ -5,7 +5,7 @@ from .views import (
     DoctorTodayAppointmentsView,
     DoctorUpcomingAppointmentsView,
     DoctorRecentReviewsView,
-    DoctorWeeklyStatsView
+    DoctorWeeklyStatsView,DoctorCompleteProfileView
 )
 
 urlpatterns = [
@@ -15,4 +15,5 @@ urlpatterns = [
     path('appointments/upcoming/', DoctorUpcomingAppointmentsView.as_view(), name='doctor-upcoming-appointments'),
     path('reviews/recent/', DoctorRecentReviewsView.as_view(), name='doctor-recent-reviews'),
     path('stats/weekly/', DoctorWeeklyStatsView.as_view(), name='doctor-weekly-stats'),
+    path('profile/complete/', DoctorCompleteProfileView.as_view(), name='doctor-complete-profile'), 
 ]

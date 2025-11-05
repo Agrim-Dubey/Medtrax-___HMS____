@@ -14,6 +14,37 @@ class PatientDashboardSerializer(serializers.ModelSerializer):
             'chronic_diseases'
         ]
 
+
+class PatientCompleteProfileSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    is_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
+    
+    class Meta:
+        model = Patient
+        fields = [
+            'email',
+            'username',
+            'is_verified',
+            'first_name',
+            'last_name',
+            'date_of_birth',
+            'blood_group',
+            'gender',
+            'city',
+            'phone_number',
+            'emergency_contact',
+            'emergency_email',
+            'is_insurance',
+            'ins_company_name',
+            'ins_policy_number',
+            'known_allergies',
+            'chronic_diseases',
+            'previous_surgeries',
+            'family_medical_history',
+            'created_at',
+            'updated_at'
+        ]
 class DashboardAppointmentSerializer(serializers.ModelSerializer):
     doctor_name = serializers.SerializerMethodField()
 

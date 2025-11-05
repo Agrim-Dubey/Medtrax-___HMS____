@@ -12,7 +12,7 @@ from .models import DoctorReview
 from .serializers import (
     DoctorDashboardProfileSerializer,
     DashboardAppointmentSerializer,
-    DoctorReviewSerializer
+    DoctorReviewSerializer, DoctorCompleteProfileSerializer
 )
 
 
@@ -311,6 +311,80 @@ class DoctorRecentReviewsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+class DoctorCompleteProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_description="Get complete doctor profile with all fields",
+        operation_summary="Retrieve Complete Doctor Profile",
+        tags=['Doctor Profile'],
+        responses={
+            200: openapi.Response(
+                description="Complete profile retrieved successfully",
+                schema=DoctorCompleteProfileSerializer,
+                examples={
+                    "application/json": {
+                        "email": "agrimxyz@gmail.com",
+                        "username": "dr_agrim",
+                        "is_verified": True,
+                        "first_name": "Agrim",
+                        "last_name": "Dubey",
+                        "date_of_birth": "1985-05-15",
+                        "gender": "M",
+                        "blood_group": "O+",
+                        "marital_status": "Married",
+                        "address": "123 Medical Street",
+                        "city": "New Delhi",
+                        "state": "Delhi",
+                        "pincode": "110001",
+                        "country": "India",
+                        "registration_number": "MED123456",
+                        "specialization": "Cardiology",
+                        "qualification": "MBBS, MD Cardiology",
+                        "years_of_experience": 10,
+                        "department": "Cardiology",
+                        "clinic_name": "Heart Care Clinic",
+                        "phone_number": "+911234567890",
+                        "alternate_phone_number": "+919876543210",
+                        "alternate_email": "agrim.alternate@gmail.com",
+                        "emergency_contact_person": "Jane Dubey",
+                        "emergency_contact_number": "+911122334455",
+                        "is_approved": True,
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-11-01T14:20:00Z"
+                    }
+                }
+            ),
+            403: openapi.Response(
+                description="Access denied - User is not a doctor",
+                examples={
+                    "application/json": {
+                        "error": "Only doctors can access this endpoint"
+                    }
+                }
+            ),
+            401: "Unauthorized - Authentication required"
+        },
+        security=[{'Bearer': []}]
+    )
+    def get(self, request):
+        try:
+            doctor = request.user.doctor_profile
+            serializer = DoctorCompleteProfileSerializer(doctor)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except AttributeError:
+            return Response(
+                {"error": "Only doctors can access this endpoint"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except Exception as e:
+            return Response(
+                {"error": "Something went wrong", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class DoctorWeeklyStatsView(APIView):
     permission_classes = [IsAuthenticated]

@@ -65,6 +65,44 @@ class DashboardAppointmentSerializer(serializers.ModelSerializer):
         return None
 
 
+
+class DoctorCompleteProfileSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    is_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
+    
+    class Meta:
+        model = Doctor
+        fields = [
+            'email',
+            'username',
+            'is_verified',
+            'first_name',
+            'last_name',
+            'date_of_birth',
+            'gender',
+            'blood_group',
+            'marital_status',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'country',
+            'registration_number',
+            'specialization',
+            'qualification',
+            'years_of_experience',
+            'department',
+            'clinic_name',
+            'phone_number',
+            'alternate_phone_number',
+            'alternate_email',
+            'emergency_contact_person',
+            'emergency_contact_number',
+            'is_approved',
+            'created_at',
+            'updated_at'
+        ]
 class DoctorReviewSerializer(serializers.ModelSerializer):
     """Review info for doctor dashboard"""
     patient_name = serializers.SerializerMethodField()
