@@ -314,7 +314,7 @@ class DoctorRecentReviewsView(APIView):
 
 class DoctorCompleteProfileView(APIView):
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'patch', 'options', 'head']
+    # http_method_names = ['get', 'patch', 'options', 'head']
 
     @swagger_auto_schema(
         operation_description="Get complete doctor profile with all fields",
