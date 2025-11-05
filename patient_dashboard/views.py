@@ -106,6 +106,53 @@ class PatientCompleteProfileView(APIView):
                         {"error": "Something went wrong", "detail": str(e)},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
+        def patch(self, request):
+            try:
+                patient = request.user.patient_profile
+
+                editable_fields = [
+                    'phone_number', 'emergency_contact', 'emergency_email',
+                    'city', 'is_insurance', 'ins_company_name', 'ins_policy_number',
+                    'known_allergies', 'chronic_diseases', 'previous_surgeries',
+                    'family_medical_history'
+                ]
+                filtered_data = {
+                    key: value for key, value in request.data.items() 
+                    if key in editable_fields
+                }
+                serializer = PatientCompleteProfileSerializer(
+                    patient, 
+                    data=filtered_data, 
+                    partial=True
+                )
+                
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        {
+                            "message": "Profile updated successfully",
+                            "data": serializer.data
+                        },
+                        status=status.HTTP_200_OK
+                    )
+                
+                return Response(
+                    {"error": "Invalid data", "details": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            except AttributeError:
+                return Response(
+                    {"error": "Only patients can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            except Exception as e:
+                return Response(
+                    {"error": "Something went wrong", "detail": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )       
+
 class PatientDashboardStatsView(APIView):
         permission_classes = [IsAuthenticated]
         

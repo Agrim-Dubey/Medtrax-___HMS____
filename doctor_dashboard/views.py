@@ -384,6 +384,53 @@ class DoctorCompleteProfileView(APIView):
                 {"error": "Something went wrong", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    def patch(self, request):
+        try:
+            doctor = request.user.doctor_profile
+            editable_fields = [
+                'phone_number', 'alternate_phone_number', 'alternate_email',
+                'address', 'city', 'state', 'pincode', 'country',
+                'marital_status', 'qualification', 'years_of_experience',
+                'department', 'clinic_name', 'emergency_contact_person',
+                'emergency_contact_number'
+            ]
+
+            filtered_data = {
+                key: value for key, value in request.data.items() 
+                if key in editable_fields
+            }
+            serializer = DoctorCompleteProfileSerializer(
+                doctor, 
+                data=filtered_data, 
+                partial=True
+            )
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        "message": "Profile updated successfully",
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {"error": "Invalid data", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        except AttributeError:
+            return Response(
+                {"error": "Only doctors can access this endpoint"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        except Exception as e:
+            return Response(
+                {"error": "Something went wrong", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
 
 class DoctorWeeklyStatsView(APIView):
