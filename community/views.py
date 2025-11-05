@@ -1,7 +1,7 @@
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from .models import Post, Comment, Like, Category
@@ -16,7 +16,7 @@ from .serializers import (
 
 
 class CategoryListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get(self, request):
         categories = Category.objects.all()
@@ -51,6 +51,11 @@ class PostCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     
     def post(self, request):
+        if not hasattr(request.user, 'doctor_profile'):
+            return Response(
+                {"error": "Only doctors can create posts"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = PostCreateSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(author=request.user)
