@@ -387,7 +387,7 @@ class DoctorCompleteProfileView(APIView):
     def patch(self, request):
         try:
             doctor = request.user.doctor_profile
-            editable_fields = [
+            editable_fields = ['first_name', 'last_name', 
                 'phone_number', 'alternate_phone_number', 'alternate_email',
                 'address', 'city', 'state', 'pincode', 'country',
                 'marital_status', 'qualification', 'years_of_experience',
