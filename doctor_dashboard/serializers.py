@@ -17,11 +17,8 @@ class DoctorDashboardProfileSerializer(serializers.ModelSerializer):
             'years_of_experience',
             'registration_number'
         ]
-    
     def get_full_name(self, obj):
         return f"Dr. {obj.get_full_name()}"
-
-
 class DashboardAppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     patient_age = serializers.SerializerMethodField()
@@ -104,7 +101,6 @@ class DoctorCompleteProfileSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
 class DoctorReviewSerializer(serializers.ModelSerializer):
-    """Review info for doctor dashboard"""
     patient_name = serializers.SerializerMethodField()
     time_ago = serializers.SerializerMethodField()
     date_formatted = serializers.SerializerMethodField()

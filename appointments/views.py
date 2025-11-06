@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from .models import Appointment
 from .serializers import (
     AppointmentSerializer,
@@ -19,6 +21,26 @@ from .utils import get_available_slots
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Book a new appointment",
+        operation_description="Allows a patient to book an appointment with a doctor",
+        request_body=AppointmentRequestSerializer,
+        responses={
+            201: openapi.Response(
+                description="Appointment created successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment request sent successfully"),
+                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                    }
+                )
+            ),
+            400: openapi.Response(description="Bad request - validation errors"),
+            403: openapi.Response(description="Only patients can book appointments")
+        },
+        tags=['Patient Appointments']
+    )
     def post(self, request):
         try:
             patient = request.user.patient_profile
@@ -53,6 +75,18 @@ class PatientBookAppointmentView(APIView):
 class PatientAppointmentListView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get patient's appointments",
+        operation_description="Retrieve all appointments for the authenticated patient",
+        responses={
+            200: openapi.Response(
+                description="List of patient appointments",
+                schema=AppointmentSerializer(many=True)
+            ),
+            403: openapi.Response(description="Only patients can access this endpoint")
+        },
+        tags=['Patient Appointments']
+    )
     def get(self, request):
         try:
             patient = request.user.patient_profile
@@ -73,6 +107,18 @@ class PatientAppointmentListView(APIView):
 class DoctorAppointmentRequestsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get pending appointment requests",
+        operation_description="Retrieve all pending appointment requests for the authenticated doctor",
+        responses={
+            200: openapi.Response(
+                description="List of pending appointment requests",
+                schema=DoctorAppointmentListSerializer(many=True)
+            ),
+            403: openapi.Response(description="Only doctors can access this endpoint")
+        },
+        tags=['Doctor Appointments']
+    )
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -97,6 +143,18 @@ class DoctorAppointmentRequestsView(APIView):
 class DoctorAppointmentsListView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get doctor's appointments",
+        operation_description="Retrieve all confirmed and completed appointments for the authenticated doctor",
+        responses={
+            200: openapi.Response(
+                description="List of doctor's appointments",
+                schema=DoctorAppointmentListSerializer(many=True)
+            ),
+            403: openapi.Response(description="Only doctors can access this endpoint")
+        },
+        tags=['Doctor Appointments']
+    )
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -121,6 +179,34 @@ class DoctorAppointmentsListView(APIView):
 class DoctorAcceptAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Accept appointment request",
+        operation_description="Doctor accepts a pending appointment request",
+        manual_parameters=[
+            openapi.Parameter(
+                'appointment_id',
+                openapi.IN_PATH,
+                description="ID of the appointment to accept",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Appointment accepted successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment accepted successfully"),
+                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                    }
+                )
+            ),
+            403: openapi.Response(description="Only doctors can accept appointments"),
+            404: openapi.Response(description="Appointment not found")
+        },
+        tags=['Doctor Appointments']
+    )
     def patch(self, request, appointment_id):
         try:
             doctor = request.user.doctor_profile
@@ -158,6 +244,34 @@ class DoctorAcceptAppointmentView(APIView):
 class DoctorRejectAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Reject appointment request",
+        operation_description="Doctor rejects a pending appointment request",
+        manual_parameters=[
+            openapi.Parameter(
+                'appointment_id',
+                openapi.IN_PATH,
+                description="ID of the appointment to reject",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Appointment rejected successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment rejected successfully"),
+                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                    }
+                )
+            ),
+            403: openapi.Response(description="Only doctors can reject appointments"),
+            404: openapi.Response(description="Appointment not found")
+        },
+        tags=['Doctor Appointments']
+    )
     def patch(self, request, appointment_id):
         try:
             doctor = request.user.doctor_profile
@@ -195,6 +309,28 @@ class DoctorRejectAppointmentView(APIView):
 class AvailableDoctorsListView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get available doctors",
+        operation_description="Retrieve list of all active doctors",
+        responses={
+            200: openapi.Response(
+                description="List of available doctors",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                            'specialization': openapi.Schema(type=openapi.TYPE_STRING),
+                            'experience_years': openapi.Schema(type=openapi.TYPE_INTEGER)
+                        }
+                    )
+                )
+            )
+        },
+        tags=['Doctors']
+    )
     def get(self, request):
         from .serializers import DoctorListSerializer
         
@@ -204,12 +340,56 @@ class AvailableDoctorsListView(APIView):
         
         serializer = DoctorListSerializer(doctors, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     
 class DoctorAvailableSlotsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get doctor's available time slots",
+        operation_description="Retrieve available appointment slots for a specific doctor on a given date",
+        manual_parameters=[
+            openapi.Parameter(
+                'doctor_id',
+                openapi.IN_PATH,
+                description="ID of the doctor",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+            openapi.Parameter(
+                'date',
+                openapi.IN_QUERY,
+                description="Date for which to fetch available slots (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                required=True,
+                example="2025-11-15"
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Available slots fetched successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'doctor_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                        'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
+                        'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
+                        'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-11-15"),
+                        'available_slots': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING, example="09:00")
+                        ),
+                        'total_available': openapi.Schema(type=openapi.TYPE_INTEGER, example=8)
+                    }
+                )
+            ),
+            400: openapi.Response(description="Invalid date format or missing date parameter"),
+            404: openapi.Response(description="Doctor not found"),
+            500: openapi.Response(description="Internal server error")
+        },
+        tags=['Doctors']
+    )
     def get(self, request, doctor_id):
-
         date_str = request.query_params.get('date')
         if not date_str:
             return Response(
@@ -230,6 +410,7 @@ class DoctorAvailableSlotsView(APIView):
                 {"error": "Cannot book appointments in the past"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
         try:
             doctor = Doctor.objects.get(id=doctor_id, user__is_active=True)
         except Doctor.DoesNotExist:
@@ -237,6 +418,7 @@ class DoctorAvailableSlotsView(APIView):
                 {"error": f"Doctor with ID {doctor_id} not found or inactive"},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
         try:
             available_slots = get_available_slots(doctor, appointment_date)
             
@@ -260,10 +442,31 @@ class DoctorAvailableSlotsView(APIView):
                 {"error": f"Failed to fetch available slots: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
+
+
 class DoctorDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get doctor dashboard statistics",
+        operation_description="Retrieve statistics for doctor's dashboard including total appointments, today's appointments, total patients, and pending requests",
+        responses={
+            200: openapi.Response(
+                description="Dashboard statistics",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'total_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=150),
+                        'today_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
+                        'total_patients': openapi.Schema(type=openapi.TYPE_INTEGER, example=80),
+                        'pending_requests': openapi.Schema(type=openapi.TYPE_INTEGER, example=3)
+                    }
+                )
+            ),
+            403: openapi.Response(description="Only doctors can access this")
+        },
+        tags=['Doctor Dashboard']
+    )
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -291,6 +494,26 @@ class DoctorDashboardStatsView(APIView):
 class PatientDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get patient dashboard statistics",
+        operation_description="Retrieve statistics for patient's dashboard including total, upcoming, completed, and pending appointments",
+        responses={
+            200: openapi.Response(
+                description="Dashboard statistics",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'total_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=25),
+                        'upcoming': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
+                        'completed': openapi.Schema(type=openapi.TYPE_INTEGER, example=20),
+                        'pending': openapi.Schema(type=openapi.TYPE_INTEGER, example=3)
+                    }
+                )
+            ),
+            403: openapi.Response(description="Only patients can access this")
+        },
+        tags=['Patient Dashboard']
+    )
     def get(self, request):
         try:
             patient = request.user.patient_profile
@@ -314,6 +537,30 @@ class PatientDashboardStatsView(APIView):
 class PatientUpcomingAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get patient's upcoming appointments",
+        operation_description="Retrieve the next 5 upcoming confirmed appointments for the patient",
+        responses={
+            200: openapi.Response(
+                description="List of upcoming appointments",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                            'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
+                            'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
+                            'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-11-15"),
+                            'time': openapi.Schema(type=openapi.TYPE_STRING, example="09:00")
+                        }
+                    )
+                )
+            ),
+            403: openapi.Response(description="Only patients can access this")
+        },
+        tags=['Patient Dashboard']
+    )
     def get(self, request):
         try:
             patient = request.user.patient_profile
@@ -339,6 +586,30 @@ class PatientUpcomingAppointmentsView(APIView):
 class PatientRecentAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary="Get patient's recent appointments",
+        operation_description="Retrieve the last 5 completed appointments for the patient",
+        responses={
+            200: openapi.Response(
+                description="List of recent appointments",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                            'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
+                            'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
+                            'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-10-20"),
+                            'status': openapi.Schema(type=openapi.TYPE_STRING, example="Completed")
+                        }
+                    )
+                )
+            ),
+            403: openapi.Response(description="Only patients can access this")
+        },
+        tags=['Patient Dashboard']
+    )
     def get(self, request):
         try:
             patient = request.user.patient_profile
