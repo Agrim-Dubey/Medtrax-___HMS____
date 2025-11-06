@@ -81,7 +81,7 @@ class PatientAppointmentListView(APIView):
         responses={
             200: openapi.Response(
                 description="List of patient appointments",
-                schema=AppointmentSerializer(many=True)
+                schema=AppointmentSerializer
             ),
             403: openapi.Response(description="Only patients can access this endpoint")
         },
@@ -113,7 +113,7 @@ class DoctorAppointmentRequestsView(APIView):
         responses={
             200: openapi.Response(
                 description="List of pending appointment requests",
-                schema=DoctorAppointmentListSerializer(many=True)
+                schema=DoctorAppointmentListSerializer
             ),
             403: openapi.Response(description="Only doctors can access this endpoint")
         },
@@ -130,7 +130,7 @@ class DoctorAppointmentRequestsView(APIView):
                 appointment_date__gte=today
             ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')
             
-            serializer = DoctorAppointmentListSerializer(requests, many=True)
+            serializer = DoctorAppointmentListSerializer(requests)
             return Response(serializer.data, status=status.HTTP_200_OK)
             
         except AttributeError:
@@ -149,7 +149,7 @@ class DoctorAppointmentsListView(APIView):
         responses={
             200: openapi.Response(
                 description="List of doctor's appointments",
-                schema=DoctorAppointmentListSerializer(many=True)
+                schema=DoctorAppointmentListSerializer
             ),
             403: openapi.Response(description="Only doctors can access this endpoint")
         },
@@ -338,7 +338,7 @@ class AvailableDoctorsListView(APIView):
             user__is_active=True
         ).select_related('user')
         
-        serializer = DoctorListSerializer(doctors, many=True)
+        serializer = DoctorListSerializer(doctors)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     
