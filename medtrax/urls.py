@@ -31,9 +31,9 @@ schema_view = get_schema_view(
         
         ## Authorization
         Most endpoints require JWT authentication. Add the token to requests:
-        ```
+```
         Authorization: Bearer <your_token_here>
-        ```
+```
         """,
         terms_of_service="https://medtrax.me/terms/",
         contact=openapi.Contact(
@@ -49,6 +49,16 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=(permissions.AllowAny,),
     authentication_classes=[],
+    url='https://medtrax.me/api/',
+    patterns=[
+        path('', include('Authapi.urls')),
+        path('chat/', include('chat_room.urls')),
+        path('doctor/dashboard/', include('doctor_dashboard.urls')),
+        path('patient/dashboard/', include('patient_dashboard.urls')),
+        path('community/', include('community.urls')),
+        path('appointments/', include('appointments.urls')),
+        path('pharmacy/', include('pharmacy.urls')),
+    ],
 )
 
 urlpatterns = [
