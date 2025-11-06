@@ -273,4 +273,3 @@ SWAGGER_SETTINGS = {
     'DEFAULT_MODEL_RENDERING': 'example',
     'DEFAULT_MODEL_DEPTH': 2,
 }
-SCHEMA_URL = 'https://medtrax.me'
