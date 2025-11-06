@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -10,6 +10,11 @@ schema_view = get_schema_view(
         default_version='v1',
         description="""
         # Healthcare Management System - Medtrax API Documentation
+
+        ## Base URL
+        All API endpoints are prefixed with `/api/`
+        
+        Example: `/api/appointments/patient/book/`
 
         ## Authentication Flow
         
@@ -49,16 +54,6 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=(permissions.AllowAny,),
     authentication_classes=[],
-    url='https://medtrax.me/api/',
-    patterns=[
-        path('', include('Authapi.urls')),
-        path('chat/', include('chat_room.urls')),
-        path('doctor/dashboard/', include('doctor_dashboard.urls')),
-        path('patient/dashboard/', include('patient_dashboard.urls')),
-        path('community/', include('community.urls')),
-        path('appointments/', include('appointments.urls')),
-        path('pharmacy/', include('pharmacy.urls')),
-    ],
 )
 
 urlpatterns = [
@@ -70,7 +65,7 @@ urlpatterns = [
     path('api/community/', include('community.urls')),
     path('api/appointments/', include('appointments.urls')),
     path('api/pharmacy/', include('pharmacy.urls')),
+    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
-    path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
