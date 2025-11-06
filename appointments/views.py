@@ -140,33 +140,19 @@ class DoctorAppointmentRequestsView(APIView):
             )
 
 
-class DoctorAppointmentsListView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    @swagger_auto_schema(
-        operation_summary="Get doctor's appointments",
-        operation_description="Retrieve all confirmed and completed appointments for the authenticated doctor",
-        responses={
-            200: openapi.Response(
-                description="List of doctor's appointments",
-                schema=DoctorAppointmentListSerializer
-            ),
-            403: openapi.Response(description="Only doctors can access this endpoint")
-        },
-        tags=['Doctor Appointments']
-    )
+class DoctorAppointmentRequestsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
             today = timezone.now().date()
             
-            appointments = Appointment.objects.filter(
+            requests = Appointment.objects.filter(
                 doctor=doctor,
-                status__in=['confirmed', 'completed'],
+                status='pending',
                 appointment_date__gte=today
             ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')
             
-            serializer = DoctorAppointmentListSerializer(appointments, many=True)
+            serializer = DoctorAppointmentListSerializer(requests, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
             
         except AttributeError:
@@ -307,30 +293,6 @@ class DoctorRejectAppointmentView(APIView):
 
 
 class AvailableDoctorsListView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    @swagger_auto_schema(
-        operation_summary="Get available doctors",
-        operation_description="Retrieve list of all active doctors",
-        responses={
-            200: openapi.Response(
-                description="List of available doctors",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                            'user': openapi.Schema(type=openapi.TYPE_OBJECT),
-                            'specialization': openapi.Schema(type=openapi.TYPE_STRING),
-                            'experience_years': openapi.Schema(type=openapi.TYPE_INTEGER)
-                        }
-                    )
-                )
-            )
-        },
-        tags=['Doctors']
-    )
     def get(self, request):
         from .serializers import DoctorListSerializer
         
@@ -338,9 +300,8 @@ class AvailableDoctorsListView(APIView):
             user__is_active=True
         ).select_related('user')
         
-        serializer = DoctorListSerializer(doctors)
+        serializer = DoctorListSerializer(doctors, many=True) 
         return Response(serializer.data, status=status.HTTP_200_OK)
-
     
 class DoctorAvailableSlotsView(APIView):
     permission_classes = [IsAuthenticated]
