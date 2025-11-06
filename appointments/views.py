@@ -138,30 +138,6 @@ class DoctorAppointmentRequestsView(APIView):
                 {"error": "Only doctors can access this endpoint"},
                 status=status.HTTP_403_FORBIDDEN
             )
-
-
-class DoctorAppointmentRequestsView(APIView):
-    def get(self, request):
-        try:
-            doctor = request.user.doctor_profile
-            today = timezone.now().date()
-            
-            requests = Appointment.objects.filter(
-                doctor=doctor,
-                status='pending',
-                appointment_date__gte=today
-            ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')
-            
-            serializer = DoctorAppointmentListSerializer(requests, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-            
-        except AttributeError:
-            return Response(
-                {"error": "Only doctors can access this endpoint"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-
 class DoctorAcceptAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -590,3 +566,36 @@ class PatientRecentAppointmentsView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except AttributeError:
             return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
+        
+
+class DoctorAppointmentsListView(APIView):
+        permission_classes = [IsAuthenticated]
+        
+        @swagger_auto_schema(
+            operation_summary="Get all doctor's appointments",
+            operation_description="Retrieve all appointments (past and upcoming) for the authenticated doctor",
+            responses={
+                200: openapi.Response(
+                    description="List of all appointments",
+                    schema=DoctorAppointmentListSerializer
+                ),
+                403: openapi.Response(description="Only doctors can access this endpoint")
+            },
+            tags=['Doctor Appointments']
+        )
+        def get(self, request):
+            try:
+                doctor = request.user.doctor_profile
+                
+                appointments = Appointment.objects.filter(
+                    doctor=doctor
+                ).select_related('patient', 'patient__user').order_by('-appointment_date', '-appointment_time')
+                
+                serializer = DoctorAppointmentListSerializer(appointments, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+                
+            except AttributeError:
+                return Response(
+                    {"error": "Only doctors can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN
+                )

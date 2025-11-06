@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Message, UserOnlineStatus, Conversation
+from .models import Message
 from Authapi.models import CustomUser, Doctor, Patient
 
 
@@ -80,17 +80,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     last_message_content = serializers.CharField(source='last_message.content', read_only=True)
     last_message_timestamp = serializers.DateTimeField(source='last_message.timestamp', read_only=True)
     unread_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Conversation
-        fields = [
-            'id',
-            'other_user',
-            'last_message_content',
-            'last_message_timestamp',
-            'unread_count',
-            'updated_at'
-        ]
+
     
     def get_other_user(self, obj):
         request_user = self.context.get('request').user

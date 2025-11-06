@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
-from .models import Message, UserOnlineStatus, Conversation
+from .models import Message
 from Authapi.models import CustomUser
 from django.db.models import Q
 
