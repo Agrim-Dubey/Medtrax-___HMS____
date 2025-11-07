@@ -53,7 +53,6 @@ urlpatterns = [
     path('api/patient/dashboard/', include('patient_dashboard.urls')),
     path('api/community/', include('community.urls')),
     path('api/appointments/', include('appointments.urls')),
-    path('api/pharmacy/', include('pharmacy.urls')),
 
     re_path(
         r'^swagger(?P<format>\.json|\.yaml)$',
