@@ -31,8 +31,14 @@ class PatientBookAppointmentView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment request sent successfully"),
-                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Appointment request sent successfully"
+                        ),
+                        'appointment': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Appointment details"
+                        )
                     }
                 )
             ),
@@ -79,10 +85,7 @@ class PatientAppointmentListView(APIView):
         operation_summary="Get patient's appointments",
         operation_description="Retrieve all appointments for the authenticated patient",
         responses={
-            200: openapi.Response(
-                description="List of patient appointments",
-                schema=AppointmentSerializer
-            ),
+            200: AppointmentSerializer(many=True),
             403: openapi.Response(description="Only patients can access this endpoint")
         },
         tags=['Patient Appointments']
@@ -111,10 +114,7 @@ class DoctorAppointmentRequestsView(APIView):
         operation_summary="Get pending appointment requests",
         operation_description="Retrieve all pending appointment requests for the authenticated doctor",
         responses={
-            200: openapi.Response(
-                description="List of pending appointment requests",
-                schema=DoctorAppointmentListSerializer
-            ),
+            200: DoctorAppointmentListSerializer(many=True),
             403: openapi.Response(description="Only doctors can access this endpoint")
         },
         tags=['Doctor Appointments']
@@ -130,7 +130,7 @@ class DoctorAppointmentRequestsView(APIView):
                 appointment_date__gte=today
             ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')
             
-            serializer = DoctorAppointmentListSerializer(requests)
+            serializer = DoctorAppointmentListSerializer(requests, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
             
         except AttributeError:
@@ -138,6 +138,8 @@ class DoctorAppointmentRequestsView(APIView):
                 {"error": "Only doctors can access this endpoint"},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+
 class DoctorAcceptAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -159,8 +161,14 @@ class DoctorAcceptAppointmentView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment accepted successfully"),
-                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Appointment accepted successfully"
+                        ),
+                        'appointment': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Updated appointment details"
+                        )
                     }
                 )
             ),
@@ -224,8 +232,14 @@ class DoctorRejectAppointmentView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'message': openapi.Schema(type=openapi.TYPE_STRING, example="Appointment rejected successfully"),
-                        'appointment': openapi.Schema(type=openapi.TYPE_OBJECT)
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Appointment rejected successfully"
+                        ),
+                        'appointment': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description="Updated appointment details"
+                        )
                     }
                 )
             ),
@@ -269,6 +283,20 @@ class DoctorRejectAppointmentView(APIView):
 
 
 class AvailableDoctorsListView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Get list of available doctors",
+        operation_description="Retrieve all active doctors",
+        responses={
+            200: openapi.Response(
+                description="List of available doctors",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                )
+            )
+        },
+        tags=['Doctors']
+    )
     def get(self, request):
         from .serializers import DoctorListSerializer
         
@@ -278,7 +306,8 @@ class AvailableDoctorsListView(APIView):
         
         serializer = DoctorListSerializer(doctors, many=True) 
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
+
 class DoctorAvailableSlotsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -308,15 +337,33 @@ class DoctorAvailableSlotsView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'doctor_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-                        'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
-                        'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
-                        'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-11-15"),
+                        'doctor_id': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            example=1
+                        ),
+                        'doctor_name': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Dr. John Doe"
+                        ),
+                        'specialization': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="Cardiologist"
+                        ),
+                        'date': openapi.Schema(
+                            type=openapi.TYPE_STRING, 
+                            example="2025-11-15"
+                        ),
                         'available_slots': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(type=openapi.TYPE_STRING, example="09:00")
+                            items=openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="09:00"
+                            )
                         ),
-                        'total_available': openapi.Schema(type=openapi.TYPE_INTEGER, example=8)
+                        'total_available': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            example=8
+                        )
                     }
                 )
             ),
@@ -393,10 +440,26 @@ class DoctorDashboardStatsView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'total_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=150),
-                        'today_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
-                        'total_patients': openapi.Schema(type=openapi.TYPE_INTEGER, example=80),
-                        'pending_requests': openapi.Schema(type=openapi.TYPE_INTEGER, example=3)
+                        'total_appointments': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            description='Total number of appointments',
+                            example=150
+                        ),
+                        'today_appointments': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            description='Appointments scheduled for today',
+                            example=5
+                        ),
+                        'total_patients': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            description='Total unique patients',
+                            example=80
+                        ),
+                        'pending_requests': openapi.Schema(
+                            type=openapi.TYPE_INTEGER, 
+                            description='Pending appointment requests',
+                            example=3
+                        )
                     }
                 )
             ),
@@ -440,10 +503,26 @@ class PatientDashboardStatsView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'total_appointments': openapi.Schema(type=openapi.TYPE_INTEGER, example=25),
-                        'upcoming': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
-                        'completed': openapi.Schema(type=openapi.TYPE_INTEGER, example=20),
-                        'pending': openapi.Schema(type=openapi.TYPE_INTEGER, example=3)
+                        'total_appointments': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Total number of appointments',
+                            example=25
+                        ),
+                        'upcoming': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Upcoming confirmed appointments',
+                            example=2
+                        ),
+                        'completed': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Completed appointments',
+                            example=20
+                        ),
+                        'pending': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Pending appointment requests',
+                            example=3
+                        )
                     }
                 )
             ),
@@ -485,11 +564,26 @@ class PatientUpcomingAppointmentsView(APIView):
                     items=openapi.Schema(
                         type=openapi.TYPE_OBJECT,
                         properties={
-                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-                            'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
-                            'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
-                            'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-11-15"),
-                            'time': openapi.Schema(type=openapi.TYPE_STRING, example="09:00")
+                            'id': openapi.Schema(
+                                type=openapi.TYPE_INTEGER, 
+                                example=1
+                            ),
+                            'doctor_name': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="Dr. John Doe"
+                            ),
+                            'specialization': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="Cardiologist"
+                            ),
+                            'date': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="2025-11-15"
+                            ),
+                            'time': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="09:00"
+                            )
                         }
                     )
                 )
@@ -534,11 +628,26 @@ class PatientRecentAppointmentsView(APIView):
                     items=openapi.Schema(
                         type=openapi.TYPE_OBJECT,
                         properties={
-                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-                            'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
-                            'specialization': openapi.Schema(type=openapi.TYPE_STRING, example="Cardiologist"),
-                            'date': openapi.Schema(type=openapi.TYPE_STRING, example="2025-10-20"),
-                            'status': openapi.Schema(type=openapi.TYPE_STRING, example="Completed")
+                            'id': openapi.Schema(
+                                type=openapi.TYPE_INTEGER, 
+                                example=1
+                            ),
+                            'doctor_name': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="Dr. John Doe"
+                            ),
+                            'specialization': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="Cardiologist"
+                            ),
+                            'date': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="2025-10-20"
+                            ),
+                            'status': openapi.Schema(
+                                type=openapi.TYPE_STRING, 
+                                example="Completed"
+                            )
                         }
                     )
                 )
@@ -566,36 +675,33 @@ class PatientRecentAppointmentsView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except AttributeError:
             return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
-        
+
 
 class DoctorAppointmentsListView(APIView):
-        permission_classes = [IsAuthenticated]
-        
-        @swagger_auto_schema(
-            operation_summary="Get all doctor's appointments",
-            operation_description="Retrieve all appointments (past and upcoming) for the authenticated doctor",
-            responses={
-                200: openapi.Response(
-                    description="List of all appointments",
-                    schema=DoctorAppointmentListSerializer
-                ),
-                403: openapi.Response(description="Only doctors can access this endpoint")
-            },
-            tags=['Doctor Appointments']
-        )
-        def get(self, request):
-            try:
-                doctor = request.user.doctor_profile
-                
-                appointments = Appointment.objects.filter(
-                    doctor=doctor
-                ).select_related('patient', 'patient__user').order_by('-appointment_date', '-appointment_time')
-                
-                serializer = DoctorAppointmentListSerializer(appointments, many=True)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-                
-            except AttributeError:
-                return Response(
-                    {"error": "Only doctors can access this endpoint"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="Get all doctor's appointments",
+        operation_description="Retrieve all appointments (past and upcoming) for the authenticated doctor",
+        responses={
+            200: DoctorAppointmentListSerializer(many=True),
+            403: openapi.Response(description="Only doctors can access this endpoint")
+        },
+        tags=['Doctor Appointments']
+    )
+    def get(self, request):
+        try:
+            doctor = request.user.doctor_profile
+            
+            appointments = Appointment.objects.filter(
+                doctor=doctor
+            ).select_related('patient', 'patient__user').order_by('-appointment_date', '-appointment_time')
+            
+            serializer = DoctorAppointmentListSerializer(appointments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except AttributeError:
+            return Response(
+                {"error": "Only doctors can access this endpoint"},
+                status=status.HTTP_403_FORBIDDEN
+            )
