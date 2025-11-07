@@ -1,4 +1,3 @@
-
 from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework import permissions
@@ -17,14 +16,13 @@ schema_view = get_schema_view(
         Example: `/api/appointments/patient/book/`
 
         ### Authentication
-        - Use JWT tokens in the Authorization header:
-          ```
-          Authorization: Bearer <token>
-          ```
+        Use JWT Bearer tokens:
+        ```
+        Authorization: Bearer <your_token>
+        ```
         """,
-        terms_of_service="https://medtrax.me/terms/",
-        contact=openapi.Contact(email="support@medtrax.me", name="Medtrax Support", url="https://medtrax.me/support"),
-        license=openapi.License(name="Proprietary License", url="https://medtrax.me/license"),
+        contact=openapi.Contact(email="support@medtrax.me"),
+        license=openapi.License(name="Proprietary License"),
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
@@ -33,7 +31,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # API endpoints
+    # Include all API routes
     path('api/auth/', include('Authapi.urls')),
     path('api/chat/', include('chat_room.urls')),
     path('api/doctor/dashboard/', include('doctor_dashboard.urls')),
