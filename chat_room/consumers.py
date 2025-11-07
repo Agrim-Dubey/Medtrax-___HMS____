@@ -1,166 +1,188 @@
-import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+import json
 from channels.db import database_sync_to_async
+from django.contrib.auth import get_user_model
+from .models import ChatRoom, Message
 from django.utils import timezone
-from .models import Message
-from Authapi.models import CustomUser
-from django.db.models import Q
+
+User = get_user_model()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    
     async def connect(self):
+        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        self.room_group_name = f'chat_{self.room_id}'
         self.user = self.scope['user']
         
-        if self.user.is_anonymous:
-            await self.close()
+        if not self.user.is_authenticated:
+            await self.close(code=4001)
             return
         
-        self.user_id = str(self.user.id)
-        self.user_group_name = f'user_{self.user_id}'
+        room_data = await self.get_room_data()
         
-
+        if not room_data:
+            await self.close(code=4004)
+            return
+        
+        if not room_data['is_participant']:
+            await self.close(code=4003)
+            return
+        
+        if not room_data['is_active']:
+            await self.close(code=4005)
+            return
+        
+        self.room_type = room_data['room_type']
+        
         await self.channel_layer.group_add(
-            self.user_group_name,
+            self.room_group_name,
             self.channel_name
         )
         
         await self.accept()
         
-
-        await self.set_user_online(True)
-        
-
-        await self.channel_layer.group_send(
-            'online_users',
-            {
-                'type': 'user_status',
-                'user_id': self.user_id,
-                'is_online': True
-            }
-        )
+        await self.send(text_data=json.dumps({
+            'type': 'connection_established',
+            'message': 'Connected to chat',
+            'room_id': self.room_id,
+            'user_id': self.user.id
+        }))
     
     async def disconnect(self, close_code):
-        if hasattr(self, 'user_group_name'):
+        if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(
-                self.user_group_name,
+                self.room_group_name,
                 self.channel_name
-            )
-        
-        if not self.user.is_anonymous:
-
-            await self.set_user_online(False)
- 
-            await self.channel_layer.group_send(
-                'online_users',
-                {
-                    'type': 'user_status',
-                    'user_id': self.user_id,
-                    'is_online': False
-                }
             )
     
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        message_type = data.get('type')
-        
-        if message_type == 'chat_message':
-            receiver_id = data.get('receiver_id')
-            content = data.get('content')
-
-            message = await self.save_message(
-                sender_id=self.user.id,
-                receiver_id=receiver_id,
-                content=content
-            )
-
-            await self.update_conversation(
-                sender_id=self.user.id,
-                receiver_id=receiver_id,
-                message_id=message.id
-            )
-
-            await self.channel_layer.group_send(
-                f'user_{receiver_id}',
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'id': message.id,
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+            
+            if message_type == 'chat_message':
+                message_content = data.get('message', '').strip()
+                
+                if not message_content:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': 'Message cannot be empty'
+                    }))
+                    return
+                
+                if len(message_content) > 5000:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': 'Message too long'
+                    }))
+                    return
+                
+                message_obj = await self.save_message(message_content)
+                
+                if not message_obj:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': 'Failed to save message'
+                    }))
+                    return
+                
+                user_full_name = await self.get_user_full_name()
+                
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'message': message_content,
                         'sender_id': self.user.id,
-                        'receiver_id': receiver_id,
-                        'content': content,
-                        'timestamp': message.timestamp.isoformat(),
-                        'is_read': False
+                        'sender_username': self.user.username,
+                        'sender_full_name': user_full_name,
+                        'sender_role': self.user.role,
+                        'message_id': message_obj.id,
+                        'timestamp': message_obj.timestamp.isoformat(),
                     }
-                }
-            )
-
-            await self.send(text_data=json.dumps({
-                'type': 'message_sent',
-                'message': {
-                    'id': message.id,
-                    'sender_id': self.user.id,
-                    'receiver_id': receiver_id,
-                    'content': content,
-                    'timestamp': message.timestamp.isoformat(),
-                    'is_read': False
-                }
-            }))
+                )
+            
+            elif message_type == 'typing':
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'typing_indicator',
+                        'user_id': self.user.id,
+                        'username': self.user.username,
+                        'is_typing': data.get('is_typing', False)
+                    }
+                )
         
-        elif message_type == 'mark_read':
-            message_ids = data.get('message_ids', [])
-            await self.mark_messages_read(message_ids)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Invalid JSON'
+            }))
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Server error'
+            }))
     
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps(event['message']))
-    
-    async def user_status(self, event):
         await self.send(text_data=json.dumps({
-            'type': 'user_status',
-            'user_id': event['user_id'],
-            'is_online': event['is_online']
+            'type': 'chat_message',
+            'message': event['message'],
+            'sender_id': event['sender_id'],
+            'sender_username': event['sender_username'],
+            'sender_full_name': event['sender_full_name'],
+            'sender_role': event['sender_role'],
+            'message_id': event['message_id'],
+            'timestamp': event['timestamp'],
         }))
     
-    @database_sync_to_async
-    def save_message(self, sender_id, receiver_id, content):
-        sender = CustomUser.objects.get(id=sender_id)
-        receiver = CustomUser.objects.get(id=receiver_id)
-        return Message.objects.create(
-            sender=sender,
-            receiver=receiver,
-            content=content
-        )
+    async def typing_indicator(self, event):
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'typing',
+                'username': event['username'],
+                'is_typing': event['is_typing']
+            }))
     
     @database_sync_to_async
-    def update_conversation(self, sender_id, receiver_id, message_id):
-        sender = CustomUser.objects.get(id=sender_id)
-        receiver = CustomUser.objects.get(id=receiver_id)
-        message = Message.objects.get(id=message_id)
-
-        conversation = Conversation.objects.filter(
-            (Q(participant1=sender) & Q(participant2=receiver)) |
-            (Q(participant1=receiver) & Q(participant2=sender))
-        ).first()
-        
-        if conversation:
-            conversation.last_message = message
-            conversation.save()
-        else:
-            Conversation.objects.create(
-                participant1=sender,
-                participant2=receiver,
-                last_message=message
+    def get_room_data(self):
+        try:
+            room = ChatRoom.objects.prefetch_related('participants').get(id=self.room_id)
+            return {
+                'is_participant': room.participants.filter(id=self.user.id).exists(),
+                'is_active': room.is_active,
+                'room_type': room.room_type
+            }
+        except ChatRoom.DoesNotExist:
+            return None
+    
+    @database_sync_to_async
+    def save_message(self, content):
+        try:
+            room = ChatRoom.objects.get(id=self.room_id, is_active=True)
+            
+            if not room.participants.filter(id=self.user.id).exists():
+                return None
+            
+            message = Message.objects.create(
+                room=room,
+                sender=self.user,
+                content=content
             )
+            room.updated_at = timezone.now()
+            room.save()
+            return message
+        except Exception:
+            return None
     
     @database_sync_to_async
-    def set_user_online(self, is_online):
-        UserOnlineStatus.objects.update_or_create(
-            user=self.user,
-            defaults={'is_online': is_online}
-        )
-    
-    @database_sync_to_async
-    def mark_messages_read(self, message_ids):
-        Message.objects.filter(
-            id__in=message_ids,
-            receiver=self.user
-        ).update(is_read=True, read_at=timezone.now())
+    def get_user_full_name(self):
+        try:
+            if self.user.role == 'doctor':
+                return f"Dr. {self.user.doctor_profile.get_full_name()}"
+            elif self.user.role == 'patient':
+                return self.user.patient_profile.get_full_name()
+        except:
+            return self.user.username
+        return self.user.username
