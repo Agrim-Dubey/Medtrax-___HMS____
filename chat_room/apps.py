@@ -4,3 +4,7 @@ from django.apps import AppConfig
 class ChatRoomConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'chat_room'
+
+    def ready(self):
+        import chat_room.signals 
+        
