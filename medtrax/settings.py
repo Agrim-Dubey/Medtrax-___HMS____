@@ -61,7 +61,19 @@ Q_CLUSTER = {
         'port': config('REDIS_PORT', default=6379, cast=int),
         'db': 0,
         'password': config('REDIS_PASSWORD', default=None),
-    }
+    },
+    'schedule': [
+        {
+            'func': 'chat_room.tasks.disable_expired_chats',
+            'schedule_type': 'I',
+            'minutes': 5,
+        },
+        {
+            'func': 'chat_room.tasks.delete_old_chats',
+            'schedule_type': 'I',
+            'hours': 1,
+        }
+    ]
 }
 
 MIDDLEWARE = [
