@@ -1,18 +1,15 @@
 from rest_framework import serializers
-from .models import Message
-from Authapi.models import CustomUser, Doctor, Patient
+from django.contrib.auth import get_user_model
+from .models import ChatRoom, Message, DoctorConnection, GroupMembership
+from Authapi.models import Doctor, Patient
 
-
+User = get_user_model()
 class UserBasicSerializer(serializers.ModelSerializer):
-
     full_name = serializers.SerializerMethodField()
-    is_online = serializers.SerializerMethodField()
-    last_seen = serializers.SerializerMethodField()
-    user_type = serializers.CharField(source='role', read_only=True)
     
     class Meta:
-        model = CustomUser
-        fields = ['id', 'username', 'full_name', 'user_type', 'is_online', 'last_seen']
+        model = User
+        fields = ['id', 'username', 'email', 'role', 'full_name']
     
     def get_full_name(self, obj):
         try:
@@ -22,75 +19,193 @@ class UserBasicSerializer(serializers.ModelSerializer):
                 return obj.patient_profile.get_full_name()
         except:
             return obj.username
-    
-    def get_is_online(self, obj):
-        try:
-            return obj.online_status.is_online
-        except UserOnlineStatus.DoesNotExist:
-            return False
-    
-    def get_last_seen(self, obj):
-        try:
-            return obj.online_status.last_seen
-        except UserOnlineStatus.DoesNotExist:
-            return None
+        return obj.username
 
 
+class DoctorMinimalSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id')
+    
+    class Meta:
+        model = Doctor
+        fields = ['id', 'user_id', 'full_name', 'specialization']
+    
+    def get_full_name(self, obj):
+        return f"Dr. {obj.get_full_name()}"
+
+
+class PatientMinimalSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id')
+    
+    class Meta:
+        model = Patient
+        fields = ['id', 'user_id', 'full_name', 'city']
+    
+    def get_full_name(self, obj):
+        return obj.get_full_name()
+    
 class MessageSerializer(serializers.ModelSerializer):
-    sender_name = serializers.SerializerMethodField()
-    receiver_name = serializers.SerializerMethodField()
+    sender = UserBasicSerializer(read_only=True)
+    sender_id = serializers.IntegerField(write_only=True)
     
     class Meta:
         model = Message
         fields = [
-            'id',
-            'sender',
-            'receiver',
-            'sender_name',
-            'receiver_name',
-            'content',
-            'timestamp',
-            'is_read',
-            'read_at',
-            'attachment'
+            'id', 'room', 'sender', 'sender_id', 
+            'content', 'timestamp', 'is_read'
         ]
-        read_only_fields = ['sender', 'timestamp', 'is_read', 'read_at']
+        read_only_fields = ['id', 'timestamp']
     
-    def get_sender_name(self, obj):
-        try:
-            if obj.sender.role == 'doctor':
-                return f"Dr. {obj.sender.doctor_profile.get_full_name()}"
-            elif obj.sender.role == 'patient':
-                return obj.sender.patient_profile.get_full_name()
-        except:
-            return obj.sender.username
-    
-    def get_receiver_name(self, obj):
-        try:
-            if obj.receiver.role == 'doctor':
-                return f"Dr. {obj.receiver.doctor_profile.get_full_name()}"
-            elif obj.receiver.role == 'patient':
-                return obj.receiver.patient_profile.get_full_name()
-        except:
-            return obj.receiver.username
+    def create(self, validated_data):
+        sender_id = validated_data.pop('sender_id')
+        sender = User.objects.get(id=sender_id)
+        validated_data['sender'] = sender
+        return super().create(validated_data)
 
 
-class ConversationSerializer(serializers.ModelSerializer):
-    other_user = serializers.SerializerMethodField()
-    last_message_content = serializers.CharField(source='last_message.content', read_only=True)
-    last_message_timestamp = serializers.DateTimeField(source='last_message.timestamp', read_only=True)
+class MessageCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['room', 'content']
+
+class ChatRoomListSerializer(serializers.ModelSerializer):
+    participants = UserBasicSerializer(many=True, read_only=True)
+    last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
-
+    other_participant = serializers.SerializerMethodField()
     
-    def get_other_user(self, obj):
-        request_user = self.context.get('request').user
-        other_user = obj.participant2 if obj.participant1 == request_user else obj.participant1
-        return UserBasicSerializer(other_user).data
+    class Meta:
+        model = ChatRoom
+        fields = [
+            'id', 'room_type', 'name', 'is_active',
+            'participants', 'last_message', 'unread_count',
+            'other_participant', 'created_at', 'updated_at'
+        ]
+    
+    def get_last_message(self, obj):
+
+        last_msg = obj.messages.order_by('-timestamp').first()
+        if last_msg:
+            return {
+                'content': last_msg.content[:100], 
+                'sender': last_msg.sender.username,
+                'timestamp': last_msg.timestamp
+            }
+        return None
     
     def get_unread_count(self, obj):
-        request_user = self.context.get('request').user
-        return Message.objects.filter(
-            sender=obj.participant2 if obj.participant1 == request_user else obj.participant1,
-            receiver=request_user,
-            is_read=False
-        ).count()
+        request = self.context.get('request')
+        if request and request.user:
+            return obj.messages.filter(
+                is_read=False
+            ).exclude(
+                sender=request.user
+            ).count()
+        return 0
+    
+    def get_other_participant(self, obj):
+        request = self.context.get('request')
+        if request and request.user and obj.room_type in ['patient_doctor', 'doctor_doctor']:
+            other = obj.participants.exclude(id=request.user.id).first()
+            if other:
+                return UserBasicSerializer(other).data
+        return None
+
+
+class ChatRoomDetailSerializer(serializers.ModelSerializer):
+    participants = UserBasicSerializer(many=True, read_only=True)
+    messages = serializers.SerializerMethodField()
+    appointment_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChatRoom
+        fields = [
+            'id', 'room_type', 'name', 'is_active',
+            'participants', 'messages', 'appointment_info',
+            'disease_name', 'created_at', 'updated_at'
+        ]
+    
+    def get_messages(self, obj):
+        messages = obj.messages.order_by('-timestamp')[:50]
+        return MessageSerializer(messages, many=True).data
+    
+    def get_appointment_info(self, obj):
+        if obj.appointment:
+            return {
+                'id': obj.appointment.id,
+                'date': obj.appointment.appointment_date,
+                'time': obj.appointment.appointment_time,
+                'status': obj.appointment.status
+            }
+        return None
+    
+class DoctorConnectionSerializer(serializers.ModelSerializer):
+    from_doctor = DoctorMinimalSerializer(read_only=True)
+    to_doctor = DoctorMinimalSerializer(read_only=True)
+    to_doctor_id = serializers.IntegerField(write_only=True)
+    
+    class Meta:
+        model = DoctorConnection
+        fields = [
+            'id', 'from_doctor', 'to_doctor', 'to_doctor_id',
+            'status', 'chat_room', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'chat_room', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+
+        to_doctor_id = validated_data.pop('to_doctor_id')
+        to_doctor = Doctor.objects.get(id=to_doctor_id)
+        from_doctor = self.context['request'].user.doctor_profile
+
+        existing = DoctorConnection.objects.filter(
+            from_doctor=from_doctor,
+            to_doctor=to_doctor
+        ).first()
+        
+        if existing:
+            raise serializers.ValidationError("Connection request already exists")
+        
+        return DoctorConnection.objects.create(
+            from_doctor=from_doctor,
+            to_doctor=to_doctor,
+            status='pending'
+        )
+
+
+class DoctorConnectionListSerializer(serializers.ModelSerializer):
+
+    from_doctor = DoctorMinimalSerializer(read_only=True)
+    to_doctor = DoctorMinimalSerializer(read_only=True)
+    
+    class Meta:
+        model = DoctorConnection
+        fields = ['id', 'from_doctor', 'to_doctor', 'status', 'created_at']
+
+class GroupMembershipSerializer(serializers.ModelSerializer):
+    patient = PatientMinimalSerializer(read_only=True)
+    group_name = serializers.CharField(source='group_room.name', read_only=True)
+    
+    class Meta:
+        model = GroupMembership
+        fields = ['id', 'patient', 'group_room', 'group_name', 'is_diagnosed', 'joined_at']
+        read_only_fields = ['id', 'joined_at']
+
+
+class GroupRoomSerializer(serializers.ModelSerializer):
+    member_count = serializers.SerializerMethodField()
+    is_member = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'name', 'disease_name', 'member_count', 'is_member', 'created_at']
+    
+    def get_member_count(self, obj):
+        return obj.participants.count()
+    
+    def get_is_member(self, obj):
+        request = self.context.get('request')
+        if request and request.user:
+            return obj.participants.filter(id=request.user.id).exists()
+        return False
