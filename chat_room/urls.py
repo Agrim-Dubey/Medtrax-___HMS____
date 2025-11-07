@@ -1,22 +1,20 @@
 from django.urls import path
-from .views import (
-    DoctorListView,
-    PatientListView,
-    ConversationListView,
-    ChatHistoryView,
-    UnreadMessagesCountView,
-    UnreadMessagesPerConversationView, 
-    DeleteMessageView,  
-    SearchMessagesView,  
-)
+from .views import PatientChatViewSet, DoctorChatViewSet, ChatRoomViewSet
 
 urlpatterns = [
-    path('doctors/', DoctorListView.as_view(), name='doctor-list'),
-    path('patients/', PatientListView.as_view(), name='patient-list'),
-    path('conversations/', ConversationListView.as_view(), name='conversation-list'),
-    path('history/<int:user_id>/', ChatHistoryView.as_view(), name='chat-history'),
-    path('unread-count/', UnreadMessagesCountView.as_view(), name='unread-count'),
-    path('unread-by-conversation/', UnreadMessagesPerConversationView.as_view(), name='unread-by-conversation'),
-    path('messages/<int:message_id>/delete/', DeleteMessageView.as_view(), name='delete-message'),
-    path('search/', SearchMessagesView.as_view(), name='search-messages'),
+    path('patient/doctors/', PatientChatViewSet.as_view({'get': 'list_doctor_chats'}), name='patient-doctor-chats'),
+    path('patient/groups/', PatientChatViewSet.as_view({'get': 'list_groups'}), name='patient-groups'),
+    path('patient/groups/join/', PatientChatViewSet.as_view({'post': 'join_group'}), name='patient-join-group'),
+    
+    path('doctor/patients/', DoctorChatViewSet.as_view({'get': 'list_patient_chats'}), name='doctor-patient-chats'),
+    path('doctor/doctors/', DoctorChatViewSet.as_view({'get': 'list_doctor_chats'}), name='doctor-doctor-chats'),
+    path('doctor/connection-request/', DoctorChatViewSet.as_view({'post': 'send_connection_request'}), name='doctor-send-request'),
+    path('doctor/connection-requests/pending/', DoctorChatViewSet.as_view({'get': 'list_pending_requests'}), name='doctor-pending-requests'),
+    path('doctor/connection-requests/<int:pk>/accept/', DoctorChatViewSet.as_view({'post': 'accept_connection'}), name='doctor-accept-request'),
+    path('doctor/connection-requests/<int:pk>/reject/', DoctorChatViewSet.as_view({'post': 'reject_connection'}), name='doctor-reject-request'),
+    path('doctor/search/', DoctorChatViewSet.as_view({'get': 'search_doctors'}), name='doctor-search'),
+    
+    path('rooms/<int:pk>/', ChatRoomViewSet.as_view({'get': 'retrieve'}), name='chat-room-detail'),
+    path('rooms/<int:pk>/messages/', ChatRoomViewSet.as_view({'post': 'send_message'}), name='chat-send-message'),
+    path('rooms/<int:pk>/read/', ChatRoomViewSet.as_view({'post': 'mark_as_read'}), name='chat-mark-read'),
 ]
