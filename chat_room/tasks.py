@@ -39,4 +39,3 @@ def delete_old_chats():
         
         if appt_datetime < cutoff:
             room.delete()
-    
