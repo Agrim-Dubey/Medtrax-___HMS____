@@ -110,23 +110,9 @@ class PostCreateView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Create a new community post",
-        operation_description=(
-            "Allows **doctors** to create a new community post.\n\n"
-            "Only authenticated doctors can access this endpoint.\n\n"
-            "Supports image upload via multipart/form-data."
-        ),
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['title', 'category', 'content', 'status'],
-            properties={
-                'title': openapi.Schema(type=openapi.TYPE_STRING, description="Post title", example="Heart Health Basics"),
-                'category': openapi.Schema(type=openapi.TYPE_INTEGER, description="Category ID", example=1),
-                'content': openapi.Schema(type=openapi.TYPE_STRING, description="Detailed post content"),
-                'status': openapi.Schema(type=openapi.TYPE_STRING, enum=['draft', 'published'], example="published"),
-                'excerpt': openapi.Schema(type=openapi.TYPE_STRING, description="Short summary", example="Tips for heart health."),
-                'image': openapi.Schema(type=openapi.TYPE_STRING, format="binary", description="Optional post image upload")
-            }
-        ),
+        operation_description="Allows doctors to create posts (supports image upload).",
+        request_body=PostCreateSerializer,
+        consumes=['multipart/form-data'],
         responses={
             201: openapi.Response(
                 description="Post created successfully",
@@ -141,12 +127,11 @@ class PostCreateView(APIView):
                         }
                     }
                 }
-            ),
-            400: "Invalid input data",
-            403: "Only doctors can create posts"
+            )
         },
         tags=['Posts']
     )
+
     def post(self, request):
         if not hasattr(request.user, 'doctor_profile'):
             return Response(
