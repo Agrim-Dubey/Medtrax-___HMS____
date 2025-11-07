@@ -5,9 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .serializers import PatientDashboardSerializer, DashboardAppointmentSerializer,PatientCompleteProfileSerializer
+from .serializers import PatientDashboardSerializer, DashboardAppointmentSerializer, PatientCompleteProfileSerializer
 from django.utils import timezone
 from datetime import datetime, date
+
 
 class PatientDashboardView(APIView):
     permission_classes = [IsAuthenticated]
@@ -16,19 +17,7 @@ class PatientDashboardView(APIView):
         operation_description="Retrieve patient's dashboard profile information including name, date of birth, blood group, known allergies, and chronic diseases",
         operation_summary="Get Patient Dashboard Profile",
         responses={
-            200: openapi.Response(
-                description="Profile retrieved successfully",
-                examples={
-                    "application/json": {
-                        "first_name": "John",
-                        "last_name": "Doe",
-                        "date_of_birth": "1990-05-15",
-                        "blood_group": "O+",
-                        "known_allergies": "Penicillin, Peanuts",
-                        "chronic_diseases": "Diabetes Type 2"
-                    }
-                }
-            ),
+            200: PatientDashboardSerializer,
             403: openapi.Response(
                 description="Access denied - User is not a patient",
                 examples={
@@ -61,7 +50,7 @@ class PatientDashboardView(APIView):
         try:
             patient = request.user.patient_profile
             serializer = PatientDashboardSerializer(patient)
-            return Response(serializer.data ,status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
             return Response(
                 {"error": "Only patients can access this endpoint"},
@@ -81,37 +70,7 @@ class PatientUpcomingAppointmentsView(APIView):
         operation_description="Get patient's upcoming appointments with pending or confirmed status. Returns up to 4 appointments ordered by date and time with doctor name, appointment details, reason, and status",
         operation_summary="List Upcoming Appointments",
         responses={
-            200: openapi.Response(
-                description="Upcoming appointments retrieved successfully",
-                examples={
-                    "application/json": [
-                        {
-                            "id": 1,
-                            "doctor_name": "Dr. Agrim Dubey",
-                            "appointment_date": "2024-11-05",
-                            "appointment_time": "10:00:00",
-                            "reason": "Regular checkup",
-                            "status": "confirmed"
-                        },
-                        {
-                            "id": 2,
-                            "doctor_name": "Dr. Sarah Williams",
-                            "appointment_date": "2024-11-08",
-                            "appointment_time": "14:30:00",
-                            "reason": "Follow-up consultation",
-                            "status": "pending"
-                        },
-                        {
-                            "id": 3,
-                            "doctor_name": "Dr. Michael Brown",
-                            "appointment_date": "2024-11-12",
-                            "appointment_time": "09:00:00",
-                            "reason": "Blood test review",
-                            "status": "confirmed"
-                        }
-                    ]
-                }
-            ),
+            200: DashboardAppointmentSerializer(many=True),
             403: openapi.Response(
                 description="Access denied - User is not a patient",
                 examples={
@@ -160,6 +119,7 @@ class PatientUpcomingAppointmentsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 class PatientRecentAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -167,37 +127,7 @@ class PatientRecentAppointmentsView(APIView):
         operation_description="Get patient's recent completed appointments. Returns up to 4 past appointments with completed status ordered by most recent date and time with doctor name, appointment details, reason, and status",
         operation_summary="List Recent Appointments",
         responses={
-            200: openapi.Response(
-                description="Recent appointments retrieved successfully",
-                examples={
-                    "application/json": [
-                        {
-                            "id": 4,
-                            "doctor_name": "Dr. Emily Davis",
-                            "appointment_date": "2024-11-01",
-                            "appointment_time": "11:00:00",
-                            "reason": "Annual physical examination",
-                            "status": "completed"
-                        },
-                        {
-                            "id": 5,
-                            "doctor_name": "Dr. Agrim Dubey",
-                            "appointment_date": "2024-10-28",
-                            "appointment_time": "15:30:00",
-                            "reason": "Cardiology consultation",
-                            "status": "completed"
-                        },
-                        {
-                            "id": 6,
-                            "doctor_name": "Dr. Robert Johnson",
-                            "appointment_date": "2024-10-22",
-                            "appointment_time": "10:00:00",
-                            "reason": "Medication review",
-                            "status": "completed"
-                        }
-                    ]
-                }
-            ),
+            200: DashboardAppointmentSerializer(many=True),
             403: openapi.Response(
                 description="Access denied - User is not a patient",
                 examples={
@@ -254,34 +184,7 @@ class PatientCompleteProfileView(APIView):
         operation_description="Retrieve complete patient profile with all fields including personal information, contact details, insurance information, and medical history",
         operation_summary="Get Complete Patient Profile",
         responses={
-            200: openapi.Response(
-                description="Complete profile retrieved successfully",
-                examples={
-                    "application/json": {
-                        "email": "john.doe@example.com",
-                        "username": "johndoe",
-                        "is_verified": True,
-                        "first_name": "John",
-                        "last_name": "Doe",
-                        "date_of_birth": "1990-05-15",
-                        "blood_group": "O+",
-                        "gender": "M",
-                        "city": "New York",
-                        "phone_number": "+11234567890",
-                        "emergency_contact": "+19876543210",
-                        "emergency_email": "jane.doe@example.com",
-                        "is_insurance": True,
-                        "ins_company_name": "HealthCare Plus",
-                        "ins_policy_number": "HCP123456789",
-                        "known_allergies": "Penicillin, Peanuts",
-                        "chronic_diseases": "Diabetes Type 2",
-                        "previous_surgeries": "Appendectomy (2015)",
-                        "family_medical_history": "Father: Hypertension, Mother: Diabetes",
-                        "created_at": "2024-01-15T10:30:00Z",
-                        "updated_at": "2024-11-01T14:20:00Z"
-                    }
-                }
-            ),
+            200: PatientCompleteProfileSerializer,
             403: openapi.Response(
                 description="Access denied - User is not a patient",
                 examples={
@@ -403,6 +306,19 @@ class PatientCompleteProfileView(APIView):
         responses={
             200: openapi.Response(
                 description="Profile updated successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example='Profile updated successfully'
+                        ),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description='Updated patient profile data'
+                        )
+                    }
+                ),
                 examples={
                     "application/json": {
                         "message": "Profile updated successfully",
@@ -515,6 +431,7 @@ class PatientCompleteProfileView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 class PatientDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -524,6 +441,31 @@ class PatientDashboardStatsView(APIView):
         responses={
             200: openapi.Response(
                 description="Statistics retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'total_appointments': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Total number of appointments',
+                            example=45
+                        ),
+                        'upcoming': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Number of upcoming appointments',
+                            example=3
+                        ),
+                        'completed': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Number of completed appointments',
+                            example=38
+                        ),
+                        'pending': openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description='Number of pending appointments',
+                            example=4
+                        )
+                    }
+                ),
                 examples={
                     "application/json": {
                         "total_appointments": 45,
