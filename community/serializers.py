@@ -3,21 +3,24 @@ from .models import Post, Comment, Like, Category, PostImage
 from Authapi.models import CustomUser
 
 class CategorySerializer(serializers.ModelSerializer):
+    """Serializer for post categories"""
     class Meta:
         model = Category
         fields = ['id', 'name', 'slug', 'description']
 
 
 class PostImageSerializer(serializers.ModelSerializer):
+    """Serializer for post images"""
     class Meta:
         model = PostImage
         fields = ['id', 'image', 'caption', 'uploaded_at']
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    author_name = serializers.SerializerMethodField()
-    author_role = serializers.SerializerMethodField()
-    replies = serializers.SerializerMethodField()
+    """Serializer for displaying comments with author info and replies"""
+    author_name = serializers.SerializerMethodField(help_text="Display name of the comment author")
+    author_role = serializers.SerializerMethodField(help_text="Role of the author (doctor/patient)")
+    replies = serializers.SerializerMethodField(help_text="List of replies to this comment")
     
     class Meta:
         model = Comment
@@ -54,12 +57,13 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostListSerializer(serializers.ModelSerializer):
-    author_name = serializers.SerializerMethodField()
-    author_role = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    total_likes = serializers.SerializerMethodField()
-    total_comments = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
+    """Serializer for listing posts with summary information"""
+    author_name = serializers.SerializerMethodField(help_text="Display name of the post author")
+    author_role = serializers.SerializerMethodField(help_text="Role of the author")
+    category_name = serializers.CharField(source='category.name', read_only=True, help_text="Category name")
+    total_likes = serializers.SerializerMethodField(help_text="Total number of likes")
+    total_comments = serializers.SerializerMethodField(help_text="Total number of top-level comments")
+    is_liked = serializers.SerializerMethodField(help_text="Whether current user has liked this post")
     
     class Meta:
         model = Post
@@ -108,13 +112,14 @@ class PostListSerializer(serializers.ModelSerializer):
 
 
 class PostDetailSerializer(serializers.ModelSerializer):
-    author_name = serializers.SerializerMethodField()
-    author_role = serializers.SerializerMethodField()
+    """Serializer for detailed post view including full content, images, and comments"""
+    author_name = serializers.SerializerMethodField(help_text="Display name of the post author")
+    author_role = serializers.SerializerMethodField(help_text="Role of the author")
     category = CategorySerializer(read_only=True)
-    images = PostImageSerializer(many=True, read_only=True)
-    comments = serializers.SerializerMethodField()
-    total_likes = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
+    images = PostImageSerializer(many=True, read_only=True, help_text="Additional images for the post")
+    comments = serializers.SerializerMethodField(help_text="All approved comments on this post")
+    total_likes = serializers.SerializerMethodField(help_text="Total number of likes")
+    is_liked = serializers.SerializerMethodField(help_text="Whether current user has liked this post")
     
     class Meta:
         model = Post
@@ -167,6 +172,7 @@ class PostDetailSerializer(serializers.ModelSerializer):
 
 
 class PostCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new posts"""
     class Meta:
         model = Post
         fields = [
@@ -177,9 +183,22 @@ class PostCreateSerializer(serializers.ModelSerializer):
             'featured_image',
             'status'
         ]
+        extra_kwargs = {
+            'title': {'help_text': 'Post title (max 200 characters)'},
+            'category': {'help_text': 'Category ID for the post'},
+            'content': {'help_text': 'Full content of the post (supports markdown)'},
+            'excerpt': {'help_text': 'Brief summary (max 300 characters)'},
+            'featured_image': {'help_text': 'Main image for the post'},
+            'status': {'help_text': 'Post status: draft, published, or archived'}
+        }
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating comments"""
     class Meta:
         model = Comment
         fields = ['content', 'parent']
+        extra_kwargs = {
+            'content': {'help_text': 'Comment text content'},
+            'parent': {'help_text': 'Parent comment ID for replies (null for top-level comments)', 'required': False}
+        }
