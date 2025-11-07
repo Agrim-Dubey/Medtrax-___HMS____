@@ -1,12 +1,11 @@
-from rest_framework import status, generics
+from rest_framework import status, generics, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from django.db.models import Q
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, inline_serializer
-from drf_spectacular.types import OpenApiTypes
-from rest_framework import serializers
 
 from .models import Post, Comment, Like, Category
 from .serializers import (
@@ -18,23 +17,26 @@ from .serializers import (
     CategorySerializer
 )
 
-
 class CategoryListView(APIView):
-    """
-    API endpoint for listing all post categories
-    """
     permission_classes = [AllowAny]
-    
-    @extend_schema(
-        summary="List all categories",
-        description="Get all available post categories. Creates default categories if they don't exist.",
+
+    @swagger_auto_schema(
+        operation_summary="List all categories",
+        operation_description="Fetch all post categories available in the community board. Default categories are auto-created if missing.",
         responses={
-            200: CategorySerializer(many=True)
+            200: openapi.Response(
+                description="List of available categories",
+                examples={
+                    "application/json": [
+                        {"id": 1, "name": "Cardiology", "description": "Heart-related topics"},
+                        {"id": 2, "name": "Mental Health", "description": "Discussion on mental wellness"}
+                    ]
+                }
+            )
         },
         tags=['Categories']
     )
     def get(self, request):
-        """Get list of all categories"""
         default_categories = [
             {'name': 'General Medicine', 'description': 'General health topics'},
             {'name': 'Cardiology', 'description': 'Heart health'},
@@ -48,46 +50,46 @@ class CategoryListView(APIView):
                 name=cat_data['name'],
                 defaults={'description': cat_data['description']}
             )
-        categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
+
+        serializer = CategorySerializer(Category.objects.all(), many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 class PostListView(generics.ListAPIView):
-    """
-    API endpoint for listing published posts with optional category filtering
-    """
     permission_classes = [IsAuthenticated]
     serializer_class = PostListSerializer
-    
-    @extend_schema(
-        summary="List all published posts",
-        description="Get all published posts. Patients see posts marked as visible to patients, doctors see posts visible to staff. Can be filtered by category slug.",
-        parameters=[
-            OpenApiParameter(
-                name='category',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description='Filter posts by category slug (e.g., "cardiology", "mental-health")',
+
+    @swagger_auto_schema(
+        operation_summary="List all published posts",
+        operation_description=(
+            "Retrieve all published posts visible to the current user.\n\n"
+            "- Patients see posts marked as visible to patients.\n"
+            "- Doctors see posts marked as visible to staff.\n\n"
+            "Optional: Filter posts by category slug using `?category=<slug>`."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'category',
+                openapi.IN_QUERY,
+                description="Filter posts by category slug (e.g., 'cardiology')",
+                type=openapi.TYPE_STRING,
                 required=False
             )
         ],
         responses={
-            200: PostListSerializer(many=True)
-        },
-        examples=[
-            OpenApiExample(
-                'Filter by Category',
-                description='Example: /api/community/posts/?category=cardiology',
-                value=[]
+            200: openapi.Response(
+                description="List of published posts",
+                examples={
+                    "application/json": [
+                        {"id": 1, "title": "Heart Health Basics", "author": "Dr. John Doe", "category": "Cardiology"},
+                        {"id": 2, "title": "Managing Anxiety", "author": "Dr. Emily Smith", "category": "Mental Health"}
+                    ]
+                }
             )
-        ],
+        },
         tags=['Posts']
     )
     def get(self, request, *args, **kwargs):
-        """Get list of published posts"""
         return super().get(request, *args, **kwargs)
-    
+
     def get_queryset(self):
         user = self.request.user
         queryset = Post.objects.filter(status='published')
@@ -100,52 +102,52 @@ class PostListView(generics.ListAPIView):
         category = self.request.query_params.get('category', None)
         if category:
             queryset = queryset.filter(category__slug=category)
-        
-        return queryset
-    
-    def get_serializer_context(self):
-        return {'request': self.request}
-
+        return queryset.order_by('-created_at')
 
 class PostCreateView(APIView):
-    """
-    API endpoint for doctors to create new posts
-    """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    
-    @extend_schema(
-        summary="Create a new post",
-        description="Create a new community post. Only doctors can create posts. Supports multipart/form-data for image uploads.",
-        request=PostCreateSerializer,
+
+    @swagger_auto_schema(
+        operation_summary="Create a new community post",
+        operation_description=(
+            "Allows **doctors** to create a new community post.\n\n"
+            "Only authenticated doctors can access this endpoint.\n\n"
+            "Supports image upload via multipart/form-data."
+        ),
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['title', 'category', 'content', 'status'],
+            properties={
+                'title': openapi.Schema(type=openapi.TYPE_STRING, description="Post title", example="Heart Health Basics"),
+                'category': openapi.Schema(type=openapi.TYPE_INTEGER, description="Category ID", example=1),
+                'content': openapi.Schema(type=openapi.TYPE_STRING, description="Detailed post content"),
+                'status': openapi.Schema(type=openapi.TYPE_STRING, enum=['draft', 'published'], example="published"),
+                'excerpt': openapi.Schema(type=openapi.TYPE_STRING, description="Short summary", example="Tips for heart health."),
+                'image': openapi.Schema(type=openapi.TYPE_STRING, format="binary", description="Optional post image upload")
+            }
+        ),
         responses={
-            201: PostCreateSerializer,
-            400: inline_serializer(
-                name='PostCreateError',
-                fields={'error': serializers.DictField()}
+            201: openapi.Response(
+                description="Post created successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "message": "Post created successfully",
+                        "post": {
+                            "id": 1,
+                            "title": "Heart Health Basics",
+                            "status": "published"
+                        }
+                    }
+                }
             ),
-            403: inline_serializer(
-                name='PostCreateForbidden',
-                fields={'error': serializers.CharField()}
-            )
+            400: "Invalid input data",
+            403: "Only doctors can create posts"
         },
-        examples=[
-            OpenApiExample(
-                'Create Post',
-                value={
-                    'title': 'Understanding Heart Health',
-                    'category': 1,
-                    'content': 'Detailed content about heart health...',
-                    'excerpt': 'A brief guide to maintaining a healthy heart',
-                    'status': 'published'
-                },
-                request_only=True
-            )
-        ],
         tags=['Posts']
     )
     def post(self, request):
-        """Create a new post (doctors only)"""
         if not hasattr(request.user, 'doctor_profile'):
             return Response(
                 {"error": "Only doctors can create posts"},
@@ -154,212 +156,118 @@ class PostCreateView(APIView):
         serializer = PostCreateSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(author=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({
+                "success": True,
+                "message": "Post created successfully",
+                "post": serializer.data
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class PostDetailView(APIView):
-    """
-    API endpoint for retrieving and deleting individual posts
-    """
     permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        summary="Get post details",
-        description="Retrieve detailed information about a specific post by its slug. Increments view count.",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-                description='Unique slug identifier for the post'
-            )
+
+    @swagger_auto_schema(
+        operation_summary="Get post details by slug",
+        operation_description="Fetch full details for a published post. Automatically increments view count.",
+        manual_parameters=[
+            openapi.Parameter('slug', openapi.IN_PATH, description="Slug of the post", type=openapi.TYPE_STRING)
         ],
         responses={
-            200: PostDetailSerializer,
-            404: inline_serializer(
-                name='PostNotFound',
-                fields={'error': serializers.CharField()}
-            )
+            200: openapi.Response(
+                description="Post details",
+                examples={
+                    "application/json": {
+                        "id": 5,
+                        "title": "Understanding Mental Health",
+                        "content": "In-depth discussion...",
+                        "views_count": 32
+                    }
+                }
+            ),
+            404: "Post not found"
         },
         tags=['Posts']
     )
     def get(self, request, slug):
-        """Get post details by slug"""
         try:
             post = Post.objects.get(slug=slug, status='published')
             post.views_count += 1
             post.save(update_fields=['views_count'])
-            
             serializer = PostDetailSerializer(post, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
-    @extend_schema(
-        summary="Delete a post",
-        description="Delete a post. Only the author can delete their own posts.",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-                description='Unique slug identifier for the post'
-            )
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @swagger_auto_schema(
+        operation_summary="Delete a post",
+        operation_description="Delete a post owned by the logged-in doctor.",
+        manual_parameters=[
+            openapi.Parameter('slug', openapi.IN_PATH, description="Slug of the post to delete", type=openapi.TYPE_STRING)
         ],
         responses={
-            204: inline_serializer(
-                name='PostDeleteSuccess',
-                fields={'message': serializers.CharField()}
-            ),
-            403: inline_serializer(
-                name='PostDeleteForbidden',
-                fields={'error': serializers.CharField()}
-            ),
-            404: inline_serializer(
-                name='PostDeleteNotFound',
-                fields={'error': serializers.CharField()}
-            )
+            204: "Post deleted successfully",
+            403: "You can only delete your own posts",
+            404: "Post not found"
         },
         tags=['Posts']
     )
     def delete(self, request, slug):
-        """Delete a post (author only)"""
         try:
             post = Post.objects.get(slug=slug)
             if post.author != request.user:
-                return Response(
-                    {"error": "You can only delete your own posts"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+                return Response({"error": "You can only delete your own posts"}, status=status.HTTP_403_FORBIDDEN)
             post.delete()
-            return Response(
-                {"message": "Post deleted successfully"},
-                status=status.HTTP_204_NO_CONTENT
-            )
+            return Response({"message": "Post deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class PostLikeView(APIView):
-    """
-    API endpoint for liking/unliking posts
-    """
     permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        summary="Like or unlike a post",
-        description="Toggle like status on a post. If already liked, it will unlike. If not liked, it will add a like.",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-                description='Unique slug identifier for the post'
-            )
+
+    @swagger_auto_schema(
+        operation_summary="Like or unlike a post",
+        operation_description="Toggle like status for a given post. If already liked, it will unlike the post.",
+        manual_parameters=[
+            openapi.Parameter('slug', openapi.IN_PATH, description="Slug of the post", type=openapi.TYPE_STRING)
         ],
         responses={
-            200: inline_serializer(
-                name='PostLikeResponse',
-                fields={
-                    'message': serializers.CharField(),
-                    'total_likes': serializers.IntegerField(),
-                    'is_liked': serializers.BooleanField()
+            200: openapi.Response(
+                description="Like toggled",
+                examples={
+                    "application/json": {"message": "Post liked", "total_likes": 15, "is_liked": True}
                 }
             ),
-            404: inline_serializer(
-                name='PostLikeNotFound',
-                fields={'error': serializers.CharField()}
-            )
+            404: "Post not found"
         },
-        examples=[
-            OpenApiExample(
-                'Post Liked',
-                value={
-                    'message': 'Post liked',
-                    'total_likes': 42,
-                    'is_liked': True
-                },
-                response_only=True
-            ),
-            OpenApiExample(
-                'Post Unliked',
-                value={
-                    'message': 'Post unliked',
-                    'total_likes': 41,
-                    'is_liked': False
-                },
-                response_only=True
-            )
-        ],
         tags=['Posts']
     )
     def post(self, request, slug):
-        """Toggle like on a post"""
         try:
             post = Post.objects.get(slug=slug, status='published')
-            
             like, created = Like.objects.get_or_create(post=post, user=request.user)
-            
             if not created:
                 like.delete()
-                return Response(
-                    {
-                        "message": "Post unliked",
-                        "total_likes": post.likes.count(),
-                        "is_liked": False
-                    },
-                    status=status.HTTP_200_OK
-                )
-            else:
-                return Response(
-                    {
-                        "message": "Post liked",
-                        "total_likes": post.likes.count(),
-                        "is_liked": True
-                    },
-                    status=status.HTTP_200_OK
-                )
+                return Response({"message": "Post unliked", "total_likes": post.likes.count(), "is_liked": False})
+            return Response({"message": "Post liked", "total_likes": post.likes.count(), "is_liked": True})
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+        
 class CommentListView(generics.ListAPIView):
-    """
-    API endpoint for listing comments on a post
-    """
     permission_classes = [IsAuthenticated]
     serializer_class = CommentSerializer
-    
-    @extend_schema(
-        summary="List post comments",
-        description="Get all approved top-level comments for a specific post. Includes nested replies.",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-                description='Unique slug identifier for the post'
-            )
+
+    @swagger_auto_schema(
+        operation_summary="List comments for a post",
+        operation_description="Fetch all approved top-level comments (with nested replies) for a given post.",
+        manual_parameters=[
+            openapi.Parameter('slug', openapi.IN_PATH, description="Slug of the post", type=openapi.TYPE_STRING)
         ],
-        responses={
-            200: CommentSerializer(many=True)
-        },
+        responses={200: CommentSerializer(many=True)},
         tags=['Comments']
     )
     def get(self, request, *args, **kwargs):
-        """Get comments for a post"""
         return super().get(request, *args, **kwargs)
-    
+
     def get_queryset(self):
         slug = self.kwargs.get('slug')
         try:
@@ -370,92 +278,50 @@ class CommentListView(generics.ListAPIView):
 
 
 class CommentCreateView(APIView):
-    """
-    API endpoint for creating comments on posts
-    """
     permission_classes = [IsAuthenticated]
-    
-    @extend_schema(
-        summary="Create a comment",
-        description="Add a comment to a post. Can be a top-level comment or a reply to another comment by specifying parent ID.",
-        parameters=[
-            OpenApiParameter(
-                name='slug',
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.PATH,
-                description='Unique slug identifier for the post'
-            )
+
+    @swagger_auto_schema(
+        operation_summary="Add a comment to a post",
+        operation_description="Allows users to comment on a post or reply to an existing comment by providing `parent` ID.",
+        manual_parameters=[
+            openapi.Parameter('slug', openapi.IN_PATH, description="Slug of the post", type=openapi.TYPE_STRING)
         ],
-        request=CommentCreateSerializer,
+        request_body=CommentCreateSerializer,
         responses={
-            201: CommentCreateSerializer,
-            400: inline_serializer(
-                name='CommentCreateError',
-                fields={'error': serializers.DictField()}
+            201: openapi.Response(
+                description="Comment created successfully",
+                examples={
+                    "application/json": {"id": 1, "content": "Great post!", "author": "john_doe"}
+                }
             ),
-            404: inline_serializer(
-                name='CommentPostNotFound',
-                fields={'error': serializers.CharField()}
-            )
+            400: "Invalid input",
+            404: "Post not found"
         },
-        examples=[
-            OpenApiExample(
-                'Top-level Comment',
-                value={
-                    'content': 'Great article! Very informative.',
-                    'parent': None
-                },
-                request_only=True
-            ),
-            OpenApiExample(
-                'Reply to Comment',
-                value={
-                    'content': 'I agree with your point!',
-                    'parent': 5
-                },
-                request_only=True
-            )
-        ],
         tags=['Comments']
     )
     def post(self, request, slug):
-        """Create a comment on a post"""
         try:
             post = Post.objects.get(slug=slug, status='published')
             serializer = CommentCreateSerializer(data=request.data)
-            
             if serializer.is_valid():
                 serializer.save(author=request.user, post=post)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class MyPostsView(generics.ListAPIView):
-    """
-    API endpoint for listing current user's posts
-    """
     permission_classes = [IsAuthenticated]
     serializer_class = PostListSerializer
-    
-    @extend_schema(
-        summary="List my posts",
-        description="Get all posts created by the current authenticated user (all statuses: draft, published, archived).",
-        responses={
-            200: PostListSerializer(many=True)
-        },
+
+    @swagger_auto_schema(
+        operation_summary="List my posts",
+        operation_description="Retrieve all posts authored by the currently authenticated user (any status).",
+        responses={200: PostListSerializer(many=True)},
         tags=['Posts']
     )
     def get(self, request, *args, **kwargs):
-        """Get current user's posts"""
         return super().get(request, *args, **kwargs)
-    
+
     def get_queryset(self):
-        return Post.objects.filter(author=self.request.user)
-    
-    def get_serializer_context(self):
-        return {'request': self.request}
+        return Post.objects.filter(author=self.request.user).order_by('-created_at')
