@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'doctor_dashboard',
     'community',
     'patient_dashboard',
-    'pharmacy',
 ]
 
 Q_CLUSTER = {
