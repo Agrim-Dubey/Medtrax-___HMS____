@@ -43,7 +43,9 @@ INSTALLED_APPS = [
     'doctor_dashboard',
     'community',
     'patient_dashboard',
-    'pharmacy'
+    'pharmacy',
+    'drf_spectacular',
+
 ]
 
 Q_CLUSTER = {
@@ -135,6 +137,13 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+}
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Chat Room API',
+    'DESCRIPTION': 'API for patient-doctor chat, doctor-doctor chat, and disease support groups',
+    'VERSION': '1.0.0',
 }
 
 SIMPLE_JWT = {
