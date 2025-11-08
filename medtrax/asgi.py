@@ -68,6 +68,7 @@ application = ProtocolTypeRouter({
             URLRouter(
                 chat_room.routing.websocket_urlpatterns
                 + videocounselling.routing.websocket_urlpatterns
+                + appointments.routing.websocket_urlpatterns
             )
         )
     ),

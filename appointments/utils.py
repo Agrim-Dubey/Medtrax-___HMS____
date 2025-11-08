@@ -2,19 +2,38 @@ from django.utils import timezone
 from .models import Appointment
 from datetime import datetime, timedelta
 
+from django.utils import timezone
+from datetime import datetime, timedelta
+
 def get_doctor_queue_info(doctor):
-    today = timezone.now().date()
-    confirmed_count = Appointment.objects.filter(
+    now = timezone.localtime()
+    today = now.date()
+
+    appointments = Appointment.objects.filter(
         doctor=doctor,
         appointment_date=today,
-        status='confirmed'
-    ).count()
-    estimated_wait = confirmed_count * 30
-    return {
-        'current_queue_count': confirmed_count,
-        'estimated_wait_time': estimated_wait
-    }
+        status__in=['confirmed', 'completed']
+    ).order_by('appointment_time')
 
+    current_session = None
+    ongoing = appointments.filter(
+        appointment_time__lte=now.time(),
+        appointment_time__gte=(now - timedelta(minutes=30)).time()
+    ).first()
+
+    if ongoing:
+        session_start = ongoing.appointment_time
+        session_end = (datetime.combine(today, session_start) + timedelta(minutes=30)).time()
+        current_session = f"{session_start.strftime('%H:%M')} - {session_end.strftime('%H:%M')}"
+
+    total_confirmed = appointments.count()
+    estimated_wait = total_confirmed * 30  
+
+    return {
+        "current_queue_count": total_confirmed,
+        "estimated_wait_time": estimated_wait,
+        "current_session": current_session
+    }
 
 def get_available_slots(doctor, appointment_date):
 

@@ -16,7 +16,19 @@ from Authapi.models import Doctor
 from django_q.tasks import async_task
 from datetime import datetime
 from .utils import get_available_slots
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from .utils import get_doctor_queue_info
 
+
+
+def broadcast_queue_update(doctor):
+        channel_layer = get_channel_layer()
+        data = get_doctor_queue_info(doctor)
+        async_to_sync(channel_layer.group_send)(
+            f"doctor_{doctor.id}_queue",
+            {"type": "send_queue_update", "data": data}
+        )
 
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -705,3 +717,52 @@ class DoctorAppointmentsListView(APIView):
                 {"error": "Only doctors can access this endpoint"},
                 status=status.HTTP_403_FORBIDDEN
             )
+        
+class DoctorQueueInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get doctor's live queue info",
+        operation_description="Returns the current queue count and estimated wait time for a given doctor",
+        manual_parameters=[
+            openapi.Parameter(
+                'doctor_id',
+                openapi.IN_PATH,
+                description="Doctor ID",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Doctor queue info",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'doctor_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+                        'doctor_name': openapi.Schema(type=openapi.TYPE_STRING, example="Dr. John Doe"),
+                        'current_queue_count': openapi.Schema(type=openapi.TYPE_INTEGER, example=3),
+                        'estimated_wait_time': openapi.Schema(type=openapi.TYPE_INTEGER, example=90),
+                        'current_session': openapi.Schema(type=openapi.TYPE_STRING, example="09:30 - 10:00"),
+                    }
+                )
+            )
+        },
+        tags=['Doctors']
+    )
+
+    def get(self, request, doctor_id):
+        from .utils import get_doctor_queue_info
+        from Authapi.models import Doctor
+
+        try:
+            doctor = Doctor.objects.get(id=doctor_id, user__is_active=True)
+        except Doctor.DoesNotExist:
+            return Response({"error": "Doctor not found"}, status=404)
+
+        queue_data = get_doctor_queue_info(doctor)
+        return Response({
+            "doctor_id": doctor.id,
+            "doctor_name": f"Dr. {doctor.get_full_name()}",
+            **queue_data
+        }, status=200)
