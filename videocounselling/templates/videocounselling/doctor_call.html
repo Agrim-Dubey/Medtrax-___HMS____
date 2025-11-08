@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Doctor Video Call</title>
+  <style>
+    body { font-family: Arial; padding: 16px; background: #f6f6f6; }
+    .row { display:flex; gap:12px; margin-bottom:8px; align-items:center;}
+    video { width: 48%; background: #000; border-radius:8px; }
+    #local, #remote { display:inline-block; }
+    #logs { background:#fff; padding:8px; height:120px; overflow:auto; border:1px solid #ddd; }
+    input, button { padding:8px; }
+    #token { width: 70%; }
+  </style>
+</head>
+<body>
+  <h2>👨‍⚕️ Doctor Video Test (Room {{ room_id }})</h2>
+
+  <div class="row">
+    <input id="token" placeholder="Paste JWT access token..." />
+    <button id="connectBtn">Connect</button>
+    <button id="hangupBtn" disabled>Hang up</button>
+  </div>
+
+  <div class="row">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+
+  <div class="row">
+    <button id="startBtn">Start Camera</button>
+    <button id="callBtn" disabled>Start Call (Offer)</button>
+  </div>
+
+  <pre id="logs"></pre>
+
+<script>
+const roomId = "{{ room_id }}";
+const tokenInput = document.getElementById("token");
+const connectBtn = document.getElementById("connectBtn");
+const startBtn = document.getElementById("startBtn");
+const callBtn = document.getElementById("callBtn");
+const hangupBtn = document.getElementById("hangupBtn");
+const logs = document.getElementById("logs");
+
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+
+let ws = null;
+let pc = null;
+let localStream = null;
+let connected = false;
+
+function log(s){ logs.textContent += s + "\n"; logs.scrollTop = logs.scrollHeight; }
+
+function createPeer() {
+  const iceServers = [
+    { urls: ["stun:stun.l.google.com:19302"] },
+  ];
+
+  pc = new RTCPeerConnection({ iceServers });
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate && connected) {
+      ws.send(JSON.stringify({ type: "ice-candidate", candidate: e.candidate }));
+    }
+  };
+
+  pc.ontrack = (e) => {
+    remoteVideo.srcObject = e.streams[0];
+  };
+
+  if (localStream) {
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  }
+}
+
+connectBtn.onclick = () => {
+  const token = tokenInput.value.trim();
+  if (!token) return alert("Paste token!");
+
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws/video/${roomId}/?token=${token}`);
+
+  ws.onopen = () => {
+    log("WS connected");
+    connected = true;
+    hangupBtn.disabled = false;
+  };
+
+  ws.onmessage = async (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === "connected") {
+      log(`Authed as user_id=${msg.user_id} role=${msg.role}`);
+    }
+    if (msg.type === "offer") {
+      log("Got OFFER");
+      if (!pc) createPeer();
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      ws.send(JSON.stringify({ type: "answer", answer }));
+      log("Sent ANSWER");
+    }
+    if (msg.type === "answer") {
+      log("Got ANSWER");
+      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+    }
+    if (msg.type === "ice-candidate") {
+      if (pc && msg.candidate) {
+        try { await pc.addIceCandidate(msg.candidate); } catch {}
+      }
+    }
+    if (msg.type === "end") {
+      log("Call ended by remote");
+      teardown();
+    }
+  };
+
+  ws.onclose = () => { log("WS closed"); connected = false; };
+  ws.onerror = (err) => log("WS error " + err.message);
+};
+
+startBtn.onclick = async () => {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localVideo.srcObject = localStream;
+    log("Camera started");
+    if (!pc) createPeer();
+    callBtn.disabled = false;
+  } catch(e){ alert("Camera/Mic permission denied"); }
+};
+
+callBtn.onclick = async () => {
+  if (!pc || !ws) return;
+  const offer = await pc.createOffer({ offerToReceiveAudio: 1, offerToReceiveVideo: 1 });
+  await pc.setLocalDescription(offer);
+  ws.send(JSON.stringify({ type: "offer", offer }));
+  log("Sent OFFER");
+};
+
+hangupBtn.onclick = () => {
+  if (ws && connected) ws.send(JSON.stringify({ type: "end" }));
+  teardown();
+};
+
+function teardown(){
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; localVideo.srcObject=null;}
+  if (ws && connected) { ws.close(); }
+  connected = false;
+  callBtn.disabled = true;
+  hangupBtn.disabled = true;
+  log("Teardown complete");
+}
+</script>
+</body>
+</html>

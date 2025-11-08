@@ -11,6 +11,7 @@ from channels.security.websocket import AllowedHostsOriginValidator
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 import chat_room.routing
+import videocounselling.routing
 
 
 class JWTAuthMiddleware:
@@ -66,6 +67,7 @@ application = ProtocolTypeRouter({
         JWTAuthMiddleware(
             URLRouter(
                 chat_room.routing.websocket_urlpatterns
+                + videocounselling.routing.websocket_urlpatterns
             )
         )
     ),
