@@ -21,9 +21,8 @@
 
     <script>
         const roomId = "{{ room_id }}";
-        const token = localStorage.getItem("access_token");
-        const socket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/?token=${token}`);
 
+        const socket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/`);
 
         const chatBox = document.getElementById("chat-box");
         const input = document.getElementById("messageInput");
