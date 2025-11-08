@@ -39,14 +39,12 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
-    generator_class=DynamicSchemaGenerator,  # ✅ Key fix
+    generator_class=DynamicSchemaGenerator, 
 )
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # API routes
     path('api/auth/', include('Authapi.urls')),
     path('api/chat/', include('chat_room.urls')),
     path('api/doctor/dashboard/', include('doctor_dashboard.urls')),
