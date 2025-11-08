@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Doctor Chat Room</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f6f6f6; padding: 20px; }
+        #chat-box { border: 1px solid #ccc; background: white; height: 400px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+        .message { margin-bottom: 8px; padding: 6px 8px; border-radius: 8px; }
+        .me { background: #d1f7c4; text-align: right; }
+        .other { background: #f1f1f1; text-align: left; }
+        #messageInput { width: 75%; padding: 8px; }
+        #sendBtn { padding: 8px 12px; }
+    </style>
+</head>
+<body>
+    <h2>👨‍⚕️ Doctor Chat Test</h2>
+    <div id="chat-box"></div>
+    <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+    <button id="sendBtn">Send</button>
+
+    <script>
+        const roomId = "{{ room_id }}";
+        const token = localStorage.getItem("access_token");
+        const socket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomId}/?token=${token}`);
+
+
+        const chatBox = document.getElementById("chat-box");
+        const input = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+
+        function appendMessage(name, content, isMe) {
+            const msg = document.createElement("div");
+            msg.className = "message " + (isMe ? "me" : "other");
+            msg.textContent = `${name}: ${content}`;
+            chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        socket.onopen = () => console.log("✅ Connected to chat server");
+        socket.onerror = e => console.error("❌ WebSocket error:", e);
+
+        socket.onmessage = event => {
+            const data = JSON.parse(event.data);
+            console.log("📨 Message:", data);
+
+            if (data.type === "connection_established") {
+                data.messages.forEach(m => appendMessage(m.sender_full_name, m.content, m.sender_id === data.user_id));
+            }
+
+            if (data.type === "chat_message") {
+                appendMessage(data.sender_full_name, data.message, data.sender_id === data.user_id);
+            }
+        };
+
+        sendBtn.onclick = () => {
+            if (!input.value.trim()) return;
+            socket.send(JSON.stringify({ message: input.value }));
+            input.value = "";
+        };
+    </script>
+</body>
+</html>

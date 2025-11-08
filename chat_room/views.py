@@ -18,6 +18,9 @@ from .serializers import (
     DoctorMinimalSerializer
 )
 from Authapi.models import Doctor
+from django.shortcuts import render
+
+
 
 class PatientChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -377,3 +380,11 @@ class ChatRoomViewSet(viewsets.ViewSet):
         ).exclude(sender=request.user).update(is_read=True)
         
         return Response({"message": "Messages marked as read"})
+    
+
+def test_chat_doctor(request, room_id):
+    return render(request, 'chat_room/chat_doctor.html', {'room_id': room_id})
+
+def test_chat_patient(request, room_id):
+    return render(request, 'chat_room/chat_patient.html', {'room_id': room_id})
+

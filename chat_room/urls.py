@@ -1,5 +1,11 @@
 from django.urls import path
-from .views import PatientChatViewSet, DoctorChatViewSet, ChatRoomViewSet
+from .views import (
+    PatientChatViewSet,
+    DoctorChatViewSet,
+    ChatRoomViewSet,
+    test_chat_doctor,
+    test_chat_patient,
+)
 
 urlpatterns = [
     path('patient/doctors/', PatientChatViewSet.as_view({'get': 'list_doctor_chats'}), name='patient-doctor-chats'),
@@ -17,4 +23,7 @@ urlpatterns = [
     path('rooms/<int:pk>/', ChatRoomViewSet.as_view({'get': 'retrieve'}), name='chat-room-detail'),
     path('rooms/<int:pk>/messages/', ChatRoomViewSet.as_view({'post': 'send_message'}), name='chat-send-message'),
     path('rooms/<int:pk>/read/', ChatRoomViewSet.as_view({'post': 'mark_as_read'}), name='chat-mark-read'),
+    path('test/doctor/<int:room_id>/', test_chat_doctor, name='test-chat-doctor'),
+    path('test/patient/<int:room_id>/', test_chat_patient, name='test-chat-patient'),
+
 ]
