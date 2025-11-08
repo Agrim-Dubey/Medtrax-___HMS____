@@ -47,6 +47,11 @@
       const token = tokenInput.value.trim();
       if (!token) return alert("⚠️ Please paste your access token first!");
 
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        alert("Already connected!");
+        return;
+      }
+
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
       socket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomId}/?token=${token}`);
 
@@ -55,7 +60,10 @@
         appendMessage("System", "✅ Connected to chat!", false);
       };
 
-      socket.onerror = (e) => console.error("❌ WebSocket error:", e);
+      socket.onerror = (e) => {
+        console.error("❌ WebSocket error:", e);
+        appendMessage("System", "❌ Connection error", false);
+      };
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
