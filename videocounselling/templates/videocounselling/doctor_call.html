@@ -1,158 +1,322 @@
-<!DOCTYPE html>
-<html>
+ <!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Doctor Video Call</title>
+  <title>Doctor Video – Room {{ room_id }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: Arial; padding: 16px; background: #f6f6f6; }
-    .row { display:flex; gap:12px; margin-bottom:8px; align-items:center;}
-    video { width: 48%; background: #000; border-radius:8px; }
-    #local, #remote { display:inline-block; }
-    #logs { background:#fff; padding:8px; height:120px; overflow:auto; border:1px solid #ddd; }
-    input, button { padding:8px; }
-    #token { width: 70%; }
+    :root{
+      --bg:#0b1220; --panel:#121a2b; --accent:#6ee7ff; --muted:#93a4bc; --ok:#30d158; --warn:#ff9f0a; --err:#ff453a;
+      --card:#0f172a; --stroke:#22314d;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter,system-ui,Arial; background:linear-gradient(180deg,#0b1220,#0b1526);}
+    .wrap{max-width:1100px; margin:24px auto; padding:16px}
+    .header{display:flex; align-items:center; gap:12px; color:#e6eefc; margin-bottom:16px}
+    .role{padding:6px 10px; border:1px solid var(--stroke); border-radius:999px; color:#e6eefc; background:#0f1830}
+    .room{color:var(--muted)}
+    .grid{display:grid; grid-template-columns:1.1fr .9fr; gap:16px}
+    .card{background:var(--panel); border:1px solid var(--stroke); border-radius:14px; padding:14px}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    video{width:100%; background:#000; border-radius:12px; aspect-ratio:16/9; object-fit:cover}
+    label{font-size:12px; color:var(--muted)}
+    select,input,button,textarea{border-radius:10px; border:1px solid var(--stroke); background:#0f172a; color:#e6eefc; padding:10px}
+    input::placeholder{color:#6b7a93}
+    button{cursor:pointer}
+    button.primary{background:var(--accent); color:#051426; border:none; font-weight:600}
+    button.ghost{background:transparent}
+    button.warn{background:var(--warn); color:#1b1000;border:none}
+    button.danger{background:var(--err); color:#2c0906;border:none}
+    button:disabled{opacity:.55; cursor:not-allowed}
+    .status{font-size:12px; color:var(--muted)}
+    .status .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle}
+    .dot.green{background:var(--ok)} .dot.yellow{background:var(--warn)} .dot.red{background:var(--err)} .dot.gray{background:#6b7a93}
+    pre{height:160px; overflow:auto; background:#0b1220; border:1px solid var(--stroke); border-radius:10px; padding:10px; color:#c7d7ff; font-size:12px}
+    .pill{padding:6px 8px; border-radius:8px; background:#0f172a; border:1px solid var(--stroke); font-size:12px; color:#a9bad6}
   </style>
 </head>
 <body>
-  <h2>👨‍⚕️ Doctor Video Test (Room {{ room_id }})</h2>
-
-  <div class="row">
-    <input id="token" placeholder="Paste JWT access token..." />
-    <button id="connectBtn">Connect</button>
-    <button id="hangupBtn" disabled>Hang up</button>
+<div class="wrap">
+  <div class="header">
+    <div class="role">👨‍⚕️ Doctor</div>
+    <div class="room">Room: <b>{{ room_id }}</b></div>
+    <div class="status" id="wsStatus"><span class="dot gray"></span>WS: idle</div>
+    <div class="status" id="rtcStatus"><span class="dot gray"></span>RTC: idle</div>
   </div>
 
-  <div class="row">
-    <video id="localVideo" autoplay playsinline muted></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <input id="token" placeholder="Paste JWT access token…" style="flex:1" />
+        <button id="remember" class="ghost">💾 Remember</button>
+        <button id="connect" class="primary">Connect</button>
+        <button id="disconnect" class="ghost" disabled>Disconnect</button>
+      </div>
 
-  <div class="row">
-    <button id="startBtn">Start Camera</button>
-    <button id="callBtn" disabled>Start Call (Offer)</button>
-  </div>
+      <div class="row" style="gap:14px; margin-bottom:8px">
+        <div class="row" style="flex:1">
+          <label>Camera</label>
+          <select id="cameraSel" style="min-width:180px"></select>
+        </div>
+        <div class="row" style="flex:1">
+          <label>Microphone</label>
+          <select id="micSel" style="min-width:180px"></select>
+        </div>
+        <div class="pill">Autoplay is muted by default</div>
+      </div>
 
-  <pre id="logs"></pre>
+      <div class="row" style="margin-bottom:10px">
+        <button id="start" class="primary">Start Camera</button>
+        <button id="call" class="" disabled>Start Call</button>
+        <button id="hangup" class="danger" disabled>Hang up</button>
+        <button id="mute" class="ghost" disabled>Mute</button>
+        <button id="camoff" class="ghost" disabled>Camera Off</button>
+        <button id="reconnect" class="ghost" disabled>Reconnect WS</button>
+      </div>
+
+      <div class="row" style="gap:12px">
+        <div style="flex:1" class="card"><label>Local</label><video id="local" autoplay playsinline muted></video></div>
+        <div style="flex:1" class="card"><label>Remote</label><video id="remote" autoplay playsinline></video></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div class="pill" id="identity">Not authed</div>
+        <div class="pill" id="iceState">ICE: -</div>
+      </div>
+      <pre id="log"></pre>
+    </div>
+  </div>
+</div>
 
 <script>
-const roomId = "{{ room_id }}";
-const tokenInput = document.getElementById("token");
-const connectBtn = document.getElementById("connectBtn");
-const startBtn = document.getElementById("startBtn");
-const callBtn = document.getElementById("callBtn");
-const hangupBtn = document.getElementById("hangupBtn");
-const logs = document.getElementById("logs");
+(() => {
+  const roomId = "{{ room_id }}";
+  const tokenEl = document.getElementById('token');
+  const btnRemember = document.getElementById('remember');
+  const btnConnect = document.getElementById('connect');
+  const btnDisconnect = document.getElementById('disconnect');
+  const btnReconnect = document.getElementById('reconnect');
+  const btnStart = document.getElementById('start');
+  const btnCall = document.getElementById('call');
+  const btnHangup = document.getElementById('hangup');
+  const btnMute = document.getElementById('mute');
+  const btnCamOff = document.getElementById('camoff');
 
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
+  const wsStatus = document.getElementById('wsStatus');
+  const rtcStatus = document.getElementById('rtcStatus');
+  const identity = document.getElementById('identity');
+  const iceState = document.getElementById('iceState');
 
-let ws = null;
-let pc = null;
-let localStream = null;
-let connected = false;
+  const localVideo = document.getElementById('local');
+  const remoteVideo = document.getElementById('remote');
+  const logEl = document.getElementById('log');
+  const camSel = document.getElementById('cameraSel');
+  const micSel = document.getElementById('micSel');
 
-function log(s){ logs.textContent += s + "\n"; logs.scrollTop = logs.scrollHeight; }
+  let ws, pc, localStream, heartbeatTimer, wsClosedByUser=false;
+  let makingOffer = false;
+  let ignoreOffer = false;
+  const polite = true; 
 
-function createPeer() {
-  const iceServers = [
-    { urls: ["stun:stun.l.google.com:19302"] },
-  ];
+  function log(...args){ logEl.textContent += args.join(' ') + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+  function setWsStatus(txt, color='gray'){ wsStatus.innerHTML = `<span class="dot ${color}"></span>WS: ${txt}`; }
+  function setRtcStatus(txt, color='gray'){ rtcStatus.innerHTML = `<span class="dot ${color}"></span>RTC: ${txt}`; }
 
-  pc = new RTCPeerConnection({ iceServers });
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate && connected) {
-      ws.send(JSON.stringify({ type: "ice-candidate", candidate: e.candidate }));
+  async function listDevices(){
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    camSel.innerHTML = ''; micSel.innerHTML='';
+    for(const d of devices){
+      const opt = document.createElement('option');
+      opt.value = d.deviceId || '';
+      opt.textContent = d.label || (d.kind==='videoinput' ? 'Camera' : d.kind==='audioinput' ? 'Mic' : d.kind);
+      if(d.kind==='videoinput') camSel.appendChild(opt);
+      if(d.kind==='audioinput') micSel.appendChild(opt);
     }
-  };
-
-  pc.ontrack = (e) => {
-    remoteVideo.srcObject = e.streams[0];
-  };
-
-  if (localStream) {
-    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   }
-}
 
-connectBtn.onclick = () => {
-  const token = tokenInput.value.trim();
-  if (!token) return alert("Paste token!");
-
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/video/${roomId}/?token=${token}`);
-
-  ws.onopen = () => {
-    log("WS connected");
-    connected = true;
-    hangupBtn.disabled = false;
-  };
-
-  ws.onmessage = async (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === "connected") {
-      log(`Authed as user_id=${msg.user_id} role=${msg.role}`);
-    }
-    if (msg.type === "offer") {
-      log("Got OFFER");
-      if (!pc) createPeer();
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: "answer", answer }));
-      log("Sent ANSWER");
-    }
-    if (msg.type === "answer") {
-      log("Got ANSWER");
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
-    }
-    if (msg.type === "ice-candidate") {
-      if (pc && msg.candidate) {
-        try { await pc.addIceCandidate(msg.candidate); } catch {}
-      }
-    }
-    if (msg.type === "end") {
-      log("Call ended by remote");
-      teardown();
-    }
-  };
-
-  ws.onclose = () => { log("WS closed"); connected = false; };
-  ws.onerror = (err) => log("WS error " + err.message);
-};
-
-startBtn.onclick = async () => {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  async function getStream(){
+    const constraints = {
+      video: camSel.value ? {deviceId:{exact:camSel.value}} : true,
+      audio: micSel.value ? {deviceId:{exact:micSel.value}} : true
+    };
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
     localVideo.srcObject = localStream;
-    log("Camera started");
+    btnMute.disabled = btnCamOff.disabled = false;
+  }
+
+  function createPeer(){
+    const iceServers = [{urls:'stun:stun.l.google.com:19302'}];
+    pc = new RTCPeerConnection({iceServers});
+
+    pc.oniceconnectionstatechange = () => {
+      iceState.textContent = 'ICE: ' + pc.iceConnectionState;
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        setRtcStatus('disconnected', 'red');
+      }
+    };
+    pc.onconnectionstatechange = () => setRtcStatus(pc.connectionState, pc.connectionState==='connected'?'green':pc.connectionState==='connecting'?'yellow':'gray');
+
+    pc.ontrack = e => { remoteVideo.srcObject = e.streams[0]; };
+
+    pc.onicecandidate = e => {
+      if (e.candidate && ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({type:'ice-candidate', candidate:e.candidate}));
+      }
+    };
+
+    pc.onnegotiationneeded = async () => {
+      try{
+        makingOffer = true;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        ws?.send(JSON.stringify({type:'offer', offer}));
+        log('Sent OFFER (negotiationneeded)');
+      } catch(err){ log('negotiationneeded error', err); }
+      finally{ makingOffer = false; }
+    };
+
+    if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  }
+
+  async function handleSignaling(msg){
+    try{
+      if (msg.type === 'connected') {
+        identity.textContent = `user_id=${msg.user_id} role=${msg.role}`;
+        log('Authed:', identity.textContent);
+        return;
+      }
+      if (msg.type === 'offer') {
+        const offerCollision = (makingOffer || pc.signalingState !== "stable");
+        ignoreOffer = !polite && offerCollision;
+        if (ignoreOffer) { log('Ignoring OFFER (impolite peer glare)'); return; }
+
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({type:'answer', answer}));
+        log('Sent ANSWER');
+        return;
+      }
+      if (msg.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+        log('Got ANSWER');
+        return;
+      }
+      if (msg.type === 'ice-candidate' && msg.candidate) {
+        try { await pc.addIceCandidate(msg.candidate); }
+        catch(err){ if(!ignoreOffer) log('ICE add error', err); }
+        return;
+      }
+      if (msg.type === 'end') {
+        log('Remote ended call');
+        teardown();
+      }
+      if (msg.type === 'error') {
+        log('Server error:', msg.detail || msg.message || msg.code);
+      }
+    }catch(err){ log('Signal handling error', err); }
+  }
+
+  function connectWS(){
+    const token = tokenEl.value.trim();
+    if(!token) { alert('Paste JWT token first'); return; }
+
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${proto}://${location.host}/ws/video/${roomId}/?token=${encodeURIComponent(token)}`;
+    wsClosedByUser = false;
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      setWsStatus('connected', 'green');
+      btnDisconnect.disabled = false; btnReconnect.disabled = true;
+      heartbeatTimer = setInterval(() => { try{ ws.send(JSON.stringify({type:'ping'})); }catch(e){} }, 20000);
+    };
+    ws.onmessage = e => {
+      try { const msg = JSON.parse(e.data); handleSignaling(msg); }
+      catch(err){ log('WS message parse error', err); }
+    };
+    ws.onerror = (e) => { setWsStatus('error', 'red'); log('WS error', e?.message || e); };
+    ws.onclose = (ev) => {
+      clearInterval(heartbeatTimer);
+      setWsStatus(`closed (code ${ev.code})`, 'red');
+      btnDisconnect.disabled = true; btnReconnect.disabled = false;
+      if(!wsClosedByUser) log('WS closed unexpectedly. You can Reconnect.');
+    };
+  }
+
+  function disconnectWS(){
+    wsClosedByUser = true;
+    if (ws && ws.readyState <= 1) ws.close(1000, 'client goodbye');
+    ws = null; setWsStatus('closed', 'red'); btnDisconnect.disabled = true; btnReconnect.disabled = false;
+  }
+
+  function teardown(){
+    if (pc) { pc.getSenders().forEach(s=>{try{s.track && s.track.stop()}catch{}}); pc.close(); }
+    pc = null;
+    if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; localVideo.srcObject=null; }
+    btnHangup.disabled = btnCall.disabled = false; 
+    setRtcStatus('idle','gray');
+  }
+
+  btnRemember.onclick = () => {
+    localStorage.setItem('medtrax_doctor_token', tokenEl.value.trim());
+    log('Token saved to localStorage (doctor).');
+  };
+  btnReconnect.onclick = () => connectWS();
+  btnConnect.onclick = () => connectWS();
+  btnDisconnect.onclick = () => disconnectWS();
+
+  btnStart.onclick = async () => {
+    try{
+      await getStream();
+      await listDevices();
+      if (!pc) createPeer();
+      btnCall.disabled = false; btnHangup.disabled = false;
+      setRtcStatus('ready', 'yellow');
+      log('Camera started');
+    }catch(err){
+      alert('Camera/Mic permission denied or unavailable.');
+      log('getUserMedia error', err);
+    }
+  };
+
+  btnCall.onclick = async () => {
+    if (!ws || ws.readyState !== 1) { alert('Connect WebSocket first'); return; }
     if (!pc) createPeer();
-    callBtn.disabled = false;
-  } catch(e){ alert("Camera/Mic permission denied"); }
-};
 
-callBtn.onclick = async () => {
-  if (!pc || !ws) return;
-  const offer = await pc.createOffer({ offerToReceiveAudio: 1, offerToReceiveVideo: 1 });
-  await pc.setLocalDescription(offer);
-  ws.send(JSON.stringify({ type: "offer", offer }));
-  log("Sent OFFER");
-};
+    try{
+      const offer = await pc.createOffer({offerToReceiveAudio:1, offerToReceiveVideo:1});
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify({type:'offer', offer}));
+      log('Sent OFFER (manual)');
+      setRtcStatus('connecting','yellow');
+      btnCall.disabled = true;
+    }catch(err){ log('Create offer error', err); }
+  };
 
-hangupBtn.onclick = () => {
-  if (ws && connected) ws.send(JSON.stringify({ type: "end" }));
-  teardown();
-};
+  btnHangup.onclick = () => {
+    try { ws?.send(JSON.stringify({type:'end'})); } catch {}
+    teardown();
+  };
 
-function teardown(){
-  if (pc) { pc.close(); pc = null; }
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; localVideo.srcObject=null;}
-  if (ws && connected) { ws.close(); }
-  connected = false;
-  callBtn.disabled = true;
-  hangupBtn.disabled = true;
-  log("Teardown complete");
-}
+  btnMute.onclick = () => {
+    if (!localStream) return;
+    const a = localStream.getAudioTracks()[0]; if (!a) return;
+    a.enabled = !a.enabled; btnMute.textContent = a.enabled ? 'Mute' : 'Unmute';
+  };
+  btnCamOff.onclick = () => {
+    if (!localStream) return;
+    const v = localStream.getVideoTracks()[0]; if (!v) return;
+    v.enabled = !v.enabled; btnCamOff.textContent = v.enabled ? 'Camera Off' : 'Camera On';
+  };
+
+  const saved = localStorage.getItem('medtrax_doctor_token');
+  if (saved) tokenEl.value = saved;
+
+  navigator.mediaDevices.enumerateDevices().then(()=>listDevices()).catch(()=>{});
+})();
 </script>
 </body>
 </html>
