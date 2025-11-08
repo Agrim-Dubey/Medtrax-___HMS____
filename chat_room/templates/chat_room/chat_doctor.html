@@ -24,6 +24,7 @@
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomId}/`);
 
+
     const chatBox = document.getElementById("chat-box");
     const input = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
