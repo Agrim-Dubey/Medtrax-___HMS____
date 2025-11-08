@@ -11,119 +11,102 @@ User = get_user_model()
 class ChatConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
+        print("=" * 50)
+        print("🔵 WebSocket connection attempt started")
+        
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         self.room_group_name = f'chat_{self.room_id}'
         self.user = self.scope['user']
         
+        print(f"📍 Room ID: {self.room_id}")
+        print(f"👤 User: {self.user} (Authenticated: {self.user.is_authenticated})")
+        
         if not self.user.is_authenticated:
+            print("❌ User not authenticated - closing connection")
             await self.close(code=4001)
             return
+        
+        print("✅ User is authenticated")
+        print("🔍 Fetching room data...")
         
         room_data = await self.get_room_data()
         
         if not room_data:
+            print("❌ Room not found - closing connection")
             await self.close(code=4004)
             return
         
+        print(f"✅ Room data: {room_data}")
+        
         if not room_data['is_participant']:
+            print("❌ User is not a participant - closing connection")
             await self.close(code=4003)
             return
         
+        print("✅ User is a participant")
+        
         if not room_data['is_active']:
+            print("❌ Room is not active - closing connection")
             await self.close(code=4005)
             return
         
+        print("✅ Room is active")
+        
         self.room_type = room_data['room_type']
+        
+        print(f"📝 Adding to channel group: {self.room_group_name}")
         
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         
+        print("✅ Added to channel group")
+        print("🤝 Accepting WebSocket connection...")
+        
         await self.accept()
         
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'message': 'Connected to chat',
-            'room_id': self.room_id,
-            'user_id': self.user.id
-        }))
-    
+        print("✅ WebSocket accepted")
+        print("📜 Fetching message history...")
+        
+        try:
+            messages = await self.get_message_history()
+            print(f"✅ Message history fetched: {len(messages)} messages")
+        except Exception as e:
+            print(f"❌ Error fetching message history: {e}")
+            messages = []
+        
+        print("📤 Sending connection_established message...")
+        
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'connection_established',
+                'message': 'Connected to chat',
+                'room_id': self.room_id,
+                'user_id': self.user.id,
+                'messages': messages  
+            }))
+            print("✅ Connection established message sent successfully!")
+            print("🎉 WebSocket connection complete and stable!")
+        except Exception as e:
+            print(f"❌ Error sending message: {e}")
+        
+        print("=" * 50)
     async def disconnect(self, close_code):
+        print("=" * 50)
+        print(f"🔴 WebSocket disconnecting - Close code: {close_code}")
+        print(f"👤 User: {self.user if hasattr(self, 'user') else 'Unknown'}")
+        print(f"📍 Room: {self.room_id if hasattr(self, 'room_id') else 'Unknown'}")
+        
         if hasattr(self, 'room_group_name'):
+            print(f"🚪 Removing from group: {self.room_group_name}")
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
-    
-    async def receive(self, text_data):
-        try:
-            data = json.loads(text_data)
-            message_type = data.get('type')
-            
-            if message_type == 'chat_message':
-                message_content = data.get('message', '').strip()
-                
-                if not message_content:
-                    await self.send(text_data=json.dumps({
-                        'type': 'error',
-                        'message': 'Message cannot be empty'
-                    }))
-                    return
-                
-                if len(message_content) > 5000:
-                    await self.send(text_data=json.dumps({
-                        'type': 'error',
-                        'message': 'Message too long'
-                    }))
-                    return
-                
-                message_obj = await self.save_message(message_content)
-                
-                if not message_obj:
-                    await self.send(text_data=json.dumps({
-                        'type': 'error',
-                        'message': 'Failed to save message'
-                    }))
-                    return
-                
-                user_full_name = await self.get_user_full_name()
-                
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message': message_content,
-                        'sender_id': self.user.id,
-                        'sender_username': self.user.username,
-                        'sender_full_name': user_full_name,
-                        'sender_role': self.user.role,
-                        'message_id': message_obj.id,
-                        'timestamp': message_obj.timestamp.isoformat(),
-                    }
-                )
-            
-            elif message_type == 'typing':
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'typing_indicator',
-                        'user_id': self.user.id,
-                        'username': self.user.username,
-                        'is_typing': data.get('is_typing', False)
-                    }
-                )
+            print("✅ Removed from channel group")
         
-        except json.JSONDecodeError:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Invalid JSON'
-            }))
-        except Exception as e:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Server error'
-            }))
+        print("=" * 50)
     
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -144,6 +127,50 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'username': event['username'],
                 'is_typing': event['is_typing']
             }))
+    
+
+    @database_sync_to_async
+    def get_message_history(self):
+        try:
+            print(f"🔍 Querying messages for room_id: {self.room_id}")
+            
+            messages = Message.objects.filter(
+                room_id=self.room_id
+            ).select_related('sender').order_by('-timestamp')[:50]
+            
+            message_count = messages.count()
+            print(f"📊 Found {message_count} messages in database")
+            
+            message_list = []
+            for msg in reversed(messages):
+                sender_name = msg.sender.username
+                try:
+                    if msg.sender.role == 'doctor':
+                        sender_name = f"Dr. {msg.sender.doctor_profile.get_full_name()}"
+                    elif msg.sender.role == 'patient':
+                        sender_name = msg.sender.patient_profile.get_full_name()
+                except Exception as e:
+                    print(f"⚠️ Error getting full name for user {msg.sender.id}: {e}")
+                
+                message_list.append({
+                    'id': msg.id,
+                    'sender_id': msg.sender.id,
+                    'sender_username': msg.sender.username,
+                    'sender_full_name': sender_name,
+                    'sender_role': msg.sender.role,
+                    'content': msg.content,
+                    'timestamp': msg.timestamp.isoformat(),
+                    'is_read': msg.is_read
+                })
+            
+            print(f"✅ Formatted {len(message_list)} messages for response")
+            return message_list
+            
+        except Exception as e:
+            print(f"❌ Error fetching message history: {type(e).__name__}: {e}")
+            import traceback
+            print(traceback.format_exc())
+            return []
     
     @database_sync_to_async
     def get_room_data(self):

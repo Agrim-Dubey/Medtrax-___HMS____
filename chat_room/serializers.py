@@ -84,14 +84,29 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
         ]
     
     def get_last_message(self, obj):
-
-        last_msg = obj.messages.order_by('-timestamp').first()
-        if last_msg:
-            return {
-                'content': last_msg.content[:100], 
-                'sender': last_msg.sender.username,
-                'timestamp': last_msg.timestamp
-            }
+        try:
+            messages = getattr(obj, 'messages', None)
+            if messages is not None:
+                if hasattr(messages, 'all'):
+                    last_msg = messages.all()[:1]
+                    if last_msg:
+                        last_msg = last_msg[0]
+                    else:
+                        return None
+                else:
+                    return None
+            else:
+                last_msg = obj.messages.order_by('-timestamp').first()
+            
+            if last_msg:
+                return {
+                    'content': last_msg.content[:100], 
+                    'sender': last_msg.sender.username,
+                    'timestamp': last_msg.timestamp
+                }
+        except Exception as e:
+            print(f"Error fetching last message: {e}")
+            return None
         return None
     
     def get_unread_count(self, obj):
