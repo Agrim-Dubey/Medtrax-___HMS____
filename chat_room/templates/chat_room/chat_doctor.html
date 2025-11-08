@@ -11,23 +11,29 @@
     .other { background: #f1f1f1; text-align: left; }
     #messageInput { width: 75%; padding: 8px; }
     #sendBtn { padding: 8px 12px; }
+    #tokenInput { width: 80%; padding: 8px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <h2>👨‍⚕️ Doctor Chat Test</h2>
+
+  <p>Paste your <b>JWT Access Token</b> below (from Swagger login response):</p>
+  <input id="tokenInput" placeholder="Paste access token here..." />
+  <button id="connectBtn">Connect</button>
+
   <div id="chat-box"></div>
   <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
 
   <script>
     const roomId = "{{ room_id }}";
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomId}/`);
-
-
     const chatBox = document.getElementById("chat-box");
     const input = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
+    const tokenInput = document.getElementById("tokenInput");
+    const connectBtn = document.getElementById("connectBtn");
+    let socket = null;
+    let currentUserId = null;
 
     function appendMessage(name, content, isMe) {
       const msg = document.createElement("div");
@@ -37,23 +43,42 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    socket.onopen = () => console.log("✅ Connected to chat server");
-    socket.onerror = (e) => console.error("❌ WebSocket error:", e);
+    connectBtn.onclick = () => {
+      const token = tokenInput.value.trim();
+      if (!token) return alert("⚠️ Please paste your access token first!");
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "connection_established") {
-        data.messages.forEach((m) =>
-          appendMessage(m.sender_full_name, m.content, m.sender_id === data.user_id)
-        );
-      }
-      if (data.type === "chat_message") {
-        appendMessage(data.sender_full_name, data.message, data.sender_id === data.user_id);
-      }
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      socket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomId}/?token=${token}`);
+
+      socket.onopen = () => {
+        console.log("✅ Connected to chat server");
+        appendMessage("System", "✅ Connected to chat!", false);
+      };
+
+      socket.onerror = (e) => console.error("❌ WebSocket error:", e);
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "connection_established") {
+          currentUserId = data.user_id;
+          data.messages.forEach((m) =>
+            appendMessage(m.sender_full_name, m.content, m.sender_id === currentUserId)
+          );
+        }
+        if (data.type === "chat_message") {
+          appendMessage(data.sender_full_name, data.message, data.sender_id === currentUserId);
+        }
+      };
+
+      socket.onclose = () => appendMessage("System", "❌ Disconnected from server", false);
     };
 
     sendBtn.onclick = () => {
       if (!input.value.trim()) return;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        alert("Socket not connected!");
+        return;
+      }
       socket.send(JSON.stringify({ message: input.value }));
       input.value = "";
     };
