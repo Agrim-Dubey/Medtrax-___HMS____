@@ -1,6 +1,8 @@
 import os
 import django
 from urllib.parse import parse_qs
+import appointments.routing
+
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'medtrax.settings')
 django.setup()
