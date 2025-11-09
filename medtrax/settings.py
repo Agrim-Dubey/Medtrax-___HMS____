@@ -5,6 +5,12 @@ from decouple import config
 from dotenv import load_dotenv
 import dj_database_url
 
+
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,33 +54,16 @@ INSTALLED_APPS = [
 Q_CLUSTER = {
     'name': 'MedtraxQueue',
     'workers': 4,
-    'recycle': 500,
     'timeout': 90,
     'compress': True,
-    'save_limit': 250,
-    'queue_limit': 500,
-    'cpu_affinity': 1,
     'label': 'Django Q',
     'redis': {
-        'host': config('REDIS_HOST', default='127.0.0.1'),
-        'port': config('REDIS_PORT', default=6379, cast=int),
+        'host': REDIS_HOST,
+        'port': REDIS_PORT,
         'db': 0,
-        'password': config('REDIS_PASSWORD', default=None),
+        'password': REDIS_PASSWORD,
     },
-    'schedule': [
-        {
-            'func': 'chat_room.tasks.disable_expired_chats',
-            'schedule_type': 'I',
-            'minutes': 5,
-        },
-        {
-            'func': 'chat_room.tasks.delete_old_chats',
-            'schedule_type': 'I',
-            'hours': 1,
-        }
-    ]
 }
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
@@ -261,8 +250,11 @@ LOGGING = {
 ASGI_APPLICATION = 'medtrax.asgi.application'
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+        },
+    },
 }
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
