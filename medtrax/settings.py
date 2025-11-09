@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'Authapi',
-    'django_q',
+   'django_q2',
     'django_extensions',
     'chat_room',
     'videocounselling',
@@ -156,7 +156,8 @@ CORS_ALLOWED_ORIGINS = [
     'https://www.medtrax.me',
     'http://localhost:5173',
     'http://localhost:5174',
-    'https://dummy-frontend-xi.vercel.app'
+    'https://dummy-frontend-xi.vercel.app',
+    'https://med-trax.me/'
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -192,14 +193,19 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.vercel.app',
     'http://localhost:5173',
     'http://localhost:5174',
-    'https://dummy-frontend-xi.vercel.app'
+    'https://dummy-frontend-xi.vercel.app',
+    'https://med-trax.me/'
 ]
 CSRF_USE_SESSIONS = False
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = []
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static') 
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

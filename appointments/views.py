@@ -13,7 +13,7 @@ from .serializers import (
     DoctorAppointmentListSerializer
 )
 from Authapi.models import Doctor
-from django_q.tasks import async_task
+from django_q2.tasks import async_task
 from datetime import datetime
 from .utils import get_available_slots
 from channels.layers import get_channel_layer
