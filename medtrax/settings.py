@@ -59,7 +59,7 @@ Q_CLUSTER = {
     'compress': True,
     'label': 'Django Q',
     'redis': {
-        'host': REDIS_HOST,
+        'host': '127.0.0.1',
         'port': REDIS_PORT,
         'db': 0,
         'password': REDIS_PASSWORD,
