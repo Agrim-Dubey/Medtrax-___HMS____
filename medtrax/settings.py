@@ -28,6 +28,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
+    'jazzmin',
     'daphne',
     'corsheaders',
     'django.contrib.admin',
