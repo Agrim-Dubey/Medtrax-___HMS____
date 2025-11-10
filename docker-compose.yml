@@ -1,23 +1,26 @@
+version: "3.9"
+
 services:
+
   redis:
     image: redis:7
     container_name: medtrax-redis
     command: >
       sh -c "
       if [ -n \"$REDIS_PASSWORD\" ]; then
-        exec redis-server --requirepass \"$REDIS_PASSWORD\";
+        exec redis-server --requirepass \"$REDIS_PASSWORD\"
       else
-        exec redis-server;
+        exec redis-server
       fi"
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      test: ["CMD", "sh", "-c", "redis-cli -a ${REDIS_PASSWORD:-} ping | grep PONG"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
     restart: unless-stopped
 
   web:
@@ -25,10 +28,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: medtrax-web
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application"
+    command: daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
     volumes:
       - .:/app
     ports:
@@ -40,7 +40,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-    celery:
+  celery:
     build:
       context: .
       dockerfile: Dockerfile
@@ -69,4 +69,3 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-
