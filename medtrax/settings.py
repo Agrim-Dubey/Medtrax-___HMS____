@@ -148,27 +148,36 @@ SESSION_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = 'None'
 
-CORS_ALLOW_ALL_ORIGINS = False 
-CORS_ALLOWED_ORIGINS = [
-    'https://med-trax.vercel.app',
-    'http://localhost:5175',
-    'https://medtrax.me',
-    'https://www.medtrax.me',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://dummy-frontend-xi.vercel.app',
-    'https://med-trax.me'
-]
-CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET', 
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
+CORS_ALLOW_HEADERS = ['*']
+
+
+
+# CORS_ALLOW_ALL_ORIGINS = True  
+# CORS_ALLOWED_ORIGINS = [
+#     'https://med-trax.vercel.app',
+#     'http://localhost:5175',
+#     'https://medtrax.me',
+#     'https://www.medtrax.me',
+#     'http://localhost:5173',
+#     'http://localhost:5174',
+#     'https://dummy-frontend-xi.vercel.app',
+#     'https://med-trax.me'
+# ]
+# CORS_ALLOW_CREDENTIALS = True
+
+# CORS_ALLOW_METHODS = [
+#     'DELETE',
+#     'GET', 
+#     'OPTIONS',
+#     'PATCH',
+#     'POST',
+#     'PUT',
+# ]
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -182,21 +191,27 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 CORS_PREFLIGHT_MAX_AGE = 86400
-
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'None'
+CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']  
+CSRF_COOKIE_SECURE = True       
+CSRF_COOKIE_SAMESITE = 'None'  
 CSRF_COOKIE_HTTPONLY = False
-CSRF_TRUSTED_ORIGINS = [
-    'https://medtrax.me',
-    'https://www.medtrax.me',
-    'https://med-trax.vercel.app',
-    'https://*.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://dummy-frontend-xi.vercel.app',
-    'https://med-trax.me'
-]
 CSRF_USE_SESSIONS = False
+
+
+# CSRF_COOKIE_SECURE = True
+# CSRF_COOKIE_SAMESITE = 'None'
+# CSRF_COOKIE_HTTPONLY = False
+# CSRF_TRUSTED_ORIGINS = [
+#     'https://medtrax.me',
+#     'https://www.medtrax.me',
+#     'https://med-trax.vercel.app',
+#     'https://*.vercel.app',
+#     'http://localhost:5173',
+#     'http://localhost:5174',
+#     'https://dummy-frontend-xi.vercel.app',
+#     'https://med-trax.me'
+# ]
+# CSRF_USE_SESSIONS = False
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static') 
