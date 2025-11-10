@@ -9,13 +9,13 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
-from django_q.tasks import async_task
 from django.core.mail import send_mail
 from django.conf import settings
 import random
 from datetime import timedelta
 from dateutil import parser
 from rest_framework.permissions import IsAuthenticated
+from Authapi.tasks import send_otp_email_task
 
 
 from Authapi.models import CustomUser, Doctor, Patient
@@ -24,8 +24,7 @@ from .serializers import (
     DoctorDetailsSerializer, PatientDetailsSerializer,
     LoginSerializer,
     ForgotPasswordSerializer, VerifyPasswordResetOTPSerializer,
-    ResetPasswordSerializer, ResendPasswordResetOTPSerializer,
-    OTPEmailService
+    ResetPasswordSerializer, ResendPasswordResetOTPSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -143,17 +142,11 @@ class SignupView(APIView):
                 user.save()
 
                 try:
-                    async_task("Authapi.tasks.send_otp_email_task", email, otp, "Verification")
-                    logger.info(f"OTP email queued via Django Q for {email}")
+                    send_otp_email_task.delay(email, otp, "Verification")
+                    logger.info(f"OTP email queued via Celery for {email}")
                 except Exception as e:
-                    logger.warning(f"Django Q failed, sending directly: {e}")
-                    send_mail(
-                        "Your Med-Trax Verification Code",
-                        f"Your verification code is {otp}. It is valid for 3 minutes.",
-                        settings.EMAIL_HOST_USER,
-                        [email],
-                        fail_silently=False,
-                    )
+                    logger.error(f"Failed to queue email task: {e}")
+                    raise
 
                 logger.info(f"Signup OTP sent for: {email} as {role}")
 
@@ -343,7 +336,7 @@ class ResendSignupOTPView(APIView):
             user.save()
 
             try:
-                OTPEmailService.send_email(email, otp, 'verification')
+                send_otp_email_task.delay(email, otp, 'verification')
             except Exception as e:
                 logger.error(f"Failed to resend OTP email: {str(e)}")
                 return Response(
@@ -996,7 +989,7 @@ class ResendPasswordResetOTPView(APIView):
             user.save()
 
             try:
-                OTPEmailService.send_email(email, otp, 'reset')
+                send_otp_email_task.delay(email, otp, 'reset')
             except Exception as e:
                 logger.error(f"Failed to resend password reset OTP email: {str(e)}")
                 return Response(

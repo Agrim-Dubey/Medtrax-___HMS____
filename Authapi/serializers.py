@@ -4,31 +4,12 @@ from datetime import timedelta, date
 from django.core.mail import send_mail
 from django.conf import settings
 import re
-from django_q.tasks import async_task
 import logging
 import random
+from Authapi.tasks import send_otp_email_task 
 from Authapi.models import CustomUser, Doctor, Patient
 
 logger = logging.getLogger(__name__)
-
-class OTPEmailService:
-    @staticmethod
-    def send_email(email, otp, email_type='verification'):
-        try:
-            task_id = async_task(
-                'Authapi.tasks.send_otp_email_task',
-                email,
-                otp,
-                email_type,
-                timeout=30
-            )
-            logger.info(f"Email task queued for {email} with task_id: {task_id}")
-            return task_id
-        except Exception as e:
-            logger.error(f"Failed to queue email task: {str(e)}")
-            raise
-
-
 class PasswordValidator:
     @staticmethod
     def validate(password):
@@ -176,7 +157,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
         user.save()
 
         try:
-            OTPEmailService.send_email(email, otp, 'reset')
+           send_otp_email_task.delay(email, otp, 'reset')
         except Exception as e:
             raise serializers.ValidationError(f"Failed to send OTP. {str(e)}")
 

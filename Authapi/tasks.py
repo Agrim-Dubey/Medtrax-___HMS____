@@ -1,10 +1,12 @@
 from django.core.mail import send_mail
 from django.conf import settings
 import logging
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
+@shared_task
 def send_otp_email_task(email, otp, email_type):
 
 
