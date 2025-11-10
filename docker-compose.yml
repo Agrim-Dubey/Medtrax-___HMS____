@@ -1,12 +1,27 @@
 version: "3.9"
 
 services:
+
   redis:
     image: redis:7
     container_name: medtrax-redis
-    restart: always
+    command: >
+      sh -c "
+      if [ -n \"$REDIS_PASSWORD\" ]; then
+        exec redis-server --requirepass \"$REDIS_PASSWORD\"
+      else
+        exec redis-server
+      fi"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "redis-cli -a ${REDIS_PASSWORD:-} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
 
   web:
     build: .
@@ -16,13 +31,12 @@ services:
       - .:/app
     ports:
       - "8000:8000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+    env_file:
+      - .env
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   qcluster:
     build: .
@@ -30,10 +44,9 @@ services:
     command: python manage.py qcluster
     volumes:
       - .:/app
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+    env_file:
+      - .env
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    restart: unless-stopped

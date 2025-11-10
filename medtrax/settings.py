@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     'Authapi',
-   'django_q2',
+    'django_q2',
     'django_extensions',
     'chat_room',
     'videocounselling',
