@@ -13,12 +13,12 @@ from .serializers import (
     DoctorAppointmentListSerializer
 )
 from Authapi.models import Doctor
-from django_q2.tasks import async_task
 from datetime import datetime
 from .utils import get_available_slots
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .utils import get_doctor_queue_info
+from appointments.tasks import send_immediate_appointment_notification
 
 
 
@@ -67,11 +67,7 @@ class PatientBookAppointmentView(APIView):
             if serializer.is_valid():
                 appointment = serializer.save(patient=patient, status='pending')
 
-                async_task(
-                    'appointments.tasks.send_immediate_appointment_notification',
-                    appointment.id,
-                    'created'
-                )
+                send_immediate_appointment_notification.delay(appointment.id, 'created')
                 
                 return Response(
                     {
@@ -202,11 +198,7 @@ class DoctorAcceptAppointmentView(APIView):
             appointment.status = 'confirmed'
             appointment.save()
             
-            async_task(
-                'appointments.tasks.send_immediate_appointment_notification',
-                appointment.id,
-                'confirmed'
-            )
+            send_immediate_appointment_notification.delay(appointment.id, 'confirmed')
             
             return Response(
                 {
@@ -273,11 +265,7 @@ class DoctorRejectAppointmentView(APIView):
             appointment.status = 'cancelled'
             appointment.save()
             
-            async_task(
-                'appointments.tasks.send_immediate_appointment_notification',
-                appointment.id,
-                'cancelled'
-            )
+            send_immediate_appointment_notification.delay(appointment.id, 'cancelled')
             
             return Response(
                 {

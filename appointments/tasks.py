@@ -3,12 +3,11 @@ from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Appointment
-from Authapi.models import Doctor, Patient
 import logging
-
+from celery import shared_task
 logger = logging.getLogger(__name__)
 
-
+@shared_task
 def send_appointment_reminders():
     now = timezone.now()
     reminder_time = now + timedelta(minutes=30)
@@ -36,7 +35,7 @@ def send_appointment_reminders():
     logger.info(f"Sent {sent_count} appointment reminders")
     return f"Sent {sent_count} reminders"
 
-
+@shared_task
 def send_patient_reminder(appointment_id):
 
     try:
@@ -89,7 +88,7 @@ Medtrax Hospital Management Team
         logger.error(f"Error sending patient reminder for appointment {appointment_id}: {str(e)}")
         return False
 
-
+@shared_task
 def send_doctor_reminder(appointment_id):
 
     try:
@@ -142,7 +141,7 @@ Medtrax Hospital Management Team
         logger.error(f"Error sending doctor reminder for appointment {appointment_id}: {str(e)}")
         return False
 
-
+@shared_task
 def send_immediate_appointment_notification(appointment_id, notification_type='created'):
     """
     Send immediate notification when appointment is created/updated/cancelled
@@ -168,7 +167,7 @@ def send_immediate_appointment_notification(appointment_id, notification_type='c
         logger.error(f"Error sending {notification_type} notification: {str(e)}")
         return False
 
-
+@shared_task
 def send_appointment_created_notification(appointment):
 
     patient_email = appointment.patient.user.email
@@ -218,7 +217,7 @@ Medtrax Team
         fail_silently=True,
     )
 
-
+@shared_task
 def send_appointment_confirmed_notification(appointment):
 
     send_mail(
@@ -242,7 +241,7 @@ Medtrax Team
         fail_silently=True,
     )
 
-
+@shared_task
 def send_appointment_cancelled_notification(appointment):
 
     message_base = f"""
@@ -274,6 +273,8 @@ Medtrax Team
         recipient_list=[appointment.doctor.user.email],
         fail_silently=True,
     )
+
+@shared_task
 def auto_complete_appointments():
     from django.utils import timezone
     from datetime import timedelta
