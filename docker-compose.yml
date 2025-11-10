@@ -1,7 +1,6 @@
 version: "3.9"
 
 services:
-
   redis:
     image: redis:7
     container_name: medtrax-redis
@@ -24,13 +23,9 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: agrim96336/medtrax-web:latest
     container_name: medtrax-web
     command: daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
-    volumes:
-      - .:/app
     ports:
       - "8000:8000"
     env_file:
@@ -41,13 +36,9 @@ services:
     restart: unless-stopped
 
   celery:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: agrim96336/medtrax-web:latest
     container_name: medtrax-celery
-    command: celery -A medtrax worker --loglevel=info
-    volumes:
-      - .:/app
+    command: celery -A medtrax worker --loglevel=INFO
     env_file:
       - .env
     depends_on:
@@ -56,13 +47,9 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: agrim96336/medtrax-web:latest
     container_name: medtrax-celery-beat
-    command: celery -A medtrax beat --loglevel=info
-    volumes:
-      - .:/app
+    command: celery -A medtrax beat --loglevel=INFO
     env_file:
       - .env
     depends_on:
