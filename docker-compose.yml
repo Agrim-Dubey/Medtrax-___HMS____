@@ -40,12 +40,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  qcluster:
+    celery:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: medtrax-qcluster
-    command: python manage.py qcluster
+    container_name: medtrax-celery
+    command: celery -A medtrax worker --loglevel=info
     volumes:
       - .:/app
     env_file:
@@ -54,3 +54,19 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medtrax-celery-beat
+    command: celery -A medtrax beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
