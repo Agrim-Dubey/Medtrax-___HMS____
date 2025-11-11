@@ -114,6 +114,17 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 50,
 }
 
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
+ARGON2_PARAMETERS = {
+    'time_cost': 2, 
+    'memory_cost': 512, 
+    'parallelism': 2,
+}
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Chat Room API',
