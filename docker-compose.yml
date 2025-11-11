@@ -1,58 +1,64 @@
-version: "3.9"
-
 services:
+  db:
+    image: postgres:15
+    container_name: medtrax-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   redis:
     image: redis:7
     container_name: medtrax-redis
-    command: >
-      sh -c "
-      if [ -n \"$REDIS_PASSWORD\" ]; then
-        exec redis-server --requirepass \"$REDIS_PASSWORD\"
-      else
-        exec redis-server
-      fi"
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    restart: always
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "sh", "-c", "redis-cli -a ${REDIS_PASSWORD:-} ping | grep PONG"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
 
   web:
     image: agrim96336/medtrax-web:latest
     container_name: medtrax-web
-    command: daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
-    ports:
-      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application"
+    volumes:
+      - .:/app
     env_file:
       - .env
     depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - db
+      - redis
+    ports:
+      - "8000:8000"
+    restart: always
 
   celery:
     image: agrim96336/medtrax-web:latest
     container_name: medtrax-celery
-    command: celery -A medtrax worker --loglevel=INFO
+    command: celery -A medtrax worker --loglevel=info
     env_file:
       - .env
     depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - redis
+      - db
+    restart: always
 
   celery-beat:
     image: agrim96336/medtrax-web:latest
     container_name: medtrax-celery-beat
-    command: celery -A medtrax beat --loglevel=INFO
+    command: celery -A medtrax beat --loglevel=info
     env_file:
       - .env
     depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - redis
+      - db
+    restart: always
+
+volumes:
+  postgres_data:
