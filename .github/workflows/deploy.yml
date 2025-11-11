@@ -7,12 +7,21 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -22,7 +31,9 @@ jobs:
 
       - name: Build and push medtrax image
         run: |
-          docker build -t agrim96336/medtrax-web:latest -f Dockerfile .
+          docker build --cache-from=type=local,src=/tmp/.buildx-cache \
+                       --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
+                       -t agrim96336/medtrax-web:latest -f Dockerfile .
           docker push agrim96336/medtrax-web:latest
 
       - name: SSH into EC2 and deploy
@@ -32,9 +43,9 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/Medtrax-___HMS____
+            cd /home/ubuntu/medtrax-hms
             git pull origin main
-            docker compose down --remove-orphans
-            docker compose pull
-            docker compose up -d
-            docker system prune -f
+            sudo docker compose down --remove-orphans
+            sudo docker compose pull
+            sudo docker compose up -d
+            sudo docker system prune -f
