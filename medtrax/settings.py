@@ -137,14 +137,44 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
+# CORS_ALLOW_HEADERS = ['*']
+
+# CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']
+# CSRF_COOKIE_HTTPONLY = False
+# CSRF_USE_SESSIONS = False
+
+ALLOWED_HOSTS = [
+    "13.49.67.184",     
+    "medtrax.me",
+    "www.medtrax.me",
+    "med-trax.me",
+    "www.med-trax.me",
+]
+
+CORS_ALLOWED_ORIGINS = [
+    "https://medtrax.me",
+    "https://www.medtrax.me",
+    "https://med-trax.me",
+    "https://www.med-trax.me",
+]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['*']
 
-CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']
+CSRF_TRUSTED_ORIGINS = [
+    "https://medtrax.me",
+    "https://www.medtrax.me",
+    "https://med-trax.me",
+    "https://www.med-trax.me",
+]
+
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
+
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
