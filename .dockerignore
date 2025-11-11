@@ -6,11 +6,8 @@ __pycache__
 *.db
 *.sqlite3
 *.log
-*.env
 media
 staticfiles
 node_modules
 .git
 .gitignore
-Dockerfile
-docker-compose.yml

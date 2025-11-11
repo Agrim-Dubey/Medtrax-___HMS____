@@ -1,3 +1,6 @@
+version: "3.9"
+name: medtrax
+
 services:
   db:
     image: postgres:15
@@ -15,7 +18,7 @@ services:
   redis:
     image: redis:7
     container_name: medtrax-redis
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-}"]
     restart: always
     ports:
       - "6379:6379"
@@ -24,7 +27,8 @@ services:
     image: agrim96336/medtrax-web:latest
     container_name: medtrax-web
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "chmod -R 777 /app/static &&
+             python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application"
     volumes:
@@ -38,8 +42,9 @@ services:
       - "8000:8000"
     restart: always
 
+
   celery:
-    image: agrim96336/medtrax-web:latest
+    build: .
     container_name: medtrax-celery
     command: celery -A medtrax worker --loglevel=info
     env_file:
@@ -50,7 +55,7 @@ services:
     restart: always
 
   celery-beat:
-    image: agrim96336/medtrax-web:latest
+    build: .
     container_name: medtrax-celery-beat
     command: celery -A medtrax beat --loglevel=info
     env_file:

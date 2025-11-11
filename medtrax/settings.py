@@ -5,27 +5,23 @@ from decouple import config
 from dotenv import load_dotenv
 import dj_database_url
 
-
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
-
-
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
+DEBUG = config('DEBUG', default=False, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
-DEBUG = True
+REDIS_HOST = config('REDIS_HOST', default='redis')
+REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
+REDIS_PASSWORD = config('REDIS_PASSWORD', default=None)
 
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_BROWSER_XSS_FILTER = False
-SECURE_CONTENT_TYPE_NOSNIFF = False
-X_FRAME_OPTIONS = 'ALLOWALL'
-
-ALLOWED_HOSTS = ['*']
+SECURE_BROWSER_XSS_FILTER = config('SECURE_BROWSER_XSS_FILTER', default=False, cast=bool)
+SECURE_CONTENT_TYPE_NOSNIFF = config('SECURE_CONTENT_TYPE_NOSNIFF', default=False, cast=bool)
+X_FRAME_OPTIONS = config('X_FRAME_OPTIONS', default='ALLOWALL')
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -54,12 +50,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',  
-    'django.middleware.csrf.CsrfViewMiddleware', 
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -100,7 +96,6 @@ else:
     }
 
 AUTH_USER_MODEL = 'Authapi.CustomUser'
-
 AUTH_PASSWORD_VALIDATORS = []
 
 REST_FRAMEWORK = {
@@ -111,7 +106,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50,
+    'PAGE_SIZE': config('PAGE_SIZE', default=50, cast=int),
 }
 
 PASSWORD_HASHERS = [
@@ -121,105 +116,33 @@ PASSWORD_HASHERS = [
 ]
 
 ARGON2_PARAMETERS = {
-    'time_cost': 2, 
-    'memory_cost': 512, 
+    'time_cost': 2,
+    'memory_cost': 512,
     'parallelism': 2,
 }
 
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'Chat Room API',
-    'DESCRIPTION': 'API for patient-doctor chat, doctor-doctor chat, and disease support groups',
-    'VERSION': '1.0.0',
-}
-
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=config('JWT_ACCESS_TOKEN_LIFETIME_HOURS', default=1, cast=int)),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_TOKEN_LIFETIME_DAYS', default=30, cast=int)),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'ALGORITHM': 'HS256',
 }
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 3600
-SESSION_COOKIE_HTTPONLY = False
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = 'None'
-
-
-
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['*']
 
-
-
-# CORS_ALLOW_ALL_ORIGINS = True  
-# CORS_ALLOWED_ORIGINS = [
-#     'https://med-trax.vercel.app',
-#     'http://localhost:5175',
-#     'https://medtrax.me',
-#     'https://www.medtrax.me',
-#     'http://localhost:5173',
-#     'http://localhost:5174',
-#     'https://dummy-frontend-xi.vercel.app',
-#     'https://med-trax.me'
-# ]
-# CORS_ALLOW_CREDENTIALS = True
-
-# CORS_ALLOW_METHODS = [
-#     'DELETE',
-#     'GET', 
-#     'OPTIONS',
-#     'PATCH',
-#     'POST',
-#     'PUT',
-# ]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-CORS_PREFLIGHT_MAX_AGE = 86400
-CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']  
-CSRF_COOKIE_SECURE = True       
-CSRF_COOKIE_SAMESITE = 'None'  
+CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']
+CSRF_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
 
-
-# CSRF_COOKIE_SECURE = True
-# CSRF_COOKIE_SAMESITE = 'None'
-# CSRF_COOKIE_HTTPONLY = False
-# CSRF_TRUSTED_ORIGINS = [
-#     'https://medtrax.me',
-#     'https://www.medtrax.me',
-#     'https://med-trax.vercel.app',
-#     'https://*.vercel.app',
-#     'http://localhost:5173',
-#     'http://localhost:5174',
-#     'https://dummy-frontend-xi.vercel.app',
-#     'https://med-trax.me'
-# ]
-# CSRF_USE_SESSIONS = False
-
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static') 
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -231,14 +154,7 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER', default='Medtrax.HospitalManagement@gmail.com')
-
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 LOGGING = {
     'version': 1,
@@ -259,13 +175,6 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'INFO',
     },
-    'loggers': {
-        'Authapi': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
 }
 
 ASGI_APPLICATION = 'medtrax.asgi.application'
@@ -273,30 +182,12 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [(
+                REDIS_HOST if REDIS_PASSWORD is None else f":{REDIS_PASSWORD}@{REDIS_HOST}",
+                REDIS_PORT
+            )],
         },
     },
-}
-SWAGGER_SETTINGS = {
-    'SECURITY_DEFINITIONS': {
-        'Bearer': {
-            'type': 'apiKey',
-            'name': 'Authorization',
-            'in': 'header',
-            'description': 'JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"'
-        }
-    },
-    'USE_SESSION_AUTH': False,
-    'JSON_EDITOR': True,
-    'SUPPORTED_SUBMIT_METHODS': [
-        'get',
-        'post',
-        'put',
-        'delete',
-        'patch'
-    ],
-    'DEFAULT_MODEL_RENDERING': 'example',
-    'DEFAULT_MODEL_DEPTH': 2,
 }
 
 CELERY_BROKER_URL = f'redis://{":" + REDIS_PASSWORD + "@" if REDIS_PASSWORD else ""}{REDIS_HOST}:{REDIS_PORT}/0'
@@ -305,5 +196,12 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
+CELERY_TIMEZONE = config('TIME_ZONE', default='UTC')
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = config('TIME_ZONE', default='UTC')
+USE_I18N = True
+USE_TZ = True
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
