@@ -1,25 +1,35 @@
+
 __pycache__/
 *.py[cod]
+*.pyc
 
-venv/
-env/
+*.sqlite3
 
-.env
-.env.development
-.env.production
 
 *.log
 
 */migrations/*.py
 !*/migrations/__init__.py
 
-*.sqlite3
 
-.vscode/
+venv/
+env/
+ENV/
+
+.env
+.env.*
+!.env.example
+
+.dockerignore
+Dockerfile*
+docker-compose*.yml
 
 build/
 dist/
 *.egg-info/
-.env
-.env.*
-!.env.example
+
+.vscode/
+.idea/
+
+static/
+media/
