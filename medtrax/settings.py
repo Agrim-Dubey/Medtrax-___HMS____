@@ -5,9 +5,16 @@ from decouple import config
 from dotenv import load_dotenv
 import dj_database_url
 
-load_dotenv()
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+if os.path.exists("/.dockerenv"):
+    load_dotenv(os.path.join(BASE_DIR, ".env.docker"))
+    print("Running inside Docker → Loaded .env.docker")
+else:
+    load_dotenv(os.path.join(BASE_DIR, ".env.local"))
+    print("Running locally → Loaded .env.local")
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
