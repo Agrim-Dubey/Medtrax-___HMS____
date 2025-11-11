@@ -2,27 +2,23 @@
 __pycache__/
 *.py[cod]
 *.pyc
+*.pyo
+*.pyd
 
 *.sqlite3
-
+db.sqlite3
 
 *.log
-
-*/migrations/*.py
-!*/migrations/__init__.py
-
 
 venv/
 env/
 ENV/
 
-.env
-.env.*
-!.env.example
+.env.local
+.env.docker
 
-.dockerignore
-Dockerfile*
-docker-compose*.yml
+docker-compose.override.yml
+
 
 build/
 dist/
@@ -31,5 +27,8 @@ dist/
 .vscode/
 .idea/
 
-static/
+staticfiles/
 media/
+
+.DS_Store
+Thumbs.db

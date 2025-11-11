@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y netcat-traditional && \
 
 COPY . /app/
 
-RUN adduser --disabled-password medtraxuser
+RUN mkdir -p /app/static /app/media && \
+    adduser --disabled-password medtraxuser && \
+    chown -R medtraxuser:medtraxuser /app
+
 USER medtraxuser
 
 EXPOSE 8000
