@@ -1,4 +1,4 @@
-version: "3.9"
+
 name: medtrax
 
 services:
@@ -12,58 +12,92 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
 
   redis:
     image: redis:7
     container_name: medtrax-redis
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-}"]
     restart: always
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
 
   web:
-    image: agrim96336/medtrax-web:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-web
+    environment:
+      - RUNNING_IN_DOCKER=true 
     command: >
-      sh -c "chmod -R 777 /app/static &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application"
+      sh -c "
+        echo '>>> Fixing permissions...' &&
+        chmod -R 777 /app/static /app/media &&
+        echo '>>> Running migrations...' &&
+        python manage.py migrate &&
+        echo '>>> Collecting static files...' &&
+        python manage.py collectstatic --noinput || true &&
+        echo '>>> Starting Daphne server...' &&
+        daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
+      "
+
+    env_file:
+      - .env.docker
     volumes:
       - .:/app
-    env_file:
-      - .env
+      - static_volume:/app/static
+      - media_volume:/app/media
+    expose:
+      - "8000"
     depends_on:
       - db
       - redis
-    ports:
-      - "8000:8000"
     restart: always
-
+    
 
   celery:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-celery
     command: celery -A medtrax worker --loglevel=info
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - redis
       - db
     restart: always
 
   celery-beat:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-celery-beat
     command: celery -A medtrax beat --loglevel=info
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - redis
       - db
     restart: always
 
+  nginx:
+    image: nginx:1.24
+    container_name: medtrax-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/static
+      - media_volume:/app/media
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
 volumes:
   postgres_data:
+  static_volume:
+  media_volume:
