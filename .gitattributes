@@ -1,1 +1,4 @@
 staticfiles/** linguist-vendored
+# Ignore static and frontend files in language stats
+static/* linguist-vendored
+staticfiles/* linguist-vendored
