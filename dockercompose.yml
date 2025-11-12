@@ -1,4 +1,4 @@
-name: medtrax
+version: '3.8'
 
 services:
   db:
@@ -15,6 +15,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medtraxadmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
@@ -25,6 +30,11 @@ services:
     restart: always
     expose:
       - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build:
@@ -35,6 +45,9 @@ services:
       - RUNNING_IN_DOCKER=true 
     command: >
       sh -c "
+        echo 'Waiting for database...' &&
+        while ! nc -z db 5432; do sleep 1; done &&
+        echo 'Database is ready!' &&
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
         daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
@@ -47,8 +60,10 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   celery:
@@ -56,7 +71,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: medtrax-celery
-    command: celery -A medtrax worker --loglevel=info
+    command: >
+      sh -c "
+        echo 'Waiting for web to be ready...' &&
+        sleep 15 &&
+        celery -A medtrax worker --loglevel=info
+      "
     env_file:
       - .env.docker
     volumes:
@@ -72,7 +92,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: medtrax-celery-beat
-    command: celery -A medtrax beat --loglevel=info
+    command: >
+      sh -c "
+        echo 'Waiting for web to be ready...' &&
+        sleep 20 &&
+        celery -A medtrax beat --loglevel=info
+      "
     env_file:
       - .env.docker
     depends_on:
