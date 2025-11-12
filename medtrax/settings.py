@@ -5,13 +5,8 @@ from decouple import config
 from dotenv import load_dotenv
 import dj_database_url
 
-# ============================================================
-# BASE CONFIG
-# ============================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Detect environment
 if os.path.exists("/.dockerenv"):
     load_dotenv(os.path.join(BASE_DIR, ".env.docker"))
     print("Running inside Docker → Loaded .env.docker")
@@ -21,29 +16,18 @@ else:
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "13.49.67.184",
-    "medtrax.me",
-    "www.medtrax.me",
-    "med-trax.me",
-    "www.med-trax.me",
-]
 
-# ============================================================
-# SECURITY
-# ============================================================
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',') if config('ALLOWED_HOSTS', default='*') != '*' else ['*']
 
-SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+else:
+    SECURE_SSL_REDIRECT = False
+    
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-
-# ============================================================
-# APPLICATIONS
-# ============================================================
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -55,8 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -64,8 +46,6 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'django_extensions',
-
-    # Local apps
     'Authapi',
     'chat_room',
     'videocounselling',
@@ -75,12 +55,8 @@ INSTALLED_APPS = [
     'patient_dashboard',
 ]
 
-# ============================================================
-# MIDDLEWARE
-# ============================================================
-
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Must be at the top
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -91,17 +67,25 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# ============================================================
-# URLS & WSGI/ASGI
-# ============================================================
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 ROOT_URLCONF = 'medtrax.urls'
 WSGI_APPLICATION = 'medtrax.wsgi.application'
 ASGI_APPLICATION = 'medtrax.asgi.application'
-
-# ============================================================
-# DATABASE
-# ============================================================
 
 database_url = config('DATABASE_URL', default=None)
 if database_url and not database_url.startswith('sqlite'):
@@ -116,10 +100,6 @@ else:
         }
     }
 
-# ============================================================
-# AUTH
-# ============================================================
-
 AUTH_USER_MODEL = 'Authapi.CustomUser'
 AUTH_PASSWORD_VALIDATORS = []
 PASSWORD_HASHERS = [
@@ -128,10 +108,6 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
 ]
 ARGON2_PARAMETERS = {'time_cost': 2, 'memory_cost': 512, 'parallelism': 2}
-
-# ============================================================
-# REST FRAMEWORK & JWT
-# ============================================================
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -153,40 +129,50 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
 }
 
-# ============================================================
-# CORS & CSRF CONFIGURATION
-# ============================================================
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+    ]
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "https://medtrax.me",
-    "https://www.medtrax.me",
-    "https://med-trax.me",
-    "https://www.med-trax.me",
-    "http://localhost:3000",
-]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "cookie",
+]
+CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://medtrax.me",
     "https://www.medtrax.me",
     "https://med-trax.me",
     "https://www.med-trax.me",
+    "http://localhost:3000",
+    "http://localhost:3001",
 ]
-CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = None
 CSRF_USE_SESSIONS = False
+CSRF_COOKIE_NAME = "csrftoken"
 
-SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = None
 SESSION_COOKIE_DOMAIN = None
-
-# ============================================================
-# STATIC & MEDIA
-# ============================================================
+SESSION_COOKIE_NAME = "sessionid"
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
@@ -194,10 +180,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# ============================================================
-# EMAIL
-# ============================================================
 
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
@@ -207,10 +189,6 @@ EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
-# ============================================================
-# CELERY
-# ============================================================
 
 REDIS_HOST = config('REDIS_HOST', default='redis')
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
@@ -224,10 +202,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = config('TIME_ZONE', default='UTC')
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-
-# ============================================================
-# CHANNELS (WEBSOCKETS)
-# ============================================================
 
 CHANNEL_LAYERS = {
     "default": {
@@ -243,10 +217,6 @@ CHANNEL_LAYERS = {
     },
 }
 
-# ============================================================
-# LOGGING
-# ============================================================
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -259,10 +229,6 @@ LOGGING = {
     'handlers': {'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'}},
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }
-
-# ============================================================
-# GENERAL
-# ============================================================
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = config('TIME_ZONE', default='UTC')

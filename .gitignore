@@ -32,3 +32,6 @@ media/
 
 .DS_Store
 Thumbs.db
+runtime.txt
+Procfile 
+db.sqlite3
