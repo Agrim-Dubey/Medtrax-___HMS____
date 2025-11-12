@@ -171,12 +171,8 @@ CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 CORS_ALLOW_HEADERS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://medtrax.me",
-    "https://www.medtrax.me",
     "https://med-trax.me",
-    "https://www.med-trax.me",
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
 ]
 
 CSRF_COOKIE_HTTPONLY = False

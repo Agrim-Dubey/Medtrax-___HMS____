@@ -164,6 +164,8 @@ class SignupView(APIView):
                     {'success': False, 'error': 'Signup failed. Please try again.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+            
+            
 class VerifySignupOTPView(APIView):
     permission_classes = [AllowAny]
 
