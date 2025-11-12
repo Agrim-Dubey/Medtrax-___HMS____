@@ -147,39 +147,70 @@ SIMPLE_JWT = {
 # CSRF_USE_SESSIONS = False
 
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "13.49.67.184",       
-    "medtrax.me",
-    "www.medtrax.me",
-    "med-trax.me",
-    "www.med-trax.me",
+# ALLOWED_HOSTS = [
+#     "127.0.0.1",
+#     "localhost",
+#     "13.49.67.184",       
+#     "medtrax.me",
+#     "www.medtrax.me",
+#     "med-trax.me",
+#     "www.med-trax.me",
+# ]
+
+# CORS_ALLOWED_ORIGINS = [
+#     "https://med-trax.me",
+#     "http://localhost:3000",
+# ]
+
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+# CORS_ALLOW_HEADERS = ["*"]
+
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://med-trax.me",
+#     "http://localhost:3000",
+# ]
+
+# CSRF_COOKIE_HTTPONLY = False
+# SESSION_COOKIE_SECURE = True
+# CSRF_USE_SESSIONS = False
+
+# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ========== ALLOW ALL ORIGINS - NO CORS RESTRICTIONS ==========
+CORS_ALLOW_ALL_ORIGINS = True  # ✅ Allow requests from ANY domain
+CORS_ALLOW_CREDENTIALS = True  # ✅ Allow cookies/auth headers
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "https://medtrax.me",
-    "https://www.medtrax.me",
-    "https://med-trax.me",
-    "https://www.med-trax.me",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CORS_ALLOW_HEADERS = ['*']  # ✅ Allow ALL headers
 
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["*"]
-
+# ========== CSRF - ALLOW ALL ==========
 CSRF_TRUSTED_ORIGINS = [
-    "https://med-trax.me",
-    "http://localhost:3000",
+    "http://*",
+    "https://*",
 ]
 
+CSRF_COOKIE_SECURE = False  # ✅ Allow non-HTTPS
 CSRF_COOKIE_HTTPONLY = False
-SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = None  # ✅ No restrictions
 CSRF_USE_SESSIONS = False
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# ========== SESSION COOKIES ==========
+SESSION_COOKIE_SECURE = False  # ✅ Allow non-HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = None  # ✅ No restrictions
+SESSION_COOKIE_DOMAIN = None  # ✅ No domain restriction
+
+# ========== ALLOWED HOSTS ==========
+ALLOWED_HOSTS = ['*']  # ✅ Allow ALL hosts
 
 
 STATIC_URL = '/static/'
