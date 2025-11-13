@@ -240,53 +240,65 @@ class ChatRoomViewSet(viewsets.ViewSet):
 
     @swagger_auto_schema(
         operation_summary="Get chat room details",
-        operation_description="Fetch chat room details with recent messages.",
-        responses={200: ChatRoomDetailSerializer, 404: "Not found"},
+        responses={200: ChatRoomDetailSerializer},
         tags=["Chat"]
     )
     def retrieve(self, request, pk):
         chat_room = get_object_or_404(
-            ChatRoom.objects.prefetch_related(
-                'participants',
-                Prefetch('messages', queryset=Message.objects.order_by('-timestamp')[:50])
-            ).select_related('appointment'),
+            ChatRoom.objects.prefetch_related('participants')
+            .select_related('appointment'),
             pk=pk
         )
         
         if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "Not a participant"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Not a participant"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        serializer = ChatRoomDetailSerializer(chat_room, context={'request': request})
+        serializer = ChatRoomDetailSerializer(
+            chat_room, 
+            context={'request': request}
+        )
         return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_summary="Send a message",
-        operation_description="Send a new message in a chat room.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['content'],
             properties={
-                'content': openapi.Schema(type=openapi.TYPE_STRING, description="Message text", example="Hello, Doctor!")
+                'content': openapi.Schema(
+                    type=openapi.TYPE_STRING, 
+                    description="Message text"
+                )
             }
         ),
-        responses={201: MessageSerializer, 403: "Forbidden"},
+        responses={201: MessageSerializer},
         tags=["Chat"]
     )
-
-
     @action(detail=True, methods=['post'], throttle_classes=[ChatMessageThrottle])
     def send_message(self, request, pk):
         chat_room = get_object_or_404(ChatRoom, pk=pk)
         
         if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "You are not a participant"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "You are not a participant"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         if not chat_room.is_active:
-            return Response({"error": "Chat inactive"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Chat is inactive"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         content = request.data.get('content', '').strip()
         if not content:
-            return Response({"error": "Message content is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Message content is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         message = Message.objects.create(
             room=chat_room, 
@@ -299,17 +311,18 @@ class ChatRoomViewSet(viewsets.ViewSet):
 
     @swagger_auto_schema(
         operation_summary="Mark messages as read",
-        operation_description="Marks all unread messages in a chat room as read.",
         responses={200: "Messages marked as read"},
         tags=["Chat"]
     )
-
     @action(detail=True, methods=['post'], throttle_classes=[ChatReadThrottle])
     def mark_as_read(self, request, pk):
         chat_room = get_object_or_404(ChatRoom, pk=pk)
         
         if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "Not a participant"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Not a participant"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         Message.objects.filter(
             room=chat_room, 
@@ -317,7 +330,6 @@ class ChatRoomViewSet(viewsets.ViewSet):
         ).exclude(sender=request.user).update(is_read=True)
         
         return Response({"message": "Messages marked as read"})
-    
 
 def test_chat_doctor(request, room_id):
     return render(request, 'chat_room/chat_doctor.html', {'room_id': room_id})
