@@ -197,30 +197,3 @@ class DoctorConnectionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorConnection
         fields = ['id', 'from_doctor', 'to_doctor', 'status', 'created_at']
-
-class GroupMembershipSerializer(serializers.ModelSerializer):
-    patient = PatientMinimalSerializer(read_only=True)
-    group_name = serializers.CharField(source='group_room.name', read_only=True)
-    
-    class Meta:
-        model = GroupMembership
-        fields = ['id', 'patient', 'group_room', 'group_name', 'is_diagnosed', 'joined_at']
-        read_only_fields = ['id', 'joined_at']
-
-
-class GroupRoomSerializer(serializers.ModelSerializer):
-    member_count = serializers.SerializerMethodField()
-    is_member = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = ChatRoom
-        fields = ['id', 'name', 'disease_name', 'member_count', 'is_member', 'created_at']
-    
-    def get_member_count(self, obj):
-        return obj.participants.count()
-    
-    def get_is_member(self, obj):
-        request = self.context.get('request')
-        if request and request.user:
-            return obj.participants.filter(id=request.user.id).exists()
-        return False

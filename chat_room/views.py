@@ -14,7 +14,7 @@ from .throttles import (
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import ChatRoom, Message, DoctorConnection, GroupMembership
+from .models import ChatRoom, Message, DoctorConnection
 from .serializers import (
     ChatRoomListSerializer, ChatRoomDetailSerializer,
     MessageSerializer, DoctorConnectionSerializer,
