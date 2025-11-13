@@ -63,35 +63,35 @@ class PatientChatViewSet(viewsets.ViewSet):
 class DoctorChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ChatListThrottle]
+    
     @swagger_auto_schema(
         operation_summary="List doctor's patient chats",
-        operation_description="Fetch all active chat rooms between the doctor and patients for confirmed appointments.",
+        operation_description="Fetch all active patient chats for confirmed appointments.",
         responses={200: ChatRoomListSerializer},
         tags=["Chat"]
     )
-    def list_patient_chats(self, request):
+    def list_patients(self, request): 
         if request.user.role != 'doctor':
-            return Response({"error": "Only doctors can access this"}, status=status.HTTP_403_FORBIDDEN)
-
-        today = timezone.now().date()
+            return Response(
+                {"error": "Only doctors can access this"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         chat_rooms = ChatRoom.objects.filter(
             room_type='patient_doctor',
             participants=request.user,
             is_active=True,
             appointment__status='confirmed',
-            appointment__appointment_date__gte=today
         ).select_related(
-            'appointment',
-            'appointment__doctor',
             'appointment__doctor__user',
-            'appointment__patient',
             'appointment__patient__user'
-        ).prefetch_related(
-            'participants'
-        )
+        ).prefetch_related('participants')
         
-        serializer = ChatRoomListSerializer(chat_rooms, many=True, context={'request': request})
+        serializer = ChatRoomListSerializer(
+            chat_rooms, 
+            many=True, 
+            context={'request': request}
+        )
         return Response(serializer.data)
 
     @swagger_auto_schema(
@@ -100,21 +100,25 @@ class DoctorChatViewSet(viewsets.ViewSet):
         responses={200: ChatRoomListSerializer},
         tags=["Chat"]
     )
-    def list_doctor_chats(self, request):
+    def list_doctors(self, request):
         if request.user.role != 'doctor':
-            return Response({"error": "Only doctors can access this"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Only doctors can access this"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         chat_rooms = ChatRoom.objects.filter(
             room_type='doctor_doctor',
             participants=request.user,
             is_active=True
-        ).prefetch_related(
-            'participants'
-        )
+        ).prefetch_related('participants')
         
-        serializer = ChatRoomListSerializer(chat_rooms, many=True, context={'request': request})
+        serializer = ChatRoomListSerializer(
+            chat_rooms, 
+            many=True, 
+            context={'request': request}
+        )
         return Response(serializer.data)
-
     @swagger_auto_schema(
         operation_summary="Send connection request",
         operation_description="Send a connection request to another doctor.",
