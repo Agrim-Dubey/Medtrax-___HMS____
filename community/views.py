@@ -197,14 +197,29 @@ class PostDetailView(APIView):
         tags=['Posts']
     )
     def delete(self, request, slug):
+        if not hasattr(request.user, 'doctor_profile'):
+            return Response(
+                {"error": "Only doctors can delete posts"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         try:
             post = Post.objects.get(slug=slug)
             if post.author != request.user:
-                return Response({"error": "You can only delete your own posts"}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "You can only delete your own posts"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             post.delete()
-            return Response({"message": "Post deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response(
+                {"message": "Post deleted successfully"},
+                status=status.HTTP_204_NO_CONTENT
+            )
         except Post.DoesNotExist:
-            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 class PostLikeView(APIView):
     permission_classes = [IsAuthenticated]

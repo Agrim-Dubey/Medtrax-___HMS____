@@ -8,7 +8,7 @@ class ChatRoom(models.Model):
     ROOM_TYPES = [
         ('patient_doctor', 'Patient-Doctor Chat'),
         ('doctor_doctor', 'Doctor-Doctor Chat'),
-        ('group', 'Disease Support Group'),
+        
     ]
     
     room_type = models.CharField(max_length=20, choices=ROOM_TYPES, db_index=True)
@@ -24,8 +24,6 @@ class ChatRoom(models.Model):
         blank=True, 
         related_name='chat_room'
     )
-    
-    disease_name = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -88,19 +86,3 @@ class DoctorConnection(models.Model):
     
     def __str__(self):
         return f"Dr. {self.from_doctor.get_full_name()} → Dr. {self.to_doctor.get_full_name()} ({self.status})"
-
-
-class GroupMembership(models.Model):
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='group_memberships')
-    group_room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='memberships')
-    is_diagnosed = models.BooleanField(default=False, help_text="Verified diagnosis for this disease")
-    joined_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        unique_together = ['patient', 'group_room']
-        indexes = [
-            models.Index(fields=['patient', 'group_room']),
-        ]
-    
-    def __str__(self):
-        return f"{self.patient.get_full_name()} in {self.group_room.name}"
