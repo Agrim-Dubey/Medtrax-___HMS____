@@ -16,7 +16,7 @@ from datetime import timedelta
 from dateutil import parser
 from rest_framework.permissions import IsAuthenticated
 from Authapi.tasks import send_otp_email_task
-
+from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateThrottle
 
 from Authapi.models import CustomUser, Doctor, Patient
 from .serializers import (
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class SignupView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [AuthAnonRateThrottle]
     @swagger_auto_schema(
         operation_description="Register a new user account (Doctor or Patient). Role must be provided in the request body.",
         operation_summary="User Signup",
@@ -165,10 +165,10 @@ class SignupView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            
+
 class VerifySignupOTPView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Verify email using OTP sent during signup",
         operation_summary="Verify Signup OTP",
@@ -275,7 +275,7 @@ class VerifySignupOTPView(APIView):
 
 class ResendSignupOTPView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle] 
     @swagger_auto_schema(
         operation_description="Request a new OTP for email verification",
         operation_summary="Resend Signup OTP",
@@ -363,7 +363,7 @@ class ResendSignupOTPView(APIView):
 
 class DoctorDetailsView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [LoginRateThrottle]
     @swagger_auto_schema(
         operation_description="Create complete doctor profile with medical credentials",
         operation_summary="Complete Doctor Profile",
@@ -660,7 +660,7 @@ class PatientDetailsView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Unified login endpoint for both doctors and patients. System validates credentials and returns user profile based on registered role.",
         operation_summary="User Login",
@@ -801,7 +801,7 @@ class LoginView(APIView):
 
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Request password reset OTP via email",
         operation_summary="Forgot Password",
@@ -850,7 +850,7 @@ class ForgotPasswordView(APIView):
 
 class VerifyPasswordResetOTPView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Verify OTP for password reset",
         operation_summary="Verify Password Reset OTP",
@@ -896,7 +896,7 @@ class VerifyPasswordResetOTPView(APIView):
 
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Set new password after OTP verification",
         operation_summary="Reset Password",
@@ -944,7 +944,7 @@ class ResetPasswordView(APIView):
             )
 class ResendPasswordResetOTPView(APIView):
     permission_classes = [AllowAny]
-
+    throttle_classes = [OTPRateThrottle]
     @swagger_auto_schema(
         operation_description="Request a new OTP for password reset",
         operation_summary="Resend Password Reset OTP",

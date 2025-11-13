@@ -118,6 +118,19 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': config('PAGE_SIZE', default=50, cast=int),
+
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',           
+        'user': '1000/hour',         
+        'auth_anon': '20/hour',      
+        'auth_user': '100/hour',      
+        'otp': '10/hour',             
+        'login': '10/hour',          
+    }
 }
 
 SIMPLE_JWT = {
@@ -193,6 +206,18 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 REDIS_HOST = config('REDIS_HOST', default='redis')
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
 REDIS_PASSWORD = config('REDIS_PASSWORD', default=None)
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f'redis://{":" + REDIS_PASSWORD + "@" if REDIS_PASSWORD else ""}{REDIS_HOST}:{REDIS_PORT}/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'medtrax_throttle',
+        'TIMEOUT': 600, 
+    }
+}
 
 CELERY_BROKER_URL = f'redis://{":" + REDIS_PASSWORD + "@" if REDIS_PASSWORD else ""}{REDIS_HOST}:{REDIS_PORT}/0'
 CELERY_RESULT_BACKEND = 'django-db'
