@@ -25,57 +25,40 @@ from Authapi.models import Doctor
 from django.shortcuts import render
 
 
-
 class PatientChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ChatListThrottle]
+    
     @swagger_auto_schema(
         operation_summary="List patient's doctor chats",
-        operation_description="Returns all active doctor chat rooms for the patient's confirmed and upcoming appointments.",
-        responses={
-            200: openapi.Response(
-                description="List of doctor chat rooms",
-                schema=ChatRoomListSerializer
-            ),
-            403: openapi.Response(description="Not allowed for non-patient users"),
-        },
+        operation_description="Returns all active doctor chat rooms for confirmed appointments.",
+        responses={200: ChatRoomListSerializer},
         tags=["Chat"]
     )
-    def list_doctor_chats(self, request):
+    def list(self, request): 
         if request.user.role != 'patient':
-            return Response({"error": "Only patients can access this endpoint"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Only patients can access this endpoint"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        now = timezone.now()
-        today = now.date()
-        
         chat_rooms = ChatRoom.objects.filter(
             room_type='patient_doctor',
             participants=request.user,
             is_active=True,
             appointment__status='confirmed',
-            appointment__appointment_date__gte=today
         ).select_related(
-            'appointment',
-            'appointment__doctor',
             'appointment__doctor__user',
-            'appointment__patient',
             'appointment__patient__user'
-        ).prefetch_related(
-            'participants'
+        ).prefetch_related('participants')
+        
+        serializer = ChatRoomListSerializer(
+            chat_rooms, 
+            many=True, 
+            context={'request': request}
         )
-
-        valid_rooms = []
-        for room in chat_rooms:
-            appt = room.appointment
-            if appt.appointment_date == today:
-                appt_datetime = timezone.make_aware(datetime.combine(appt.appointment_date, appt.appointment_time))
-                if appt_datetime > now:
-                    valid_rooms.append(room)
-            else:
-                valid_rooms.append(room)
-
-        serializer = ChatRoomListSerializer(valid_rooms, many=True, context={'request': request})
         return Response(serializer.data)
+    
 
 class DoctorChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
