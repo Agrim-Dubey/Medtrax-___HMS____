@@ -6,6 +6,10 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q, Prefetch
 from django.utils import timezone
 from datetime import datetime
+from .throttles import (
+    ChatListThrottle, ChatMessageThrottle, ChatGroupThrottle,
+    ChatConnectionThrottle, ChatSearchThrottle, ChatReadThrottle
+)
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -24,7 +28,7 @@ from django.shortcuts import render
 
 class PatientChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-
+    throttle_classes = [ChatListThrottle]
     @swagger_auto_schema(
         operation_summary="List patient's doctor chats",
         operation_description="Returns all active doctor chat rooms for the patient's confirmed and upcoming appointments.",
@@ -114,6 +118,9 @@ class PatientChatViewSet(viewsets.ViewSet):
         },
         tags=["Chat"]
     )
+
+
+    @action(detail=False, methods=['post'], throttle_classes=[ChatGroupThrottle])
     def join_group(self, request):
         if request.user.role != 'patient':
             return Response({"error": "Only patients can join groups"}, status=status.HTTP_403_FORBIDDEN)
@@ -137,7 +144,7 @@ class PatientChatViewSet(viewsets.ViewSet):
 
 class DoctorChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-
+    throttle_classes = [ChatListThrottle]
     @swagger_auto_schema(
         operation_summary="List doctor's patient chats",
         operation_description="Fetch all active chat rooms between the doctor and patients for confirmed appointments.",
@@ -197,6 +204,8 @@ class DoctorChatViewSet(viewsets.ViewSet):
         responses={201: DoctorConnectionSerializer, 400: "Validation error"},
         tags=["Chat"]
     )
+
+    @action(detail=False, methods=['post'], throttle_classes=[ChatConnectionThrottle])
     def send_connection_request(self, request):
         if request.user.role != 'doctor':
             return Response({"error": "Only doctors can send connection requests"}, status=status.HTTP_403_FORBIDDEN)
@@ -286,6 +295,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         responses={200: DoctorMinimalSerializer},
         tags=["Chat"]
     )
+    @action(detail=False, methods=['get'], throttle_classes=[ChatSearchThrottle])
     def search_doctors(self, request):
         if request.user.role != 'doctor':
             return Response({"error": "Only doctors can search"}, status=status.HTTP_403_FORBIDDEN)
@@ -340,6 +350,9 @@ class ChatRoomViewSet(viewsets.ViewSet):
         responses={201: MessageSerializer, 403: "Forbidden"},
         tags=["Chat"]
     )
+
+
+    @action(detail=True, methods=['post'], throttle_classes=[ChatMessageThrottle])
     def send_message(self, request, pk):
         chat_room = get_object_or_404(ChatRoom, pk=pk)
         
@@ -368,6 +381,8 @@ class ChatRoomViewSet(viewsets.ViewSet):
         responses={200: "Messages marked as read"},
         tags=["Chat"]
     )
+
+    @action(detail=True, methods=['post'], throttle_classes=[ChatReadThrottle])
     def mark_as_read(self, request, pk):
         chat_room = get_object_or_404(ChatRoom, pk=pk)
         

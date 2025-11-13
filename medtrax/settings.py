@@ -132,7 +132,13 @@ REST_FRAMEWORK = {
         'login': '10/hour',   
         'appointment_booking': '20/hour',  
         'appointment_actions': '100/hour',  
-        'dashboard': '200/hour',       
+        'dashboard': '200/hour', 
+        'chat_list': '200/hour',
+        'chat_message': '100/hour',
+        'chat_group': '20/hour',
+        'chat_connection': '30/hour',
+        'chat_search': '50/hour',
+        'chat_read': '300/hour',      
     }
 }
 
