@@ -19,6 +19,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .utils import get_doctor_queue_info
 from appointments.tasks import send_immediate_appointment_notification
+from appointments.throttles import AppointmentBookingThrottle, AppointmentActionsThrottle, DashboardThrottle
 
 
 
@@ -32,7 +33,7 @@ def broadcast_queue_update(doctor):
 
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    throttle_classes = [AppointmentBookingThrottle]
     @swagger_auto_schema(
         operation_summary="Book a new appointment",
         operation_description="Allows a patient to book an appointment with a doctor",
@@ -88,7 +89,6 @@ class PatientBookAppointmentView(APIView):
 
 class PatientAppointmentListView(APIView):
     permission_classes = [IsAuthenticated]
-    
     @swagger_auto_schema(
         operation_summary="Get patient's appointments",
         operation_description="Retrieve all appointments for the authenticated patient",
@@ -150,7 +150,7 @@ class DoctorAppointmentRequestsView(APIView):
 
 class DoctorAcceptAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    throttle_classes = [AppointmentActionsThrottle]
     @swagger_auto_schema(
         operation_summary="Accept appointment request",
         operation_description="Doctor accepts a pending appointment request",
@@ -198,6 +198,7 @@ class DoctorAcceptAppointmentView(APIView):
             appointment.status = 'confirmed'
             appointment.save()
             
+            broadcast_queue_update(doctor)
             send_immediate_appointment_notification.delay(appointment.id, 'confirmed')
             
             return Response(
@@ -217,7 +218,7 @@ class DoctorAcceptAppointmentView(APIView):
 
 class DoctorRejectAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    throttle_classes = [AppointmentActionsThrottle]
     @swagger_auto_schema(
         operation_summary="Reject appointment request",
         operation_description="Doctor rejects a pending appointment request",
@@ -264,7 +265,7 @@ class DoctorRejectAppointmentView(APIView):
             
             appointment.status = 'cancelled'
             appointment.save()
-            
+            broadcast_queue_update(doctor)
             send_immediate_appointment_notification.delay(appointment.id, 'cancelled')
             
             return Response(
@@ -430,7 +431,7 @@ class DoctorAvailableSlotsView(APIView):
 
 class DoctorDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    throttle_classes = [DashboardThrottle]
     @swagger_auto_schema(
         operation_summary="Get doctor dashboard statistics",
         operation_description="Retrieve statistics for doctor's dashboard including total appointments, today's appointments, total patients, and pending requests",
@@ -493,7 +494,7 @@ class DoctorDashboardStatsView(APIView):
 
 class PatientDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
-    
+    throttle_classes = [DashboardThrottle]
     @swagger_auto_schema(
         operation_summary="Get patient dashboard statistics",
         operation_description="Retrieve statistics for patient's dashboard including total, upcoming, completed, and pending appointments",

@@ -14,7 +14,23 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
         if value < timezone.now().date():
             raise serializers.ValidationError("Cannot book appointments in the past")
         return value
-
+    def validate(self, data):
+        from django.utils import timezone
+        from datetime import datetime
+        
+        appointment_date = data.get('appointment_date')
+        appointment_time = data.get('appointment_time')
+        
+        if appointment_date and appointment_time:
+            appointment_datetime = timezone.make_aware(
+                datetime.combine(appointment_date, appointment_time)
+            )
+            if appointment_datetime <= timezone.now():
+                raise serializers.ValidationError(
+                    "Appointment time must be in the future"
+                )
+        
+        return data
 
 class AppointmentSerializer(serializers.ModelSerializer):
 
@@ -47,11 +63,7 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
     patient_phone = serializers.CharField(source='patient.phone_number', read_only=True)
     patient_age = serializers.SerializerMethodField()
     patient_gender = serializers.CharField(source='patient.get_gender_display', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-
-
-
-    
+    status_display = serializers.CharField(source='get_status_display', read_only=True)  
     class Meta:
         model = Appointment
         fields = [
@@ -72,11 +84,6 @@ class DoctorAppointmentListSerializer(serializers.ModelSerializer):
     
     def get_patient_name(self, obj):
         return obj.patient.get_full_name()
-    
-  
-    
-
-
     
     def get_patient_age(self, obj):
         from django.utils import timezone

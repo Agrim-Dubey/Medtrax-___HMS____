@@ -129,7 +129,10 @@ REST_FRAMEWORK = {
         'auth_anon': '20/hour',      
         'auth_user': '100/hour',      
         'otp': '10/hour',             
-        'login': '10/hour',          
+        'login': '10/hour',   
+        'appointment_booking': '20/hour',  
+        'appointment_actions': '100/hour',  
+        'dashboard': '200/hour',       
     }
 }
 

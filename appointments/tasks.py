@@ -167,7 +167,6 @@ def send_immediate_appointment_notification(appointment_id, notification_type='c
         logger.error(f"Error sending {notification_type} notification: {str(e)}")
         return False
 
-@shared_task
 def send_appointment_created_notification(appointment):
 
     patient_email = appointment.patient.user.email

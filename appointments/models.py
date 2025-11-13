@@ -42,6 +42,7 @@ class Appointment(models.Model):
             models.Index(fields=['doctor', 'appointment_date']),
             models.Index(fields=['patient', 'appointment_date']),
             models.Index(fields=['status']),
+            models.Index(fields=['doctor', 'status', 'appointment_date']),
         ]
         verbose_name = 'Appointment'
         verbose_name_plural = 'Appointments'
