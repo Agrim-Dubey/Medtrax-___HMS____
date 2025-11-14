@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'doctor_dashboard',
     'community',
     'patient_dashboard',
+    'prescription'
 ]
 
 MIDDLEWARE = [

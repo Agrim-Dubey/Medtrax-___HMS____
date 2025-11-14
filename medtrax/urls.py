@@ -7,11 +7,6 @@ from drf_yasg import openapi
 
 
 class DynamicSchemaGenerator(OpenAPISchemaGenerator):
-    """
-    Custom schema generator to force a full endpoint reload
-    every time the schema is requested.
-    Fixes missing swagger_auto_schema metadata on production.
-    """
     def get_endpoints(self, request):
         endpoints = super().get_endpoints(request)
         return endpoints
@@ -52,6 +47,7 @@ urlpatterns = [
     path('api/community/', include('community.urls')),
     path('api/appointments/', include('appointments.urls')),
     path('video/', include('videocounselling.urls')),
+    path('api/prescriptions/', include('prescription.urls')),
 
     re_path(
         r'^swagger(?P<format>\.json|\.yaml)$',

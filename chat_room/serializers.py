@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import ChatRoom, Message, DoctorConnection, GroupMembership
+from .models import ChatRoom, Message, DoctorConnection
 from Authapi.models import Doctor, Patient
 
 User = get_user_model()

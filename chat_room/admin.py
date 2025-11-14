@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ChatRoom, Message, DoctorConnection, GroupMembership
+from .models import ChatRoom, Message, DoctorConnection
 
 
 @admin.register(ChatRoom)
@@ -31,9 +31,9 @@ class DoctorConnectionAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
 
 
-@admin.register(GroupMembership)
-class GroupMembershipAdmin(admin.ModelAdmin):
-    list_display = ['id', 'patient', 'group_room', 'is_diagnosed', 'joined_at']
-    list_filter = ['is_diagnosed', 'joined_at']
-    search_fields = ['patient__first_name', 'group_room__name']
-    readonly_fields = ['joined_at']
+# @admin.register(GroupMembership)
+# class GroupMembershipAdmin(admin.ModelAdmin):
+#     list_display = ['id', 'patient', 'group_room', 'is_diagnosed', 'joined_at']
+#     list_filter = ['is_diagnosed', 'joined_at']
+#     search_fields = ['patient__first_name', 'group_room__name']
+#     readonly_fields = ['joined_at']
