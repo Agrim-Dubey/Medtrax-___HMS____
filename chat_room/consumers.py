@@ -14,8 +14,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         print("=" * 50)
         print("WebSocket connection attempt started")
 
-        self.room_id = self.scope['url_route']['kwargs']['room_id']
-        self.room_group_name = f'chat_{self.room_id}'
+        try:
+                self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
+        except (ValueError, KeyError):
+                await self.close(code=4004)
+                return
         
         query_string = self.scope.get('query_string', b'').decode()
         token = None
@@ -36,10 +39,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("User not authenticated - closing connection")
             await self.close(code=4001)
             return
-
-        print("User is authenticated")
-        print("Fetching room data...")
-
         room_data = await self.get_room_data()
 
         if not room_data:
