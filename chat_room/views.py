@@ -36,28 +36,34 @@ class PatientChatViewSet(viewsets.ViewSet):
         tags=["Chat"]
     )
     def list(self, request): 
-        if request.user.role != 'patient':
-            return Response(
-                {"error": "Only patients can access this endpoint"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+            if request.user.role != 'patient':
+                return Response(
+                    {"error": "Only patients can access this endpoint"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        chat_rooms = ChatRoom.objects.filter(
-            room_type='patient_doctor',
-            participants=request.user,
-            is_active=True,
-            appointment__status='confirmed',
-        ).select_related(
-            'appointment__doctor__user',
-            'appointment__patient__user'
-        ).prefetch_related('participants')
-        
-        serializer = ChatRoomListSerializer(
-            chat_rooms, 
-            many=True, 
-            context={'request': request}
-        )
-        return Response(serializer.data)
+            print(f"🔍 Fetching chats for patient: {request.user.id}")
+            
+            chat_rooms = ChatRoom.objects.filter(
+                room_type='patient_doctor',
+                participants=request.user,
+                is_active=True,
+                appointment__status='confirmed',
+            ).select_related(
+                'appointment__doctor__user',
+                'appointment__patient__user'
+            ).prefetch_related('participants')
+            
+            print(f"📊 Found {chat_rooms.count()} chat rooms")
+            for room in chat_rooms:
+                print(f"  - Room {room.id}: Appointment {room.appointment_id if room.appointment else 'None'}")
+            
+            serializer = ChatRoomListSerializer(
+                chat_rooms, 
+                many=True, 
+                context={'request': request}
+            )
+            return Response(serializer.data)
     
 
 class DoctorChatViewSet(viewsets.ViewSet):

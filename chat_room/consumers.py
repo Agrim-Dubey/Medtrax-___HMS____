@@ -20,6 +20,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.close(code=4004)
                 return
         
+        self.room_group_name = f'chat_{self.room_id}'
+
+        
         query_string = self.scope.get('query_string', b'').decode()
         token = None
         
