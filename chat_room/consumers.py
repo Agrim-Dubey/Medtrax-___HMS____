@@ -44,6 +44,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4005)
             return
 
+        # ✅ NEW: Check if appointment is still confirmed
+        if room_data['appointment_status'] not in ['confirmed', None]:
+            # Appointment is completed/cancelled - close connection
+            await self.close(code=4006)  # Custom code for expired appointment
+            return
+
         self.room_type = room_data['room_type']
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -55,7 +61,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'connection_established',
             'room_id': self.room_id,
             'user_id': self.user.id,
-            'messages': messages
+            'messages': messages,
+            'appointment_status': room_data['appointment_status']  # Send status to frontend
         }))
 
     async def disconnect(self, close_code):
@@ -64,13 +71,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         try:
-            data = json.loads(text_data)
+            data = json.parse(text_data)
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
             return
 
         message_text = data.get('message', '').strip()
         if not message_text:
+            return
+
+        # ✅ Check appointment status before allowing message
+        room_data = await self.get_room_data()
+        if room_data and room_data['appointment_status'] != 'confirmed' and room_data['appointment_status'] is not None:
+            await self.send(text_data=json.dumps({
+                "type": "error",
+                "error": "appointment_ended",
+                "message": "This appointment has ended. You can no longer send messages."
+            }))
+            await self.close(code=4006)
             return
 
         saved_message = await self.save_message(message_text)
@@ -106,6 +124,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event['message']
         }))
 
+    # ✅ NEW: Handler for appointment completion notification
+    async def appointment_completed(self, event):
+        """Notify users that appointment has ended"""
+        await self.send(text_data=json.dumps({
+            'type': 'appointment_completed',
+            'message': 'This appointment has ended. Chat is now closed.'
+        }))
+        await self.close(code=4006)
+
     @database_sync_to_async
     def get_message_history(self):
         try:
@@ -138,11 +165,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_room_data(self):
         try:
-            room = ChatRoom.objects.prefetch_related('participants').get(id=self.room_id)
+            room = ChatRoom.objects.prefetch_related('participants').select_related('appointment').get(id=self.room_id)
+            
+            # ✅ Get appointment status
+            appointment_status = None
+            if room.appointment:
+                appointment_status = room.appointment.status
+            
             return {
                 'is_participant': room.participants.filter(id=self.user.id).exists(),
                 'is_active': room.is_active,
-                'room_type': room.room_type
+                'room_type': room.room_type,
+                'appointment_status': appointment_status  # ✅ NEW
             }
         except ChatRoom.DoesNotExist:
             return None
@@ -150,9 +184,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_message(self, content):
         try:
-            room = ChatRoom.objects.get(id=self.room_id, is_active=True)
+            room = ChatRoom.objects.select_related('appointment').get(id=self.room_id, is_active=True)
+            
+            # ✅ Check appointment status before saving
+            if room.appointment and room.appointment.status != 'confirmed':
+                return None
+                
             if not room.participants.filter(id=self.user.id).exists():
                 return None
+                
             message = Message.objects.create(room=room, sender=self.user, content=content)
             room.updated_at = timezone.now()
             room.save()

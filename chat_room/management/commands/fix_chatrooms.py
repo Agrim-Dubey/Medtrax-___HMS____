@@ -1,4 +1,3 @@
-# Save this as: chat_room/management/commands/fix_chatrooms.py
 
 from django.core.management.base import BaseCommand
 from appointments.models import Appointment
@@ -9,7 +8,6 @@ class Command(BaseCommand):
     help = 'Creates missing chat rooms for confirmed appointments'
 
     def handle(self, *args, **kwargs):
-        # Find all confirmed appointments
         confirmed_appointments = Appointment.objects.filter(status='confirmed')
         
         self.stdout.write(f"Found {confirmed_appointments.count()} confirmed appointments")
@@ -18,7 +16,6 @@ class Command(BaseCommand):
         existing_count = 0
         
         for appointment in confirmed_appointments:
-            # Check if chat room exists
             chat_room = ChatRoom.objects.filter(appointment=appointment).first()
             
             if chat_room:
@@ -34,7 +31,6 @@ class Command(BaseCommand):
                         f"Chat room already exists for appointment {appointment.id}"
                     ))
             else:
-                # Create new chat room
                 try:
                     room = ChatRoom.objects.create(
                         appointment=appointment,

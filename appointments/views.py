@@ -63,11 +63,10 @@ class PatientBookAppointmentView(APIView):
     def post(self, request):
         try:
             patient = request.user.patient_profile
-            serializer = AppointmentRequestSerializer(data=request.data)
+            serializer = AppointmentRequestSerializer(data=request.data, context={'request': request})
             
             if serializer.is_valid():
                 appointment = serializer.save(patient=patient, status='pending')
-
                 send_immediate_appointment_notification.delay(appointment.id, 'created')
                 
                 return Response(

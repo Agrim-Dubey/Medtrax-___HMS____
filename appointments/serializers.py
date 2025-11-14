@@ -4,7 +4,6 @@ from Authapi.models import Doctor
 from .utils import get_doctor_queue_info
 
 class AppointmentRequestSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Appointment
         fields = ['doctor', 'appointment_date', 'appointment_time', 'reason']
@@ -14,13 +13,15 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
         if value < timezone.now().date():
             raise serializers.ValidationError("Cannot book appointments in the past")
         return value
+    
     def validate(self, data):
         from django.utils import timezone
         from datetime import datetime
         
         appointment_date = data.get('appointment_date')
         appointment_time = data.get('appointment_time')
-        
+        doctor = data.get('doctor')
+
         if appointment_date and appointment_time:
             appointment_datetime = timezone.make_aware(
                 datetime.combine(appointment_date, appointment_time)
@@ -29,6 +30,18 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Appointment time must be in the future"
                 )
+        request = self.context.get('request')
+        if request and request.user.role == 'patient':
+            existing = Appointment.objects.filter(
+                patient=request.user.patient_profile,
+                doctor=doctor,
+                status__in=['pending', 'confirmed']
+            ).exists()
+            
+            if existing:
+                raise serializers.ValidationError({
+                    "doctor": "You already have an active appointment with this doctor. Please wait until it expires."
+                })
         
         return data
 

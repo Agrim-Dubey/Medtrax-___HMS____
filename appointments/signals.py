@@ -8,12 +8,19 @@ from chat_room.models import ChatRoom
 def create_chat_room_for_appointment(sender, instance, created, **kwargs):
     if instance.status != 'confirmed':
         return
+    existing_room = ChatRoom.objects.filter(
+        room_type='patient_doctor',
+        participants=instance.patient.user,
+        is_active=True
+    ).filter(
+        participants=instance.doctor.user
+    ).first()
 
-    try:
-        instance.chat_room 
-        return 
-    except ChatRoom.DoesNotExist:
-        pass  
+    if existing_room:
+        instance.chat_room = existing_room
+        instance.save(update_fields=['chat_room'])
+        print(f"Reusing existing chat room {existing_room.id} for appointment {instance.id}")
+        return
 
     chat_room = ChatRoom.objects.create(
         room_type='patient_doctor',
@@ -26,4 +33,4 @@ def create_chat_room_for_appointment(sender, instance, created, **kwargs):
         instance.doctor.user
     )
 
-    print(f"Chat room {chat_room.id} created for appointment {instance.id}")
+    print(f"Created new chat room {chat_room.id} for appointment {instance.id}")

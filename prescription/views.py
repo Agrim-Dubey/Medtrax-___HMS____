@@ -18,18 +18,21 @@ from appointments.models import Appointment
 
 
 class DoctorPatientsListView(APIView):
-    #list of all the patients the doctor has an appointment with
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         operation_summary="Get doctor's patients list",
-        operation_description="Retrieve all patients the authenticated doctor has had confirmed/completed appointments with, ordered by most recent appointment first",
+        operation_description="Retrieve all patients the authenticated doctor has had confirmed/completed appointments with",
         responses={
-            200: DoctorPatientListSerializer(many=True),
+            200: openapi.Response(
+                description="List of patients",
+                schema=DoctorPatientListSerializer(many=True)
+            ),
             403: openapi.Response(description="Only doctors can access this endpoint")
         },
         tags=['Doctor Prescriptions']
     )
+
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -72,19 +75,20 @@ class CreatePrescriptionView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary="Create prescription",
-        operation_description="Doctor creates a new prescription for a patient they've had appointments with",
-        request_body=CreatePrescriptionSerializer,
-        responses={
-            201: openapi.Response(
-                description="Prescription created successfully",
-                schema=PrescriptionDetailSerializer
-            ),
-            400: openapi.Response(description="Validation error"),
-            403: openapi.Response(description="Only doctors can create prescriptions")
-        },
-        tags=['Doctor Prescriptions']
-    )
+    operation_summary="Create prescription",
+    operation_description="Doctor creates a new prescription for a patient they've had appointments with",
+    request_body=CreatePrescriptionSerializer,
+    responses={
+        201: openapi.Response(
+            description="Prescription created successfully",
+            schema=PrescriptionDetailSerializer()
+        ),
+        400: openapi.Response(description="Validation error"),
+        403: openapi.Response(description="Only doctors can create prescriptions")
+    },
+    tags=['Doctor Prescriptions']
+)
+
     def post(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -118,27 +122,29 @@ class CreatePrescriptionView(APIView):
 
 
 class DoctorPrescriptionsListView(APIView):
-#patient getting all the prescriptions
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary="Get doctor's prescriptions",
-        operation_description="Retrieve all prescriptions created by the authenticated doctor",
-        manual_parameters=[
-            openapi.Parameter(
-                'patient_id',
-                openapi.IN_QUERY,
-                description="Filter by patient ID (optional)",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            )
-        ],
-        responses={
-            200: PrescriptionListSerializer(many=True),
-            403: openapi.Response(description="Only doctors can access this endpoint")
-        },
-        tags=['Doctor Prescriptions']
-    )
+    operation_summary="Get doctor's prescriptions",
+    operation_description="Retrieve all prescriptions created by the authenticated doctor",
+    manual_parameters=[
+        openapi.Parameter(
+            'patient_id',
+            openapi.IN_QUERY,
+            description="Filter by patient ID (optional)",
+            type=openapi.TYPE_INTEGER
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="List of prescriptions",
+            schema=PrescriptionListSerializer(many=True)
+        ),
+        403: openapi.Response(description="Only doctors can access this endpoint")
+    },
+    tags=['Doctor Prescriptions']
+)
+
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
@@ -167,14 +173,18 @@ class PatientPrescriptionsListView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary="Get patient's prescriptions",
-        operation_description="Retrieve all prescriptions for the authenticated patient",
-        responses={
-            200: PrescriptionListSerializer(many=True),
-            403: openapi.Response(description="Only patients can access this endpoint")
-        },
-        tags=['Patient Prescriptions']
-    )
+    operation_summary="Get patient's prescriptions",
+    operation_description="Retrieve all prescriptions for the authenticated patient",
+    responses={
+        200: openapi.Response(
+            description="List of prescriptions",
+            schema=PrescriptionListSerializer(many=True)
+        ),
+        403: openapi.Response(description="Only patients can access this endpoint")
+    },
+    tags=['Patient Prescriptions']
+)
+
     def get(self, request):
         try:
             patient = request.user.patient_profile
@@ -197,23 +207,18 @@ class PatientPrescriptionsByDoctorView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary="Get prescriptions by doctor",
-        operation_description="Patient can view all prescriptions they received from a specific doctor",
-        manual_parameters=[
-            openapi.Parameter(
-                'doctor_id',
-                openapi.IN_PATH,
-                description="ID of the doctor",
-                type=openapi.TYPE_INTEGER,
-                required=True
-            )
-        ],
-        responses={
-            200: PrescriptionListSerializer(many=True),
-            403: openapi.Response(description="Only patients can access this endpoint")
-        },
-        tags=['Patient Prescriptions']
-    )
+    operation_summary="Get prescriptions by doctor",
+    operation_description="Patient can view all prescriptions from a specific doctor",
+    responses={
+        200: openapi.Response(
+            description="List of prescriptions",
+            schema=PrescriptionListSerializer(many=True)
+        ),
+        403: openapi.Response(description="Only patients can access this endpoint")
+    },
+    tags=['Patient Prescriptions']
+)
+
     def get(self, request, doctor_id):
         try:
             patient = request.user.patient_profile
