@@ -6,10 +6,9 @@ from .views import (
 )
 
 urlpatterns = [
-    path('patient/chats/', 
+    path('patient/doctors/', 
          PatientChatViewSet.as_view({'get': 'list'}), 
          name='patient-chats'),
-
     path('doctor/patients/', 
          DoctorChatViewSet.as_view({'get': 'list_patients'}), 
          name='doctor-patient-chats'),
@@ -31,15 +30,13 @@ urlpatterns = [
     path('doctor/connection/<int:pk>/reject/', 
          DoctorChatViewSet.as_view({'post': 'reject_connection'}), 
          name='doctor-reject'),
-    path('rooms/<int:pk>/', 
+    path('room/<int:pk>/', 
          ChatRoomViewSet.as_view({'get': 'retrieve'}), 
          name='chat-room-detail'),
-    path('rooms/<int:pk>/messages/', 
+    path('room/<int:pk>/send/', 
          ChatRoomViewSet.as_view({'post': 'send_message'}), 
          name='chat-send-message'),
     path('room/<int:pk>/read/', 
          ChatRoomViewSet.as_view({'post': 'mark_as_read'}), 
          name='chat-mark-read'),
-    path('patient/doctors/', PatientChatViewSet.as_view({'get': 'list'}), 
-         name='patient-chats'),
 ]
