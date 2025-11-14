@@ -18,7 +18,7 @@ from .models import ChatRoom, Message, DoctorConnection
 from .serializers import (
     ChatRoomListSerializer, ChatRoomDetailSerializer,
     MessageSerializer, DoctorConnectionSerializer,
-    DoctorConnectionListSerializer, GroupRoomSerializer,
+    DoctorConnectionListSerializer,
     DoctorMinimalSerializer
 )
 from Authapi.models import Doctor
