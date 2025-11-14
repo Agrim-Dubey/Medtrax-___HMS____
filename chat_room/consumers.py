@@ -4,123 +4,63 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from .models import ChatRoom, Message
 from django.utils import timezone
-
+from urllib.parse import parse_qs
 User = get_user_model()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-
     async def connect(self):
-        print("=" * 50)
-        print("WebSocket connection attempt started")
-
         try:
             self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
-        except (ValueError, KeyError):
+        except:
             await self.close(code=4004)
             return
-        
+
         self.room_group_name = f'chat_{self.room_id}'
 
         query_string = self.scope.get('query_string', b'').decode()
-        token = None
-        
-        if 'token=' in query_string:
-            token = query_string.split('token=')[1].split('&')[0]
-            print("Token extracted from query params")
-        
+        query_params = parse_qs(query_string)
+        token = query_params.get('token', [None])[0]
+
         if token:
             self.user = await self.get_user_from_token(token)
         else:
             self.user = self.scope.get('user')
-        
-        print(f"Room ID: {self.room_id}")
-        print(f"User: {self.user} (Authenticated: {self.user.is_authenticated if self.user else False})")
 
         if not self.user or not self.user.is_authenticated:
-            print("User not authenticated - closing connection")
             await self.close(code=4001)
             return
 
         room_data = await self.get_room_data()
-
         if not room_data:
-            print("Room not found - closing connection")
             await self.close(code=4004)
             return
 
-        print(f"Room data: {room_data}")
-
         if not room_data['is_participant']:
-            print("User is not a participant - closing connection")
             await self.close(code=4003)
             return
 
-        print("User is a participant")
-
         if not room_data['is_active']:
-            print("Room is not active - closing connection")
             await self.close(code=4005)
             return
 
-        print("Room is active")
-
         self.room_type = room_data['room_type']
 
-        print(f"Adding to channel group: {self.room_group_name}")
-
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-
-        print("Added to channel group")
-        print("Accepting WebSocket connection...")
-
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        print("WebSocket accepted")
-        print("Fetching message history...")
+        messages = await self.get_message_history()
 
-        try:
-            messages = await self.get_message_history()
-            print(f"Message history fetched: {len(messages)} messages")
-        except Exception as e:
-            print(f"Error fetching message history: {e}")
-            messages = []
-
-        print("Sending connection_established message...")
-
-        try:
-            await self.send(text_data=json.dumps({
-                'type': 'connection_established',
-                'message': 'Connected to chat',
-                'room_id': self.room_id,
-                'user_id': self.user.id,
-                'messages': messages
-            }))
-            print("Connection established message sent successfully")
-            print("WebSocket connection complete and stable")
-        except Exception as e:
-            print(f"Error sending message: {e}")
-
-        print("=" * 50)
+        await self.send(text_data=json.dumps({
+            'type': 'connection_established',
+            'room_id': self.room_id,
+            'user_id': self.user.id,
+            'messages': messages
+        }))
 
     async def disconnect(self, close_code):
-        print("=" * 50)
-        print(f"WebSocket disconnecting - Close code: {close_code}")
-        print(f"User: {self.user if hasattr(self, 'user') else 'Unknown'}")
-        print(f"Room: {self.room_id if hasattr(self, 'room_id') else 'Unknown'}")
-
         if hasattr(self, 'room_group_name'):
-            print(f" Removing from group: {self.room_group_name}")
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
-            print(" Removed from channel group")
-
-        print("=" * 50)
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
         try:
@@ -129,77 +69,70 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
             return
 
-        message = data.get('message', '').strip()
-        if not message:
+        message_text = data.get('message', '').strip()
+        if not message_text:
             return
 
-        saved_message = await self.save_message(message)
+        saved_message = await self.save_message(message_text)
         if not saved_message:
             await self.send(text_data=json.dumps({"error": "Unable to save message"}))
             return
 
         full_name = await self.get_user_full_name()
 
+        payload = {
+            "id": saved_message.id,
+            "room": self.room_id,
+            "sender_id": self.user.id,
+            "sender_username": getattr(self.user, "username", ""),
+            "sender_full_name": full_name,
+            "sender_role": getattr(self.user, "role", None),
+            "content": saved_message.content,
+            "timestamp": saved_message.timestamp.isoformat(),
+            "is_read": saved_message.is_read
+        }
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'message': saved_message.content,
-                'sender_id': self.user.id,
-                'sender_username': self.user.username,
-                'sender_full_name': full_name,
-                'sender_role': self.user.role,
-                'message_id': saved_message.id,
-                'timestamp': saved_message.timestamp.isoformat(),
+                'message': payload
             }
         )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
-            'message': event['message'],
-            'sender_id': event['sender_id'],
-            'sender_username': event['sender_username'],
-            'sender_full_name': event['sender_full_name'],
-            'sender_role': event['sender_role'],
-            'message_id': event['message_id'],
-            'timestamp': event['timestamp'],
+            'message': event['message']
         }))
 
     @database_sync_to_async
     def get_message_history(self):
         try:
-            messages = Message.objects.filter(
-                room_id=self.room_id
-            ).select_related('sender').order_by('-timestamp')[:50]
-
+            messages = Message.objects.filter(room_id=self.room_id).select_related('sender').order_by('-timestamp')[:50]
             message_list = []
             for msg in reversed(messages):
                 sender_name = msg.sender.username
                 try:
-                    if msg.sender.role == 'doctor':
+                    if getattr(msg.sender, "role", None) == 'doctor':
                         sender_name = f"Dr. {msg.sender.doctor_profile.get_full_name()}"
-                    elif msg.sender.role == 'patient':
+                    elif getattr(msg.sender, "role", None) == 'patient':
                         sender_name = msg.sender.patient_profile.get_full_name()
-                except Exception as e:
-                    print(f" Error getting full name for user {msg.sender.id}: {e}")
+                except Exception:
+                    sender_name = getattr(msg.sender, "username", "")
 
                 message_list.append({
                     'id': msg.id,
                     'sender_id': msg.sender.id,
-                    'sender_username': msg.sender.username,
+                    'sender_username': getattr(msg.sender, "username", ""),
                     'sender_full_name': sender_name,
-                    'sender_role': msg.sender.role,
+                    'sender_role': getattr(msg.sender, "role", None),
                     'content': msg.content,
                     'timestamp': msg.timestamp.isoformat(),
                     'is_read': msg.is_read
                 })
             return message_list
-
-        except Exception as e:
-            print(f" Error fetching message history: {type(e).__name__}: {e}")
-            import traceback
-            print(traceback.format_exc())
+        except Exception:
             return []
 
     @database_sync_to_async
@@ -218,47 +151,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def save_message(self, content):
         try:
             room = ChatRoom.objects.get(id=self.room_id, is_active=True)
-
             if not room.participants.filter(id=self.user.id).exists():
                 return None
-
-            message = Message.objects.create(
-                room=room,
-                sender=self.user,
-                content=content
-            )
+            message = Message.objects.create(room=room, sender=self.user, content=content)
             room.updated_at = timezone.now()
             room.save()
             return message
-        except Exception as e:
-            print(f" Error saving message: {e}")
+        except Exception:
             return None
 
     @database_sync_to_async
     def get_user_full_name(self):
         try:
-            if self.user.role == 'doctor':
+            if getattr(self.user, "role", None) == 'doctor':
                 return f"Dr. {self.user.doctor_profile.get_full_name()}"
-            elif self.user.role == 'patient':
+            elif getattr(self.user, "role", None) == 'patient':
                 return self.user.patient_profile.get_full_name()
         except Exception:
-            return self.user.username
-        return self.user.username
-    
+            return getattr(self.user, "username", "")
+        return getattr(self.user, "username", "")
+
     @database_sync_to_async
     def get_user_from_token(self, token):
         from rest_framework_simplejwt.tokens import AccessToken
         from django.contrib.auth import get_user_model
-        
-        User = get_user_model()
-        
+        UserModel = get_user_model()
         try:
-            print("Validating token...")
             access_token = AccessToken(token)
             user_id = access_token['user_id']
-            user = User.objects.get(id=user_id)
-            print(f"Token valid for user: {user.username} (ID: {user_id})")
-            return user
-        except Exception as e:
-            print(f"Token validation failed: {type(e).__name__}: {str(e)}")
+            return UserModel.objects.get(id=user_id)
+        except Exception:
             return None
