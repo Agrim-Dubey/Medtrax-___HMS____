@@ -4,6 +4,8 @@ from .models import ChatRoom, Message, DoctorConnection
 from Authapi.models import Doctor, Patient
 
 User = get_user_model()
+
+
 class UserBasicSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     
@@ -45,6 +47,7 @@ class PatientMinimalSerializer(serializers.ModelSerializer):
     def get_full_name(self, obj):
         return obj.get_full_name()
     
+
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserBasicSerializer(read_only=True)
     sender_id = serializers.IntegerField(write_only=True)
@@ -68,6 +71,7 @@ class MessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ['room', 'content']
+
 
 class ChatRoomListSerializer(serializers.ModelSerializer):
     participants = UserBasicSerializer(many=True, read_only=True)
@@ -148,8 +152,7 @@ class ChatRoomDetailSerializer(serializers.ModelSerializer):
         model = ChatRoom
         fields = [
             'id', 'room_type', 'name', 'is_active',
-            'participants', 'messages', 'appointment_info',
-            'disease_name', 'created_at', 'updated_at'
+            'participants', 'messages', 'appointment_info'
         ]
     
     def get_messages(self, obj):
@@ -166,6 +169,7 @@ class ChatRoomDetailSerializer(serializers.ModelSerializer):
             }
         return None
     
+
 class DoctorConnectionSerializer(serializers.ModelSerializer):
     from_doctor = DoctorMinimalSerializer(read_only=True)
     to_doctor = DoctorMinimalSerializer(read_only=True)

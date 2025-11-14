@@ -8,7 +8,6 @@ class ChatRoom(models.Model):
     ROOM_TYPES = [
         ('patient_doctor', 'Patient-Doctor Chat'),
         ('doctor_doctor', 'Doctor-Doctor Chat'),
-        
     ]
     
     room_type = models.CharField(max_length=20, choices=ROOM_TYPES, db_index=True)
@@ -35,8 +34,6 @@ class ChatRoom(models.Model):
         ]
     
     def __str__(self):
-        if self.room_type == 'group':
-            return f"Group: {self.name}"
         return f"{self.get_room_type_display()} - Room #{self.id}"
 
 

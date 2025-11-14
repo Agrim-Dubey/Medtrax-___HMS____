@@ -7,7 +7,7 @@ from django.db.models import Q, Prefetch
 from django.utils import timezone
 from datetime import datetime
 from .throttles import (
-    ChatListThrottle, ChatMessageThrottle, ChatGroupThrottle,
+    ChatListThrottle, ChatMessageThrottle,
     ChatConnectionThrottle, ChatSearchThrottle, ChatReadThrottle
 )
 
@@ -36,34 +36,28 @@ class PatientChatViewSet(viewsets.ViewSet):
         tags=["Chat"]
     )
     def list(self, request): 
-            if request.user.role != 'patient':
-                return Response(
-                    {"error": "Only patients can access this endpoint"}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            print(f"🔍 Fetching chats for patient: {request.user.id}")
-            
-            chat_rooms = ChatRoom.objects.filter(
-                room_type='patient_doctor',
-                participants=request.user,
-                is_active=True,
-                appointment__status='confirmed',
-            ).select_related(
-                'appointment__doctor__user',
-                'appointment__patient__user'
-            ).prefetch_related('participants')
-            
-            print(f"📊 Found {chat_rooms.count()} chat rooms")
-            for room in chat_rooms:
-                print(f"  - Room {room.id}: Appointment {room.appointment_id if room.appointment else 'None'}")
-            
-            serializer = ChatRoomListSerializer(
-                chat_rooms, 
-                many=True, 
-                context={'request': request}
+        if request.user.role != 'patient':
+            return Response(
+                {"error": "Only patients can access this endpoint"}, 
+                status=status.HTTP_403_FORBIDDEN
             )
-            return Response(serializer.data)
+
+        chat_rooms = ChatRoom.objects.filter(
+            room_type='patient_doctor',
+            participants=request.user,
+            is_active=True,
+            appointment__status='confirmed',
+        ).select_related(
+            'appointment__doctor__user',
+            'appointment__patient__user'
+        ).prefetch_related('participants')
+        
+        serializer = ChatRoomListSerializer(
+            chat_rooms, 
+            many=True, 
+            context={'request': request}
+        )
+        return Response(serializer.data)
     
 
 class DoctorChatViewSet(viewsets.ViewSet):
@@ -125,6 +119,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
             context={'request': request}
         )
         return Response(serializer.data)
+
     @swagger_auto_schema(
         operation_summary="Send connection request",
         operation_description="Send a connection request to another doctor.",
@@ -132,7 +127,6 @@ class DoctorChatViewSet(viewsets.ViewSet):
         responses={201: DoctorConnectionSerializer, 400: "Validation error"},
         tags=["Chat"]
     )
-
     @action(detail=False, methods=['post'], throttle_classes=[ChatConnectionThrottle])
     def send_connection_request(self, request):
         if request.user.role != 'doctor':
@@ -241,6 +235,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         serializer = DoctorMinimalSerializer(doctors, many=True)
         return Response(serializer.data)
     
+
 class ChatRoomViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -342,4 +337,3 @@ def test_chat_doctor(request, room_id):
 
 def test_chat_patient(request, room_id):
     return render(request, 'chat_room/chat_patient.html', {'room_id': room_id})
-

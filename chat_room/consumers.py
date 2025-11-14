@@ -15,14 +15,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         print("WebSocket connection attempt started")
 
         try:
-                self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
+            self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
         except (ValueError, KeyError):
-                await self.close(code=4004)
-                return
+            await self.close(code=4004)
+            return
         
         self.room_group_name = f'chat_{self.room_id}'
 
-        
         query_string = self.scope.get('query_string', b'').decode()
         token = None
         
@@ -42,6 +41,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print("User not authenticated - closing connection")
             await self.close(code=4001)
             return
+
         room_data = await self.get_room_data()
 
         if not room_data:
@@ -105,6 +105,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(f"Error sending message: {e}")
 
         print("=" * 50)
+
     async def disconnect(self, close_code):
         print("=" * 50)
         print(f"WebSocket disconnecting - Close code: {close_code}")
@@ -165,13 +166,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'timestamp': event['timestamp'],
         }))
 
-    async def typing_indicator(self, event):
-        if event['user_id'] != self.user.id:
-            await self.send(text_data=json.dumps({
-                'type': 'typing',
-                'username': event['username'],
-                'is_typing': event['is_typing']
-            }))
     @database_sync_to_async
     def get_message_history(self):
         try:

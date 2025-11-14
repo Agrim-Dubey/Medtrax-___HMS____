@@ -14,10 +14,10 @@ class WebSocketRateLimitMiddleware(BaseMiddleware):
                 if attempts >= 10:
                     await send({
                         "type": "websocket.close",
-                        "code": 4029,  
+                        "code": 4029,
                     })
                     return
                 
-                cache.set(cache_key, attempts + 1, 60)  
+                cache.set(cache_key, attempts + 1, 60)
         
         return await super().__call__(scope, receive, send)
