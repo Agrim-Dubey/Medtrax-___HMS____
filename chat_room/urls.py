@@ -72,3 +72,22 @@ urlpatterns = [
         name='chat-mark-read'
     ),
 ]
+
+
+urlpatterns += [
+    path(
+        'rooms/<int:pk>/',
+        ChatRoomViewSet.as_view({'get': 'retrieve'}),
+        name='chat-room-detail-plural'
+    ),
+    path(
+        'rooms/<int:pk>/send/',
+        ChatRoomViewSet.as_view({'post': 'send_message'}),
+        name='chat-send-message-plural'
+    ),
+    path(
+        'rooms/<int:pk>/read/',
+        ChatRoomViewSet.as_view({'post': 'mark_as_read'}),
+        name='chat-mark-read-plural'
+    ),
+]

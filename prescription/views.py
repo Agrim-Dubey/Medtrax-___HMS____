@@ -68,7 +68,7 @@ class DoctorPatientsListView(APIView):
 
 
 class CreatePrescriptionView(APIView):
-#creating a new prescription
+
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
