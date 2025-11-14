@@ -33,15 +33,20 @@ class PatientChatViewSet(viewsets.ViewSet):
         if request.user.role != "patient":
             return Response({"error": "Only patients allowed"}, status=403)
 
+        # ✅ FIXED: Only fetch chat rooms that actually exist
         chat_rooms = ChatRoom.objects.filter(
             room_type="patient_doctor",
             participants=request.user,
             is_active=True,
-            appointment__status="confirmed"
-        ).prefetch_related("participants")
+            appointment__isnull=False,  # Must have an appointment
+            appointment__status="confirmed"  # Appointment must be confirmed
+        ).select_related('appointment').prefetch_related("participants")
 
+        print(f"🔍 Patient {request.user.id} has {chat_rooms.count()} chat rooms")
+        
         serializer = ChatRoomListSerializer(chat_rooms, many=True, context={"request": request})
         return Response(serializer.data)
+
 
 class DoctorChatViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -55,12 +60,16 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
+        # ✅ FIXED: Only fetch chat rooms that actually exist
         chat_rooms = ChatRoom.objects.filter(
             room_type="patient_doctor",
             participants=request.user,
             is_active=True,
-            appointment__status="confirmed"
-        ).prefetch_related("participants")
+            appointment__isnull=False,  # Must have an appointment
+            appointment__status="confirmed"  # Appointment must be confirmed
+        ).select_related('appointment').prefetch_related("participants")
+
+        print(f"🔍 Doctor {request.user.id} has {chat_rooms.count()} patient chat rooms")
 
         serializer = ChatRoomListSerializer(chat_rooms, many=True, context={"request": request})
         return Response(serializer.data)
@@ -103,8 +112,6 @@ class DoctorChatViewSet(viewsets.ViewSet):
 
         return Response(serializer.errors, status=400)
 
-
-
     @swagger_auto_schema(
         operation_summary="List pending doctor connection requests",
         tags=["Chat"]
@@ -120,8 +127,6 @@ class DoctorChatViewSet(viewsets.ViewSet):
 
         serializer = DoctorConnectionListSerializer(qs, many=True)
         return Response(serializer.data)
-
-
 
     @swagger_auto_schema(
         operation_summary="Accept a doctor connection request",
@@ -153,8 +158,6 @@ class DoctorChatViewSet(viewsets.ViewSet):
         connection.save()
 
         return Response(DoctorConnectionSerializer(connection).data)
-
-
 
     @swagger_auto_schema(
         operation_summary="Reject a doctor connection request",
@@ -200,22 +203,34 @@ class DoctorChatViewSet(viewsets.ViewSet):
 
         return Response(DoctorMinimalSerializer(doctors, many=True).data)
 
+
 class ChatRoomViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(tags=["Chat"])
     def retrieve(self, request, pk):
-        chat_room = get_object_or_404(
-            ChatRoom.objects.prefetch_related("participants").select_related("appointment"),
-            pk=pk
-        )
+        try:
+            chat_room = ChatRoom.objects.prefetch_related(
+                "participants"
+            ).select_related("appointment").get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            print(f"❌ Chat room {pk} not found")
+            return Response(
+                {"error": "Chat room not found", "detail": "This chat may have been deleted"},
+                status=404
+            )
 
         if not chat_room.participants.filter(id=request.user.id).exists():
             return Response({"error": "Not a participant"}, status=403)
 
+        if not chat_room.is_active:
+            return Response(
+                {"error": "Chat inactive", "detail": "This chat has been deactivated"},
+                status=403
+            )
+
         serializer = ChatRoomDetailSerializer(chat_room, context={"request": request})
         return Response(serializer.data)
-
 
     @swagger_auto_schema(tags=["Chat"])
     @action(detail=True, methods=["post"], throttle_classes=[ChatMessageThrottle])
@@ -239,7 +254,6 @@ class ChatRoomViewSet(viewsets.ViewSet):
         )
 
         return Response(MessageSerializer(message).data, status=201)
-
 
     @swagger_auto_schema(tags=["Chat"])
     @action(detail=True, methods=["post"], throttle_classes=[ChatReadThrottle])
