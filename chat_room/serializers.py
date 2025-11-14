@@ -118,13 +118,24 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
                 sender=request.user
             ).count()
         return 0
-    
+
     def get_other_participant(self, obj):
         request = self.context.get('request')
-        if request and request.user and obj.room_type in ['patient_doctor', 'doctor_doctor']:
-            other = obj.participants.exclude(id=request.user.id).first()
+        if request and request.user:
+            participants = obj.participants.exclude(id=request.user.id)
+            other = participants.first()
             if other:
-                return UserBasicSerializer(other).data
+                user_data = UserBasicSerializer(other).data
+                if not user_data.get('full_name'):
+                    try:
+                        if other.role == 'doctor':
+                            user_data['full_name'] = f"Dr. {other.doctor_profile.get_full_name()}"
+                        elif other.role == 'patient':
+                            user_data['full_name'] = other.patient_profile.get_full_name()
+                    except Exception as e:
+                        print(f"Error getting full name: {e}")
+                        user_data['full_name'] = other.username
+                return user_data
         return None
 
 

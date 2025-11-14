@@ -40,4 +40,6 @@ urlpatterns = [
     path('room/<int:pk>/read/', 
          ChatRoomViewSet.as_view({'post': 'mark_as_read'}), 
          name='chat-mark-read'),
+    path('patient/doctors/', PatientChatViewSet.as_view({'get': 'list'}), 
+         name='patient-chats'),
 ]

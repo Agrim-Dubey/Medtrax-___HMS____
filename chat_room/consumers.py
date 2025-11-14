@@ -12,71 +12,82 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         print("=" * 50)
-        print("🔵 WebSocket connection attempt started")
+        print("WebSocket connection attempt started")
 
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         self.room_group_name = f'chat_{self.room_id}'
-        self.user = self.scope['user']
+        
+        query_string = self.scope.get('query_string', b'').decode()
+        token = None
+        
+        if 'token=' in query_string:
+            token = query_string.split('token=')[1].split('&')[0]
+            print("Token extracted from query params")
+        
+        if token:
+            self.user = await self.get_user_from_token(token)
+        else:
+            self.user = self.scope.get('user')
+        
+        print(f"Room ID: {self.room_id}")
+        print(f"User: {self.user} (Authenticated: {self.user.is_authenticated if self.user else False})")
 
-        print(f"📍 Room ID: {self.room_id}")
-        print(f"👤 User: {self.user} (Authenticated: {self.user.is_authenticated})")
-
-        if not self.user.is_authenticated:
-            print("❌ User not authenticated - closing connection")
+        if not self.user or not self.user.is_authenticated:
+            print("User not authenticated - closing connection")
             await self.close(code=4001)
             return
 
-        print("✅ User is authenticated")
-        print("🔍 Fetching room data...")
+        print("User is authenticated")
+        print("Fetching room data...")
 
         room_data = await self.get_room_data()
 
         if not room_data:
-            print("❌ Room not found - closing connection")
+            print("Room not found - closing connection")
             await self.close(code=4004)
             return
 
-        print(f"✅ Room data: {room_data}")
+        print(f"Room data: {room_data}")
 
         if not room_data['is_participant']:
-            print("❌ User is not a participant - closing connection")
+            print("User is not a participant - closing connection")
             await self.close(code=4003)
             return
 
-        print("✅ User is a participant")
+        print("User is a participant")
 
         if not room_data['is_active']:
-            print("❌ Room is not active - closing connection")
+            print("Room is not active - closing connection")
             await self.close(code=4005)
             return
 
-        print("✅ Room is active")
+        print("Room is active")
 
         self.room_type = room_data['room_type']
 
-        print(f"📝 Adding to channel group: {self.room_group_name}")
+        print(f"Adding to channel group: {self.room_group_name}")
 
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
 
-        print("✅ Added to channel group")
-        print("🤝 Accepting WebSocket connection...")
+        print("Added to channel group")
+        print("Accepting WebSocket connection...")
 
         await self.accept()
 
-        print("✅ WebSocket accepted")
-        print("📜 Fetching message history...")
+        print("WebSocket accepted")
+        print("Fetching message history...")
 
         try:
             messages = await self.get_message_history()
-            print(f"✅ Message history fetched: {len(messages)} messages")
+            print(f"Message history fetched: {len(messages)} messages")
         except Exception as e:
-            print(f"❌ Error fetching message history: {e}")
+            print(f"Error fetching message history: {e}")
             messages = []
 
-        print("📤 Sending connection_established message...")
+        print("Sending connection_established message...")
 
         try:
             await self.send(text_data=json.dumps({
@@ -86,31 +97,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'user_id': self.user.id,
                 'messages': messages
             }))
-            print("✅ Connection established message sent successfully!")
-            print("🎉 WebSocket connection complete and stable!")
+            print("Connection established message sent successfully")
+            print("WebSocket connection complete and stable")
         except Exception as e:
-            print(f"❌ Error sending message: {e}")
+            print(f"Error sending message: {e}")
 
         print("=" * 50)
-
     async def disconnect(self, close_code):
         print("=" * 50)
-        print(f"🔴 WebSocket disconnecting - Close code: {close_code}")
-        print(f"👤 User: {self.user if hasattr(self, 'user') else 'Unknown'}")
-        print(f"📍 Room: {self.room_id if hasattr(self, 'room_id') else 'Unknown'}")
+        print(f"WebSocket disconnecting - Close code: {close_code}")
+        print(f"User: {self.user if hasattr(self, 'user') else 'Unknown'}")
+        print(f"Room: {self.room_id if hasattr(self, 'room_id') else 'Unknown'}")
 
         if hasattr(self, 'room_group_name'):
-            print(f"🚪 Removing from group: {self.room_group_name}")
+            print(f" Removing from group: {self.room_group_name}")
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
-            print("✅ Removed from channel group")
+            print(" Removed from channel group")
 
         print("=" * 50)
 
     async def receive(self, text_data):
-        """Handle incoming WebSocket messages from frontend."""
         try:
             data = json.loads(text_data)
         except json.JSONDecodeError:
@@ -161,9 +170,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'username': event['username'],
                 'is_typing': event['is_typing']
             }))
-
-    # ---------- Database Utilities ---------- #
-
     @database_sync_to_async
     def get_message_history(self):
         try:
@@ -180,7 +186,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     elif msg.sender.role == 'patient':
                         sender_name = msg.sender.patient_profile.get_full_name()
                 except Exception as e:
-                    print(f"⚠️ Error getting full name for user {msg.sender.id}: {e}")
+                    print(f" Error getting full name for user {msg.sender.id}: {e}")
 
                 message_list.append({
                     'id': msg.id,
@@ -195,7 +201,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return message_list
 
         except Exception as e:
-            print(f"❌ Error fetching message history: {type(e).__name__}: {e}")
+            print(f" Error fetching message history: {type(e).__name__}: {e}")
             import traceback
             print(traceback.format_exc())
             return []
@@ -229,7 +235,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             room.save()
             return message
         except Exception as e:
-            print(f"❌ Error saving message: {e}")
+            print(f" Error saving message: {e}")
             return None
 
     @database_sync_to_async
@@ -242,3 +248,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception:
             return self.user.username
         return self.user.username
+    
+    @database_sync_to_async
+    def get_user_from_token(self, token):
+        from rest_framework_simplejwt.tokens import AccessToken
+        from django.contrib.auth import get_user_model
+        
+        User = get_user_model()
+        
+        try:
+            print("Validating token...")
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            user = User.objects.get(id=user_id)
+            print(f"Token valid for user: {user.username} (ID: {user_id})")
+            return user
+        except Exception as e:
+            print(f"Token validation failed: {type(e).__name__}: {str(e)}")
+            return None
