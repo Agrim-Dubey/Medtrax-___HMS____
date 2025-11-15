@@ -33,7 +33,7 @@ class Post(models.Model):
     
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
-    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='posts')  # ✅ CHANGED
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='posts')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='posts')
     content = models.TextField()
     excerpt = models.TextField(max_length=300, blank=True, help_text="Brief summary of the post")
