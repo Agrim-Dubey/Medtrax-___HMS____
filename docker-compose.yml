@@ -1,16 +1,12 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
     container_name: medtrax-db
     restart: always
-    env_file:
-      - .env.docker
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-medtraxdata}
-      POSTGRES_USER: ${POSTGRES_USER:-medtraxadmin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Medtrax2025}
+      POSTGRES_DB: medtraxdata
+      POSTGRES_USER: medtraxadmin
+      POSTGRES_PASSWORD: Medtrax2025
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
@@ -24,8 +20,6 @@ services:
   redis:
     image: redis:7
     container_name: medtrax-redis
-    env_file:
-      - .env.docker
     command: ["redis-server"]
     restart: always
     expose:
@@ -37,21 +31,17 @@ services:
       retries: 5
 
   web:
-    image: agrim96336/medtrax-web:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-web
-    environment:
-      - RUNNING_IN_DOCKER=true 
     command: >
       sh -c "
-        echo 'Waiting for database...' &&
         while ! nc -z db 5432; do sleep 1; done &&
-        echo 'Database is ready!' &&
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
         daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
       "
-    env_file:
-      - .env.docker
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
@@ -69,16 +59,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: medtrax-celery
-    command: >
-      sh -c "
-        echo 'Waiting for web to be ready...' &&
-        sleep 15 &&
-        celery -A medtrax worker --loglevel=info
-      "
-    env_file:
-      - .env.docker
-    volumes:
-      - media_volume:/app/media
+    command: sh -c "sleep 15 && celery -A medtrax worker --loglevel=info"
     depends_on:
       - redis
       - db
@@ -90,14 +71,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: medtrax-celery-beat
-    command: >
-      sh -c "
-        echo 'Waiting for web to be ready...' &&
-        sleep 20 &&
-        celery -A medtrax beat --loglevel=info
-      "
-    env_file:
-      - .env.docker
+    command: sh -c "sleep 20 && celery -A medtrax beat --loglevel=info"
     depends_on:
       - redis
       - db
@@ -108,3 +82,4 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
+

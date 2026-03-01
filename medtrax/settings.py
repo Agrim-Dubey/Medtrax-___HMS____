@@ -2,17 +2,10 @@ from datetime import timedelta
 from pathlib import Path
 import os
 from decouple import config
-from dotenv import load_dotenv
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-if os.path.exists("/.dockerenv"):
-    load_dotenv(os.path.join(BASE_DIR, ".env.docker"))
-    print("Running inside Docker → Loaded .env.docker")
-else:
-    load_dotenv(os.path.join(BASE_DIR, ".env.local"))
-    print("Running locally → Loaded .env.local")
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -49,7 +42,6 @@ INSTALLED_APPS = [
     'Authapi',
     'chat_room',
     'videocounselling',
-    'storages',
     'appointments',
     'doctor_dashboard',
     'community',
@@ -115,7 +107,6 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_QUERYSTRING_AUTH = True
 AWS_S3_VERIFY = True
 
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 
 AUTH_USER_MODEL = 'Authapi.CustomUser'
@@ -255,20 +246,21 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = config('TIME_ZONE', default='UTC')
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+
+
+if REDIS_PASSWORD:
+    redis_host_string = f":{REDIS_PASSWORD}@{REDIS_HOST}"
+else:
+    redis_host_string = REDIS_HOST
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                (
-                    REDIS_HOST if REDIS_PASSWORD is None else f":{REDIS_PASSWORD}@{REDIS_HOST}",
-                    REDIS_PORT
-                )
-            ],
+            "hosts": [(redis_host_string, REDIS_PORT)],
         },
     },
 }
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
