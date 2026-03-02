@@ -1,74 +1,130 @@
+import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from appointments.models import Appointment
+from .models import VideoCall
 from django.utils import timezone
-from django.contrib.auth.models import AnonymousUser
-import json
-
-from chat_room.models import ChatRoom 
 
 
 class VideoCallConsumer(AsyncWebsocketConsumer):
+
     async def connect(self):
-        self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
-        self.group = f"video_{self.room_id}"
-        self.user = self.scope.get("user") or AnonymousUser()
+        self.appointment_id = self.scope['url_route']['kwargs']['appointment_id']
+        self.room_group_name = f'video_{self.appointment_id}'
+        self.user = self.scope['user']
 
         if not self.user.is_authenticated:
-            await self.close(code=4001)
+            await self.close()
             return
 
-        room_data = await self._get_room_data(self.room_id, self.user.id)
-        if not room_data:
-            await self.close(code=4004)
-            return
-        if not room_data["is_participant"]:
-            await self.close(code=4003)  
-            return
-        if not room_data["is_active"] or room_data["room_type"] != "patient_doctor":
-            await self.close(code=4005)
+        is_participant = await self.check_participant()
+        if not is_participant:
+            await self.close()
             return
 
-        await self.channel_layer.group_add(self.group, self.channel_name)
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        await self.send_json({
-            "type": "connected",
-            "user_id": self.user.id,
-            "role": self.user.role,
-            "room_id": int(self.room_id),
+        await self.channel_layer.group_send(self.room_group_name, {
+            'type': 'user_joined',
+            'user_id': self.user.id,
         })
 
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.group, self.channel_name)
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_send(self.room_group_name, {
+            'type': 'user_left',
+            'user_id': self.user.id,
+        })
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        await self.end_call_if_active()
 
     async def receive(self, text_data):
-        try:
-            data = json.loads(text_data)
-        except:
-            return
+        data = json.loads(text_data)
+        msg_type = data.get('type')
 
-        kind = data.get("type")
-        if kind in ("offer", "answer", "ice-candidate", "end"):
-            await self.channel_layer.group_send(self.group, {
-                "type": "signal.forward",
-                "from_user_id": self.user.id,
-                "payload": data,
+        if msg_type == 'offer':
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'signal_offer',
+                'offer': data['offer'],
+                'sender_id': self.user.id,
             })
 
-    async def signal_forward(self, event):
-        if event.get("from_user_id") == self.user.id:
-            return
-        await self.send_json(event["payload"])
+        elif msg_type == 'answer':
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'signal_answer',
+                'answer': data['answer'],
+                'sender_id': self.user.id,
+            })
 
-    async def send_json(self, payload):
-        await self.send(text_data=json.dumps(payload))
+        elif msg_type == 'ice_candidate':
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'signal_ice',
+                'candidate': data['candidate'],
+                'sender_id': self.user.id,
+            })
+
+        elif msg_type == 'end_call':
+            await self.end_call_if_active()
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'call_ended',
+                'sender_id': self.user.id,
+            })
+
+    async def user_joined(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_joined',
+            'user_id': event['user_id'],
+        }))
+
+    async def user_left(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_left',
+            'user_id': event['user_id'],
+        }))
+
+    async def signal_offer(self, event):
+        if event['sender_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'offer',
+                'offer': event['offer'],
+            }))
+
+    async def signal_answer(self, event):
+        if event['sender_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'answer',
+                'answer': event['answer'],
+            }))
+
+    async def signal_ice(self, event):
+        if event['sender_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'ice_candidate',
+                'candidate': event['candidate'],
+            }))
+
+    async def call_ended(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'call_ended',
+        }))
+
     @database_sync_to_async
-    def _get_room_data(self, room_id, user_id):
+    def check_participant(self):
         try:
-            room = ChatRoom.objects.prefetch_related("participants").get(id=room_id)
-            return {
-                "is_participant": room.participants.filter(id=user_id).exists(),
-                "is_active": room.is_active,
-                "room_type": room.room_type
-            }
-        except ChatRoom.DoesNotExist:
-            return None
+            appointment = Appointment.objects.get(id=self.appointment_id)
+            user = self.user
+            is_doctor = hasattr(user, 'doctor_profile') and appointment.doctor == user.doctor_profile
+            is_patient = hasattr(user, 'patient_profile') and appointment.patient == user.patient_profile
+            return is_doctor or is_patient
+        except Appointment.DoesNotExist:
+            return False
+
+    @database_sync_to_async
+    def end_call_if_active(self):
+        try:
+            video_call = VideoCall.objects.get(appointment_id=self.appointment_id)
+            if video_call.status == 'active':
+                video_call.status = 'ended'
+                video_call.ended_at = timezone.now()
+                video_call.save()
+        except VideoCall.DoesNotExist:
+            pass

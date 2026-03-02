@@ -43,6 +43,7 @@ services:
         daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
       "
     volumes:
+      - .:/app
       - static_volume:/app/static
       - media_volume:/app/media
     ports:
@@ -60,6 +61,8 @@ services:
       dockerfile: Dockerfile
     container_name: medtrax-celery
     command: sh -c "sleep 15 && celery -A medtrax worker --loglevel=info"
+    volumes:
+      - .:/app
     depends_on:
       - redis
       - db
@@ -72,6 +75,8 @@ services:
       dockerfile: Dockerfile
     container_name: medtrax-celery-beat
     command: sh -c "sleep 20 && celery -A medtrax beat --loglevel=info"
+    volumes:
+      - .:/app
     depends_on:
       - redis
       - db
@@ -82,4 +87,3 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
-

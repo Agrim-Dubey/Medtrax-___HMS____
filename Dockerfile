@@ -1,9 +1,9 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/apps \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/apps
 
 WORKDIR /app
 
@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y netcat-traditional && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /app/
+COPY .env .env
 
 RUN mkdir -p /app/static /app/media && \
     chmod -R 755 /app/static /app/media
