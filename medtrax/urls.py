@@ -46,7 +46,7 @@ urlpatterns = [
     path('api/patient/dashboard/', include('patient_dashboard.urls')),
     path('api/community/', include('community.urls')),
     path('api/appointments/', include('appointments.urls')),
-    path('video/', include('videocounselling.urls')),
+    path('vapi/video/', include('videocounselling.urls')),
     path('api/prescriptions/', include('prescription.urls')),
 
     re_path(
