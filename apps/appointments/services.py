@@ -1,3 +1,7 @@
+"""
+Services for appointment management.
+Handles business logic for booking, accepting, and rejecting appointments.
+"""
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError

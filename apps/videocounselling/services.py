@@ -1,3 +1,7 @@
+"""
+Services for video counselling sessions.
+Manages the lifecycle of video calls (initiate, join, end).
+"""
 from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
