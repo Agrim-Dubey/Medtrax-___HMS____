@@ -163,6 +163,33 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
     ),
+
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+
+        'auth_anon': '20/hour',
+        'auth_user': '100/hour',
+
+        'otp': '10/hour',
+        'login': '10/hour',
+
+        'appointment_booking': '20/hour',
+        'appointment_actions': '100/hour',
+        'dashboard': '200/hour',
+
+        'chat_list': '200/hour',
+        'chat_message': '100/hour',
+        'chat_group': '20/hour',
+        'chat_connection': '30/hour',
+        'chat_search': '50/hour',
+        'chat_read': '300/hour',
+    }
 }
 
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
