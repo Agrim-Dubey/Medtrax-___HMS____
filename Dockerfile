@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y netcat-traditional && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /app/
-COPY .env .env
 
 RUN mkdir -p /app/static /app/media && \
     chmod -R 755 /app/static /app/media

@@ -63,14 +63,15 @@ django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": WebSocketRateLimitMiddleware(AllowedHostsOriginValidator(
+    "websocket": AllowedHostsOriginValidator(
         JWTAuthMiddleware(
-            URLRouter(
-                chat_room.routing.websocket_urlpatterns +
-                videocounselling.routing.websocket_urlpatterns +
-                appointments.routing.websocket_urlpatterns
+            WebSocketRateLimitMiddleware(
+                URLRouter(
+                    chat_room.routing.websocket_urlpatterns +
+                    videocounselling.routing.websocket_urlpatterns +
+                    appointments.routing.websocket_urlpatterns
+                )
             )
         )
-    )
     ),
 })

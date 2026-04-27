@@ -1,10 +1,14 @@
 from datetime import timedelta
 from pathlib import Path
 import os
+import sys
 from decouple import config
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Add apps directory to sys.path
+sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
 
 SECRET_KEY = config('SECRET_KEY')
