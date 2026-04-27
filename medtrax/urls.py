@@ -1,15 +1,22 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework import permissions
+from rest_framework.throttling import BaseThrottle
 from drf_yasg.views import get_schema_view
 from drf_yasg.generators import OpenAPISchemaGenerator
 from drf_yasg import openapi
 
 
+class NoThrottle(BaseThrottle):
+    def allow_request(self, request, view):
+        return True
+    def wait(self):
+        return None
+
+
 class DynamicSchemaGenerator(OpenAPISchemaGenerator):
     def get_endpoints(self, request):
-        endpoints = super().get_endpoints(request)
-        return endpoints
+        return super().get_endpoints(request)
 
 
 schema_view = get_schema_view(
@@ -34,8 +41,14 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
-    generator_class=DynamicSchemaGenerator, 
+    authentication_classes=[],
+    generator_class=DynamicSchemaGenerator,
 )
+
+
+def patch_throttle(view_func):
+    view_func.cls.throttle_classes = [NoThrottle]
+    return view_func
 
 
 urlpatterns = [
@@ -51,9 +64,9 @@ urlpatterns = [
 
     re_path(
         r'^swagger(?P<format>\.json|\.yaml)$',
-        schema_view.without_ui(cache_timeout=0),
+        patch_throttle(schema_view.without_ui(cache_timeout=0)),
         name='schema-json'
     ),
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('swagger/', patch_throttle(schema_view.with_ui('swagger', cache_timeout=0)), name='schema-swagger-ui'),
+    path('redoc/', patch_throttle(schema_view.with_ui('redoc', cache_timeout=0)), name='schema-redoc'),
 ]
