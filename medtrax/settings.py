@@ -2,23 +2,20 @@ from datetime import timedelta
 from pathlib import Path
 import os
 import sys
+from corsheaders.defaults import default_headers
 from decouple import config
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'SAMEORIGIN'
-
-
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -47,9 +44,8 @@ INSTALLED_APPS = [
     'prescription'
 ]
 
-
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -59,7 +55,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 
 
 TEMPLATES = [
@@ -78,13 +73,9 @@ TEMPLATES = [
     },
 ]
 
-
-
 ROOT_URLCONF = 'medtrax.urls'
 WSGI_APPLICATION = 'medtrax.wsgi.application'
 ASGI_APPLICATION = 'medtrax.asgi.application'
-
-
 
 DATABASES = {
     'default': dj_database_url.parse(
@@ -93,7 +84,6 @@ DATABASES = {
         ssl_require=True
     )
 }
-
 
 AUTH_USER_MODEL = 'Authapi.CustomUser'
 AUTH_PASSWORD_VALIDATORS = []
@@ -108,23 +98,31 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
 }
 
+CORS_ALLOW_ALL_ORIGINS = False
 
-if DEBUG:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-    ]
-else:
-    CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://medtrax-hms-6.onrender.com",
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+    "content-type",
+]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "https://medtrax-hms-6.onrender.com",
+]
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = None
 SESSION_COOKIE_SAMESITE = None
-
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
@@ -132,7 +130,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
 
 REDIS_URL = config('REDIS_URL')
 
@@ -159,8 +156,6 @@ CHANNEL_LAYERS = {
     },
 }
 
-
-
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'Authapi.authentication.CookieJWTAuthentication',
@@ -169,8 +164,6 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ),
 }
-
-
 
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
@@ -187,7 +180,6 @@ LOGGING = {
     'handlers': {'console': {'class': 'logging.StreamHandler'}},
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }
-
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
