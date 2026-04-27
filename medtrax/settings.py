@@ -183,7 +183,6 @@ REST_FRAMEWORK = {
         'appointment_actions': '100/hour',
         'dashboard': '200/hour',
 
-        'chat_list': '200/hour',
         'chat_message': '100/hour',
         'chat_group': '20/hour',
         'chat_connection': '30/hour',
