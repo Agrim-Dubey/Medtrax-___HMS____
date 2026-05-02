@@ -1,0 +1,16 @@
+{
+    "include": [
+        "apps",
+        "medtrax"
+    ],
+    "executionEnvironments": [
+        {
+            "root": "apps",
+            "pythonPath": "./venv/bin/python"
+        }
+    ],
+    "extraPaths": [
+        "./apps"
+    ],
+    "typeCheckingMode": "basic"
+}

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from appointments.models import Appointment
+from ...models import Appointment
 from chat_room.models import ChatRoom
 
 class Command(BaseCommand):

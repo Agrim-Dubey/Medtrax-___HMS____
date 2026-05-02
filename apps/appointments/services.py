@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from Authapi.models import Doctor, Patient
 from .models import Appointment
-from appointments.tasks import send_immediate_appointment_notification
+from .tasks import send_immediate_appointment_notification
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .utils import get_doctor_queue_info

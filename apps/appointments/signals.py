@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from appointments.models import Appointment
+from .models import Appointment
 from chat_room.models import ChatRoom
 
 

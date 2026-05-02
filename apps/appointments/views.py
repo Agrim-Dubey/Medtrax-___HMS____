@@ -15,7 +15,7 @@ from .serializers import (
 from Authapi.models import Doctor
 from datetime import datetime
 from .utils import get_available_slots
-from appointments.throttles import AppointmentBookingThrottle, AppointmentActionsThrottle, DashboardThrottle
+from .throttles import AppointmentBookingThrottle, AppointmentActionsThrottle, DashboardThrottle
 from .selectors import (
     get_patient_appointments, get_doctor_pending_requests, get_available_doctors,
     get_doctor_dashboard_stats, get_patient_dashboard_stats, get_patient_upcoming_appointments,
