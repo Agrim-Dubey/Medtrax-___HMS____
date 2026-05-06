@@ -937,7 +937,7 @@ class RefreshTokenView(APIView):
                 value=new_access_token,
                 httponly=True,
                 secure=True,
-                samesite='Strict',
+                samesite='None',
                 max_age=3600  # 1 hour
             )
 
