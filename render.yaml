@@ -14,7 +14,7 @@ services:
     name: medtrax-web
     env: docker
     plan: free
-    dockerfilePath: ./deploy/docker/Dockerfile
+    dockerfilePath: Dockerfile
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
@@ -51,7 +51,7 @@ services:
     name: medtrax-celery
     env: docker
     plan: free
-    dockerfilePath: ./deploy/docker/Dockerfile
+    dockerfilePath: Dockerfile
     dockerCommand: celery -A medtrax worker --loglevel=info
     envVars:
       - key: DATABASE_URL
@@ -72,7 +72,7 @@ services:
     name: medtrax-celery-beat
     env: docker
     plan: free
-    dockerfilePath: ./deploy/docker/Dockerfile
+    dockerfilePath: Dockerfile
     dockerCommand: celery -A medtrax beat --loglevel=info
     envVars:
       - key: DATABASE_URL

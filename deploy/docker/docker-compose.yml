@@ -33,7 +33,7 @@ services:
   web:
     build:
       context: ../../
-      dockerfile: deploy/docker/Dockerfile
+      dockerfile: ../../Dockerfile
     container_name: medtrax-web
     env_file:
       - .env.docker
@@ -60,7 +60,7 @@ services:
   celery:
     build:
       context: ../../
-      dockerfile: deploy/docker/Dockerfile
+      dockerfile: ../../Dockerfile
     container_name: medtrax-celery
     env_file:
       - .env.docker
@@ -76,7 +76,7 @@ services:
   celery-beat:
     build:
       context: ../../
-      dockerfile: deploy/docker/Dockerfile
+      dockerfile: ../../Dockerfile
     container_name: medtrax-celery-beat
     env_file:
       - .env.docker
