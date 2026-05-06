@@ -232,6 +232,15 @@ class VerifySignupOTPView(APIView):
 
             logger.info(f"User created and verified: {email} as {role}")
 
+            user.is_verified = True
+            user.otp = None
+            user.otp_created_at = None
+            user.otp_attempts = 0
+            user.otp_locked_until = None
+            user.save()
+
+            logger.info(f"User created and verified: {email} as {role}")
+
             return Response({
                 'success': True,
                 'message': 'Email verified successfully! Please complete your profile.',
