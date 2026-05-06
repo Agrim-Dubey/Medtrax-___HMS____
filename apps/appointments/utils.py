@@ -2,9 +2,6 @@ from django.utils import timezone
 from .models import Appointment
 from datetime import datetime, timedelta
 
-from django.utils import timezone
-from datetime import datetime, timedelta
-
 def get_doctor_queue_info(doctor):
     now = timezone.localtime()
     today = now.date()
