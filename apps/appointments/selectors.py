@@ -52,13 +52,13 @@ def get_patient_upcoming_appointments(*, patient: Patient, date: timezone.dateti
         patient=patient,
         appointment_date__gte=date,
         status='confirmed'
-    ).select_related('doctor')[:limit]
+    ).select_related('doctor', 'doctor__user')[:limit]
 
 def get_patient_recent_appointments(*, patient: Patient, limit: int = 5) -> QuerySet[Appointment]:
     return Appointment.objects.filter(
         patient=patient,
         status='completed'
-    ).select_related('doctor').order_by('-appointment_date')[:limit]
+    ).select_related('doctor', 'doctor__user').order_by('-appointment_date')[:limit]
 
 def get_doctor_all_appointments(*, doctor: Doctor) -> QuerySet[Appointment]:
     return Appointment.objects.filter(
