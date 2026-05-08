@@ -36,14 +36,43 @@ medtrax_hms/
 │   ├── prescription/       # Prescriptions Management
 │   └── videocounselling/   # Video Call Logic
 ├── medtrax/                # Main Django configuration (settings, urls, asgi, wsgi)
-├── .env                    # Environment variables (Create this based on .env.docker)
-├── .env.docker             # Sample environment variables for Docker
-├── docker-compose.yml      # Local development setup
-├── Dockerfile              # Production Dockerfile
+├── deploy/                 # Deployment and infrastructure configs
+│   ├── docker/             # Docker configuration (Dockerfile, compose, env)
+│   ├── render/             # Render blueprint configuration (render.yaml)
+│   └── github/             # GitHub workflow templates
+├── .env                    # Environment variables (Create this based on deploy/docker/.env.docker)
 ├── manage.py               # Django management script
-├── render.yaml             # Render infrastructure-as-code deployment file
 └── requirements.txt        # Python dependencies
 ```
+
+---
+
+## Technical Appendix: Markdown vs. Markup
+
+### Markup Language
+A **Markup Language** is a system for annotating a document in a way that is syntactically distinguishable from the text. It uses **tags** to define elements, structure, and presentation.
+*   **Example (HTML):**
+    ```html
+    <h1>Hospital Dashboard</h1>
+    <p>Welcome to <strong>Medtrax</strong> HMS.</p>
+    ```
+
+### Markdown Language
+A **Markdown Language** is a lightweight markup language with plain-text formatting syntax. It is designed to be highly readable for humans in its raw form and easily converted to HTML.
+*   **Example (Markdown):**
+    ```markdown
+    # Hospital Dashboard
+    Welcome to **Medtrax** HMS.
+    ```
+
+### Key Differences
+| Feature | Markup (e.g., HTML) | Markdown |
+| :--- | :--- | :--- |
+| **Readability** | Lower (cluttered with tags) | Higher (looks like plain text) |
+| **Complexity** | High (can define deep structures) | Low (focused on formatting) |
+| **Syntax** | Uses `<tags>` | Uses `symbols` (e.g., `#`, `**`) |
+| **Use Case** | Web development, data storage | Documentation, blogging, READMEs |
+
 
 ## Running Locally
 
