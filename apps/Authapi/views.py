@@ -20,7 +20,7 @@ from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateTh
 
 from Authapi.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
-from Authapi.services import create_user_account
+from Authapi.services import create_user_account, create_doctor_profile
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
@@ -364,7 +364,6 @@ class DoctorDetailsView(APIView):
         },
         tags=['Profile Management']
     )
-    @transaction.atomic
     def post(self, request):
         try:
             serializer = DoctorDetailsSerializer(data=request.data)
@@ -385,62 +384,13 @@ class DoctorDetailsView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            if not user.is_verified:
-                return Response(
-                    {'success': False, 'error': 'Please verify your email first.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if user.role != 'doctor':
-                return Response(
-                    {'success': False, 'error': 'This account is not registered as a doctor.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if Doctor.objects.filter(user=user).exists():
-                return Response(
-                    {'success': False, 'error': 'Doctor profile already exists for this account.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             try:
-                doctor = Doctor.objects.create(
-                    user=user,
-                    first_name=serializer.validated_data['first_name'],
-                    last_name=serializer.validated_data['last_name'],
-                    date_of_birth=serializer.validated_data['date_of_birth'],
-                    gender=serializer.validated_data['gender'],
-                    blood_group=serializer.validated_data['blood_group'],
-                    marital_status=serializer.validated_data.get('marital_status', ''),
-                    address=serializer.validated_data.get('address', ''),
-                    city=serializer.validated_data['city'],
-                    state=serializer.validated_data.get('state', ''),
-                    pincode=serializer.validated_data.get('pincode', ''),
-                    country=serializer.validated_data.get('country', ''),
-                    registration_number=serializer.validated_data.get('registration_number', ''),
-                    specialization=serializer.validated_data.get('specialization', ''),
-                    qualification=serializer.validated_data.get('qualification', ''),
-                    years_of_experience=serializer.validated_data.get('years_of_experience'),
-                    department=serializer.validated_data.get('department', ''),
-                    clinic_name=serializer.validated_data.get('clinic_name', ''),
-                    phone_number=serializer.validated_data['phone_number'],
-                    alternate_phone_number=serializer.validated_data.get('alternate_phone_number', ''),
-                    alternate_email=serializer.validated_data.get('alternate_email', ''),
-                    emergency_contact_person=serializer.validated_data.get('emergency_contact_person', ''),
-                    emergency_contact_number=serializer.validated_data.get('emergency_contact_number', '')
+                user, doctor = create_doctor_profile(user=user, data=serializer.validated_data)
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-            except IntegrityError:
-                return Response({'success':False, 'error':'Phone number alreadyregistered. Please use a different number.'},status = status.HTTP_400_BAD_REQUEST)
-                
-            username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
-            base_username = username
-            counter = 1
-            while CustomUser.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-
-            user.username = username
-            user.is_profile_complete = True
-            user.save()
     
             response = Response({
                 'success': True,

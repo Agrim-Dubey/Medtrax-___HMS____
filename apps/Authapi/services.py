@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 import random
 import logging
 
-from Authapi.models import CustomUser
+from Authapi.models import CustomUser, Doctor
 from Authapi.tasks import send_otp_email_task
 
 logger = logging.getLogger(__name__)
@@ -46,3 +46,61 @@ def create_user_account(*, email: str, password: str, role: str) -> CustomUser:
         raise
 
     return user
+
+@transaction.atomic
+def create_doctor_profile(*, user: CustomUser, data: dict) -> tuple[CustomUser, Doctor]:
+    """
+    Creates a doctor profile for the given verified user and updates the user's username and profile status.
+    """
+    if not user.is_verified:
+        raise ValidationError("Please verify your email first.")
+
+    if user.role != 'doctor':
+        raise ValidationError("This account is not registered as a doctor.")
+
+    if Doctor.objects.filter(user=user).exists():
+        raise ValidationError("Doctor profile already exists for this account.")
+
+    try:
+        doctor = Doctor.objects.create(
+            user=user,
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            date_of_birth=data['date_of_birth'],
+            gender=data['gender'],
+            blood_group=data['blood_group'],
+            marital_status=data.get('marital_status', ''),
+            address=data.get('address', ''),
+            city=data['city'],
+            state=data.get('state', ''),
+            pincode=data.get('pincode', ''),
+            country=data.get('country', ''),
+            registration_number=data.get('registration_number', ''),
+            specialization=data.get('specialization', ''),
+            qualification=data.get('qualification', ''),
+            years_of_experience=data.get('years_of_experience'),
+            department=data.get('department', ''),
+            clinic_name=data.get('clinic_name', ''),
+            phone_number=data['phone_number'],
+            alternate_phone_number=data.get('alternate_phone_number', ''),
+            alternate_email=data.get('alternate_email', ''),
+            emergency_contact_person=data.get('emergency_contact_person', ''),
+            emergency_contact_number=data.get('emergency_contact_number', '')
+        )
+    except Exception as e:
+        # Assuming IntegrityError indicates a unique constraint violation like phone number
+        raise ValidationError("Phone number already registered. Please use a different number.")
+
+    # Generate a unique username based on name
+    username = f"{data['first_name'].lower()}{data['last_name'].lower()}"
+    base_username = username
+    counter = 1
+    while CustomUser.objects.filter(username=username).exists():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    user.username = username
+    user.is_profile_complete = True
+    user.save()
+
+    return user, doctor
