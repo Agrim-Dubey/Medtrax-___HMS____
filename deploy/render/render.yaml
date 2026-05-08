@@ -1,0 +1,90 @@
+databases:
+  - name: medtrax-db
+    databaseName: medtraxdata
+    user: medtraxadmin
+    plan: free
+
+services:
+  - type: redis
+    name: medtrax-redis
+    ipAllowList: []
+    plan: free
+
+  - type: web
+    name: medtrax-web
+    env: docker
+    plan: free
+    dockerfilePath: ./deploy/docker/Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medtrax-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: medtrax-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: EMAIL_BACKEND
+        value: "django.core.mail.backends.smtp.EmailBackend"
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+
+  - type: worker
+    name: medtrax-celery
+    env: docker
+    plan: free
+    dockerfilePath: ./deploy/docker/Dockerfile
+    dockerCommand: celery -A medtrax worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medtrax-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: medtrax-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+
+  - type: worker
+    name: medtrax-celery-beat
+    env: docker
+    plan: free
+    dockerfilePath: ./deploy/docker/Dockerfile
+    dockerCommand: celery -A medtrax beat --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medtrax-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: medtrax-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
