@@ -19,6 +19,8 @@ from Authapi.tasks import send_otp_email_task
 from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateThrottle
 
 from Authapi.models import CustomUser, Doctor, Patient
+from django.core.exceptions import ValidationError
+from Authapi.services import create_user_account
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
@@ -100,70 +102,42 @@ class SignupView(APIView):
         },
         tags=['Authentication']
     )
-    @transaction.atomic
     def post(self, request):
-            try:
-                serializer = SignupSerializer(data=request.data)
-                
-                if not serializer.is_valid():
-                    return Response(
-                        {'success': False, 'errors': serializer.errors},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                email = serializer.validated_data['email']
-                password = serializer.validated_data['password1']
-                role = serializer.validated_data['role']
-
-                otp = str(random.randint(100000, 999999))
-
-                user, created = CustomUser.objects.get_or_create(
-                    email=email,
-                    defaults={
-                        'username': email,
-                        'role': role,
-                        'is_verified': False,
-                        'is_profile_complete': False
-                    }
-                )
-
-                if not created and user.is_verified:
-                    return Response(
-                        {'success': False, 'error': 'This email is already registered.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                user.set_password(password)
-                user.role = role
-                user.otp = otp
-                user.otp_created_at = timezone.now()
-                user.otp_attempts = 0
-                user.otp_locked_until = None
-                user.save()
-
-                try:
-                    send_otp_email_task.delay(email, otp, "Verification")
-                    logger.info(f"OTP email queued via Celery for {email}")
-                except Exception as e:
-                    logger.error(f"Failed to queue email task: {e}")
-                    raise
-
-                logger.info(f"Signup OTP sent for: {email} as {role}")
-
-                return Response({
-                    'success': True,
-                    'message': 'OTP sent to your email. Valid for 3 minutes.',
-                    'email': email,
-                    # 'role': role,
-                    
-                }, status=status.HTTP_201_CREATED)
-
-            except Exception as e:
-                logger.error(f"Signup error: {str(e)}")
+        try:
+            serializer = SignupSerializer(data=request.data)
+            
+            if not serializer.is_valid():
                 return Response(
-                    {'success': False, 'error': 'Signup failed. Please try again.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
+
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password1']
+            role = serializer.validated_data['role']
+
+            try:
+                user = create_user_account(email=email, password=password, role=role)
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            logger.info(f"Signup OTP sent for: {email} as {role}")
+
+            return Response({
+                'success': True,
+                'message': 'OTP sent to your email. Valid for 3 minutes.',
+                'email': email,
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Signup error: {str(e)}")
+            return Response(
+                {'success': False, 'error': 'Signup failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
             
 
 class VerifySignupOTPView(APIView):
