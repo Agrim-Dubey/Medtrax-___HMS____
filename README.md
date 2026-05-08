@@ -1,0 +1,99 @@
+# Medtrax HMS - Hospital Management System
+
+Medtrax is a modern, feature-rich Hospital Management System (HMS) built with Django and Django Channels, containerized with Docker, and designed to easily deploy to platforms like Render.
+
+## Features
+
+- **Authentication & Authorization**: Secure signup, login, and password reset functionalities with OTP verification via email.
+- **Doctor & Patient Portals**: Separate dashboards and profiles for doctors and patients.
+- **Appointments Management**: Book, schedule, and manage appointments.
+- **Real-Time Chat & Video**: Integrated real-time chat rooms and video counseling using WebSockets (Django Channels) and Redis.
+- **Prescription System**: Manage patient prescriptions.
+- **Community Forum**: Participate in community discussions.
+- **Asynchronous Tasks**: Background task execution using Celery and Redis.
+
+## Tech Stack
+
+- **Backend**: Python 3.12, Django 5.2.x, Django Rest Framework (DRF)
+- **Real-Time**: Django Channels, Redis
+- **Database**: PostgreSQL
+- **Task Queue**: Celery, Redis
+- **Containerization**: Docker, Docker Compose
+
+## Folder Structure
+
+The project has been organized to keep the root directory clean by moving all Django applications into the `apps/` directory. 
+
+```
+medtrax_hms/
+├── apps/                   # Contains all Django applications
+│   ├── Authapi/            # Authentication & Profiles
+│   ├── appointments/       # Appointment Management
+│   ├── chat_room/          # Real-Time WebSocket Chat
+│   ├── community/          # Community Forums
+│   ├── doctor_dashboard/   # Doctor's specific views
+│   ├── patient_dashboard/  # Patient's specific views
+│   ├── prescription/       # Prescriptions Management
+│   └── videocounselling/   # Video Call Logic
+├── medtrax/                # Main Django configuration (settings, urls, asgi, wsgi)
+├── .env                    # Environment variables (Create this based on .env.docker)
+├── .env.docker             # Sample environment variables for Docker
+├── docker-compose.yml      # Local development setup
+├── Dockerfile              # Production Dockerfile
+├── manage.py               # Django management script
+├── render.yaml             # Render infrastructure-as-code deployment file
+└── requirements.txt        # Python dependencies
+```
+
+## Running Locally
+
+The easiest way to run the project locally is using Docker Compose.
+
+### Prerequisites
+- Docker and Docker Compose installed.
+
+### Steps
+
+1. **Clone the repository.**
+2. **Environment Variables**: Create a `.env` file in the root directory. You can copy `.env.docker` and customize it.
+   ```bash
+   cp .env.docker .env
+   ```
+3. **Start the containers**:
+   ```bash
+   docker-compose up --build
+   ```
+   This will start:
+   - PostgreSQL Database (`db`)
+   - Redis (`redis`)
+   - Django Web Server (`web`) at `http://127.0.0.1:8000`
+   - Celery Worker (`celery`)
+   - Celery Beat (`celery-beat`)
+
+4. **Access the application**:
+   - The API will be available at `http://localhost:8000/api/`
+   - The Admin panel will be available at `http://localhost:8000/admin/`
+
+## Deployment to Render
+
+This project is fully ready to be deployed to Render using the provided `render.yaml` configuration.
+
+### Steps for Render:
+
+1. Push your code to a GitHub/GitLab repository.
+2. In your Render Dashboard, select **Blueprints** -> **New Blueprint Instance**.
+3. Connect your repository. Render will automatically detect the `render.yaml` file.
+4. Render will create the following services:
+   - **PostgreSQL Database** (`medtrax-db`)
+   - **Redis Instance** (`medtrax-redis`)
+   - **Web Service** (`medtrax-web`): Runs Daphne for handling both HTTP and WebSockets.
+   - **Background Workers**: `medtrax-celery` and `medtrax-celery-beat` for scheduled and asynchronous tasks.
+5. In your Render Web Service settings, update the environment variables for your email configuration (for OTP and emails) since they are marked as `sync: false` in `render.yaml`:
+   - `EMAIL_HOST_USER`
+   - `EMAIL_HOST_PASSWORD`
+   - `DEFAULT_FROM_EMAIL`
+
+## Notes on Architecture
+
+- **WebSockets**: We use Daphne as the ASGI server. Daphne properly handles both HTTP requests and WebSocket connections required for the `chat_room` and `videocounselling` apps.
+- **Static & Media Files**: WhiteNoise handles static files serving. Ensure `DEBUG=False` in production for proper serving. Media files in production should ideally be stored in S3 or a similar block storage since Render uses ephemeral filesystems for web services.
