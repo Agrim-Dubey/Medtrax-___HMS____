@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 import random
 import logging
 
-from Authapi.models import CustomUser, Doctor
+from Authapi.models import CustomUser, Doctor, Patient
 from Authapi.tasks import send_otp_email_task
 
 logger = logging.getLogger(__name__)
@@ -104,3 +104,55 @@ def create_doctor_profile(*, user: CustomUser, data: dict) -> tuple[CustomUser, 
     user.save()
 
     return user, doctor
+
+@transaction.atomic
+def create_patient_profile(*, user: CustomUser, data: dict) -> tuple[CustomUser, Patient]:
+    """
+    Creates a patient profile for the given verified user and updates the user's username and profile status.
+    """
+    if not user.is_verified:
+        raise ValidationError("Please verify your email first.")
+
+    if user.role != 'patient':
+        raise ValidationError("This account is not registered as a patient.")
+
+    if Patient.objects.filter(user=user).exists():
+        raise ValidationError("Patient profile already exists for this account.")
+
+    try:
+        patient = Patient.objects.create(
+            user=user,
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            date_of_birth=data['date_of_birth'],
+            blood_group=data['blood_group'],
+            gender=data['gender'],
+            city=data['city'],
+            phone_number=data['phone_number'],
+            emergency_contact=data.get('emergency_contact', ''),
+            emergency_email=data.get('emergency_email', ''),
+            is_insurance=data.get('is_insurance', False),
+            ins_company_name=data.get('ins_company_name', ''),
+            ins_policy_number=data.get('ins_policy_number', ''),
+            known_allergies=data.get('known_allergies', ''),
+            chronic_diseases=data.get('chronic_diseases', ''),
+            previous_surgeries=data.get('previous_surgeries', ''),
+            family_medical_history=data.get('family_medical_history', '')
+        )
+    except Exception as e:
+        # Assuming IntegrityError indicates a unique constraint violation like phone number
+        raise ValidationError("Phone number already registered. Please use a different number.")
+
+    # Generate a unique username based on name
+    username = f"{data['first_name'].lower()}{data['last_name'].lower()}"
+    base_username = username
+    counter = 1
+    while CustomUser.objects.filter(username=username).exists():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    user.username = username
+    user.is_profile_complete = True
+    user.save()
+
+    return user, patient

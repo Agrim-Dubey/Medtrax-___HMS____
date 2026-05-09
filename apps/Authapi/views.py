@@ -20,7 +20,7 @@ from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateTh
 
 from Authapi.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
-from Authapi.services import create_user_account, create_doctor_profile
+from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
@@ -466,7 +466,6 @@ class PatientDetailsView(APIView):
         },
         tags=['Profile Management']
     )
-    @transaction.atomic
     def post(self, request):
         try:
             serializer = PatientDetailsSerializer(data=request.data)
@@ -487,56 +486,13 @@ class PatientDetailsView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            if not user.is_verified:
-                return Response(
-                    {'success': False, 'error': 'Please verify your email first.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if user.role != 'patient':
-                return Response(
-                    {'success': False, 'error': 'This account is not registered as a patient.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if Patient.objects.filter(user=user).exists():
-                return Response(
-                    {'success': False, 'error': 'Patient profile already exists for this account.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             try:
-                patient = Patient.objects.create(
-                    user=user,
-                    first_name=serializer.validated_data['first_name'],
-                    last_name=serializer.validated_data['last_name'],
-                    date_of_birth=serializer.validated_data['date_of_birth'],
-                    blood_group=serializer.validated_data['blood_group'],
-                    gender=serializer.validated_data['gender'],
-                    city=serializer.validated_data['city'],
-                    phone_number=serializer.validated_data['phone_number'],
-                    emergency_contact=serializer.validated_data.get('emergency_contact', ''),
-                    emergency_email=serializer.validated_data.get('emergency_email', ''),
-                    is_insurance=serializer.validated_data.get('is_insurance', False),
-                    ins_company_name=serializer.validated_data.get('ins_company_name', ''),
-                    ins_policy_number=serializer.validated_data.get('ins_policy_number', ''),
-                    known_allergies=serializer.validated_data.get('known_allergies', ''),
-                    chronic_diseases=serializer.validated_data.get('chronic_diseases', ''),
-                    previous_surgeries=serializer.validated_data.get('previous_surgeries', ''),
-                    family_medical_history=serializer.validated_data.get('family_medical_history', '')
+                user, patient = create_patient_profile(user=user, data=serializer.validated_data)
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-            except IntegrityError:
-                return Response({'success':False,'error':'Phone number already registered. Please use a different number.'}, status = status.HTTP_400_BAD_REQUEST)
-
-            username = f"{serializer.validated_data['first_name'].lower()}{serializer.validated_data['last_name'].lower()}"
-            base_username = username
-            counter = 1
-            while CustomUser.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-
-            user.username = username
-            user.is_profile_complete = True
-            user.save()
             response = Response({
             'success': True,
             'message': 'Patient profile created successfully!',
