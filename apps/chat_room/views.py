@@ -19,6 +19,18 @@ from .throttles import (
     ChatConnectionThrottle, ChatSearchThrottle,
     ChatReadThrottle
 )
+from .selectors import (
+    get_user_chat_rooms,
+    get_pending_doctor_connections,
+    search_doctors_for_chat,
+    get_chat_room_detail
+)
+from .services import (
+    accept_doctor_connection,
+    reject_doctor_connection,
+    send_chat_message,
+    mark_chat_messages_as_read
+)
 
 
 class PatientChatViewSet(viewsets.ViewSet):
@@ -33,16 +45,7 @@ class PatientChatViewSet(viewsets.ViewSet):
         if request.user.role != "patient":
             return Response({"error": "Only patients allowed"}, status=403)
 
-        # ✅ FIXED: Only fetch chat rooms that actually exist
-        chat_rooms = ChatRoom.objects.filter(
-            room_type="patient_doctor",
-            participants=request.user,
-            is_active=True,
-            appointment__isnull=False,  # Must have an appointment
-            appointment__status="confirmed"  # Appointment must be confirmed
-        ).select_related('appointment').prefetch_related("participants")
-
-        print(f"🔍 Patient {request.user.id} has {chat_rooms.count()} chat rooms")
+        chat_rooms = get_user_chat_rooms(user=request.user, room_type="patient_doctor")
         
         serializer = ChatRoomListSerializer(chat_rooms, many=True, context={"request": request})
         return Response(serializer.data)
@@ -60,16 +63,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
-        # ✅ FIXED: Only fetch chat rooms that actually exist
-        chat_rooms = ChatRoom.objects.filter(
-            room_type="patient_doctor",
-            participants=request.user,
-            is_active=True,
-            appointment__isnull=False,  # Must have an appointment
-            appointment__status="confirmed"  # Appointment must be confirmed
-        ).select_related('appointment').prefetch_related("participants")
-
-        print(f"🔍 Doctor {request.user.id} has {chat_rooms.count()} patient chat rooms")
+        chat_rooms = get_user_chat_rooms(user=request.user, room_type="patient_doctor")
 
         serializer = ChatRoomListSerializer(chat_rooms, many=True, context={"request": request})
         return Response(serializer.data)
@@ -82,11 +76,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
-        chat_rooms = ChatRoom.objects.filter(
-            room_type="doctor_doctor",
-            participants=request.user,
-            is_active=True
-        ).prefetch_related("participants")
+        chat_rooms = get_user_chat_rooms(user=request.user, room_type="doctor_doctor")
 
         serializer = ChatRoomListSerializer(chat_rooms, many=True, context={"request": request})
         return Response(serializer.data)
@@ -120,10 +110,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
-        qs = DoctorConnection.objects.filter(
-            to_doctor=request.user.doctor_profile,
-            status="pending"
-        ).select_related("from_doctor__user", "to_doctor__user")
+        qs = get_pending_doctor_connections(doctor=request.user.doctor_profile)
 
         serializer = DoctorConnectionListSerializer(qs, many=True)
         return Response(serializer.data)
@@ -136,26 +123,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
-        connection = get_object_or_404(
-            DoctorConnection,
-            pk=pk,
-            to_doctor=request.user.doctor_profile,
-            status="pending"
-        )
-
-        connection.status = "accepted"
-
-        chat_room = ChatRoom.objects.create(
-            room_type="doctor_doctor",
-            is_active=True
-        )
-        chat_room.participants.add(
-            connection.from_doctor.user,
-            connection.to_doctor.user
-        )
-
-        connection.chat_room = chat_room
-        connection.save()
+        connection = accept_doctor_connection(connection_id=pk, to_doctor=request.user.doctor_profile)
 
         return Response(DoctorConnectionSerializer(connection).data)
 
@@ -167,15 +135,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if request.user.role != "doctor":
             return Response({"error": "Only doctors allowed"}, status=403)
 
-        connection = get_object_or_404(
-            DoctorConnection,
-            pk=pk,
-            to_doctor=request.user.doctor_profile,
-            status="pending"
-        )
-
-        connection.status = "rejected"
-        connection.save()
+        reject_doctor_connection(connection_id=pk, to_doctor=request.user.doctor_profile)
 
         return Response({"message": "Connection rejected"})
 
@@ -195,11 +155,7 @@ class DoctorChatViewSet(viewsets.ViewSet):
         if not q:
             return Response({"error": "Query param 'q' is required"}, status=400)
 
-        doctors = Doctor.objects.filter(
-            Q(first_name__icontains=q) |
-            Q(last_name__icontains=q) |
-            Q(specialization__icontains=q)
-        ).exclude(user=request.user).select_related("user")[:20]
+        doctors = search_doctors_for_chat(query=q, current_user=request.user)
 
         return Response(DoctorMinimalSerializer(doctors, many=True).data)
 
@@ -209,63 +165,39 @@ class ChatRoomViewSet(viewsets.ViewSet):
 
     @swagger_auto_schema(tags=["Chat"])
     def retrieve(self, request, pk):
+        from django.core.exceptions import PermissionDenied
         try:
-            chat_room = ChatRoom.objects.prefetch_related(
-                "participants"
-            ).select_related("appointment").get(pk=pk)
-        except ChatRoom.DoesNotExist:
-            print(f"❌ Chat room {pk} not found")
-            return Response(
-                {"error": "Chat room not found", "detail": "This chat may have been deleted"},
-                status=404
-            )
-
-        if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "Not a participant"}, status=403)
-
-        if not chat_room.is_active:
-            return Response(
-                {"error": "Chat inactive", "detail": "This chat has been deactivated"},
-                status=403
-            )
-
-        serializer = ChatRoomDetailSerializer(chat_room, context={"request": request})
-        return Response(serializer.data)
+            chat_room = get_chat_room_detail(room_id=pk, user=request.user)
+            if not chat_room:
+                return Response(
+                    {"error": "Chat room not found", "detail": "This chat may have been deleted"},
+                    status=404
+                )
+            serializer = ChatRoomDetailSerializer(chat_room, context={"request": request})
+            return Response(serializer.data)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=403)
 
     @swagger_auto_schema(tags=["Chat"])
     @action(detail=True, methods=["post"], throttle_classes=[ChatMessageThrottle])
     def send_message(self, request, pk):
-        chat_room = get_object_or_404(ChatRoom, pk=pk)
-
-        if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "Not a participant"}, status=403)
-
-        if not chat_room.is_active:
-            return Response({"error": "Chat inactive"}, status=403)
-
+        from django.core.exceptions import PermissionDenied
         content = request.data.get("content", "").strip()
         if not content:
             return Response({"error": "Message content required"}, status=400)
 
-        message = Message.objects.create(
-            room=chat_room,
-            sender=request.user,
-            content=content
-        )
-
-        return Response(MessageSerializer(message).data, status=201)
+        try:
+            message = send_chat_message(room_id=pk, sender=request.user, content=content)
+            return Response(MessageSerializer(message).data, status=201)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=403)
 
     @swagger_auto_schema(tags=["Chat"])
     @action(detail=True, methods=["post"], throttle_classes=[ChatReadThrottle])
     def mark_as_read(self, request, pk):
-        chat_room = get_object_or_404(ChatRoom, pk=pk)
-
-        if not chat_room.participants.filter(id=request.user.id).exists():
-            return Response({"error": "Not a participant"}, status=403)
-
-        Message.objects.filter(
-            room=chat_room,
-            is_read=False
-        ).exclude(sender=request.user).update(is_read=True)
-
-        return Response({"message": "Messages marked as read"})
+        from django.core.exceptions import PermissionDenied
+        try:
+            mark_chat_messages_as_read(room_id=pk, user=request.user)
+            return Response({"message": "Messages marked as read"})
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=403)
