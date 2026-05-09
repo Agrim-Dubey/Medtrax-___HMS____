@@ -15,6 +15,12 @@ from .serializers import (
 )
 from Authapi.models import Patient
 from appointments.models import Appointment
+from .selectors import (
+    get_doctor_patients,
+    get_doctor_prescriptions,
+    get_patient_prescriptions
+)
+from .services import create_prescription
 
 
 class DoctorPatientsListView(APIView):
@@ -36,25 +42,7 @@ class DoctorPatientsListView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            patient_ids = Appointment.objects.filter(
-                doctor=doctor,
-                status__in=['confirmed', 'completed']
-            ).values_list('patient_id', flat=True).distinct()
-            patients = Patient.objects.filter(
-                id__in=patient_ids
-            ).prefetch_related('appointments')
-            patients_with_last_apt = []
-            for patient in patients:
-                last_apt = Appointment.objects.filter(
-                    doctor=doctor,
-                    patient=patient,
-                    status__in=['confirmed', 'completed']
-                ).order_by('-appointment_date', '-appointment_time').first()
-                
-                if last_apt:
-                    patients_with_last_apt.append((patient, last_apt.appointment_date, last_apt.appointment_time))
-            patients_with_last_apt.sort(key=lambda x: (x[1], x[2]), reverse=True)
-            sorted_patients = [item[0] for item in patients_with_last_apt]
+            sorted_patients = get_doctor_patients(doctor=doctor)
             
             serializer = DoctorPatientListSerializer(
                 sorted_patients,
@@ -93,14 +81,9 @@ class CreatePrescriptionView(APIView):
         try:
             doctor = request.user.doctor_profile
             
-            serializer = CreatePrescriptionSerializer(
-                data=request.data,
-                context={'request': request}
-            )
-            
-            if serializer.is_valid():
-                prescription = serializer.save(doctor=doctor)
-                
+            from rest_framework.exceptions import ValidationError
+            try:
+                prescription = create_prescription(doctor=doctor, data=request.data)
                 return Response(
                     {
                         "message": "Prescription created successfully",
@@ -108,11 +91,11 @@ class CreatePrescriptionView(APIView):
                     },
                     status=status.HTTP_201_CREATED
                 )
-            
-            return Response(
-                {"errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            except ValidationError as e:
+                return Response(
+                    {"errors": e.detail},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
         except AttributeError:
             return Response(
@@ -150,14 +133,7 @@ class DoctorPrescriptionsListView(APIView):
             doctor = request.user.doctor_profile
             patient_id = request.query_params.get('patient_id')
             
-            prescriptions = Prescription.objects.filter(
-                doctor=doctor
-            ).select_related('patient', 'doctor').prefetch_related('medications', 'lab_tests')
-            
-            if patient_id:
-                prescriptions = prescriptions.filter(patient_id=patient_id)
-            
-            prescriptions = prescriptions.order_by('-created_at')
+            prescriptions = get_doctor_prescriptions(doctor=doctor, patient_id=patient_id)
             
             serializer = PrescriptionListSerializer(prescriptions, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -189,9 +165,7 @@ class PatientPrescriptionsListView(APIView):
         try:
             patient = request.user.patient_profile
             
-            prescriptions = Prescription.objects.filter(
-                patient=patient
-            ).select_related('doctor', 'patient').prefetch_related('medications', 'lab_tests').order_by('-created_at')
+            prescriptions = get_patient_prescriptions(patient=patient)
             
             serializer = PrescriptionListSerializer(prescriptions, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -223,10 +197,7 @@ class PatientPrescriptionsByDoctorView(APIView):
         try:
             patient = request.user.patient_profile
             
-            prescriptions = Prescription.objects.filter(
-                patient=patient,
-                doctor_id=doctor_id
-            ).select_related('doctor', 'patient').prefetch_related('medications', 'lab_tests').order_by('-created_at')
+            prescriptions = get_patient_prescriptions(patient=patient, doctor_id=doctor_id)
             
             serializer = PrescriptionListSerializer(prescriptions, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
