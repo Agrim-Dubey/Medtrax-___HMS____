@@ -20,7 +20,7 @@ from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateTh
 
 from Authapi.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
-from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile, request_password_reset
+from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile, request_password_reset, verify_password_reset_otp, reset_password, resend_password_reset_otp
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
@@ -771,10 +771,18 @@ class VerifyPasswordResetOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            try:
+                verify_password_reset_otp(email=serializer.validated_data['email'], otp=serializer.validated_data['otp'])
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             return Response({
                 'success': True,
                 'message': 'OTP verified successfully! You can now reset your password.',
-                'email': request.data.get('email'),
+                'email': serializer.validated_data['email'],
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -818,12 +826,17 @@ class ResetPasswordView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            serializer.save()
+            try:
+                reset_password(email=serializer.validated_data['email'], new_password=serializer.validated_data['new_password'])
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             return Response({
                 'success': True,
                 'message': 'Password reset successfully! Please login with your new password.',
-
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -865,29 +878,15 @@ class ResendPasswordResetOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            user = serializer.validated_data['user']
-            if user.otp_created_at and (timezone.now() - user.otp_created_at) < timedelta(seconds=30):
-                return Response(
-                    {'success': False, 'error': 'Please wait at least 30 seconds before requesting a new OTP.'},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-            email = user.email
-            otp = str(random.randint(100000, 999999))
-
-            user.otp = otp
-            user.otp_created_at = timezone.now()
-            user.otp_attempts = 0
-            user.otp_locked_until = None
-            user.save()
-
+            email = serializer.validated_data['email']
             try:
-                send_otp_email_task.delay(email, otp, 'reset')
-            except Exception as e:
-                logger.error(f"Failed to resend password reset OTP email: {str(e)}")
+                resend_password_reset_otp(email=email)
+            except ValidationError as e:
                 return Response(
-                    {'success': False, 'error': 'Failed to resend OTP. Please try again.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
+
             return Response({
                 'success': True,
                 'message': 'New OTP sent to your email. Valid for 3 minutes.',

@@ -150,39 +150,6 @@ class VerifyPasswordResetOTPSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP must contain only digits.")
         return value
 
-    def validate(self, data):
-        email = data.get('email')
-        otp = data.get('otp')
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email.")
-
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
-                raise serializers.ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        if not user.otp:
-            raise serializers.ValidationError("No OTP generated. Request a new one.")
-
-        if user.is_otp_expired():
-            user.clear_otp()
-            raise serializers.ValidationError("OTP expired. Request a new one.")
-
-        if user.otp != otp:
-            user.otp_attempts += 1
-            if user.otp_attempts >= 3:
-                user.otp_locked_until = timezone.now() + timedelta(minutes=10)
-            user.save()
-            attempts_left = max(0, 3 - user.otp_attempts)
-            raise serializers.ValidationError(f"Invalid OTP. {attempts_left} attempts remaining.")
-
-        data['user'] = user
-        return data
-
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -197,30 +164,13 @@ class ResetPasswordSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
-        email = data.get('email')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password')
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email.")
 
         if new_password != confirm_password:
             raise serializers.ValidationError("Passwords do not match.")
 
-        if user.check_password(new_password):
-            raise serializers.ValidationError("New password cannot be the same as your current password.")
-
-        data['user'] = user
         return data
-
-    def save(self):
-        user = self.validated_data['user']
-        user.set_password(self.validated_data['new_password'])
-        user.clear_otp()
-        user.save()
-        return user
 
 
 class ResendPasswordResetOTPSerializer(serializers.Serializer):
@@ -228,26 +178,6 @@ class ResendPasswordResetOTPSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return value.strip().lower()
-
-    def validate(self, data):
-        email = data.get('email')
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email.")
-
-        if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified.")
-
-        if user.is_otp_locked():
-            if user.otp_locked_until:
-                remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
-                raise serializers.ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
-            raise serializers.ValidationError("Account temporarily locked. Try again later.")
-
-        data['user'] = user
-        return data
 
 
 class DoctorDetailsSerializer(serializers.Serializer):

@@ -1,4 +1,5 @@
 from django.utils import timezone
+from datetime import timedelta
 from django.db import transaction
 from django.core.exceptions import ValidationError
 import random
@@ -184,3 +185,67 @@ def request_password_reset(*, email: str) -> CustomUser:
         raise ValidationError(f"Failed to send OTP. {str(e)}")
 
     return user
+
+@transaction.atomic
+def verify_password_reset_otp(*, email: str, otp: str) -> CustomUser:
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        raise ValidationError("No account found with this email.")
+
+    if user.is_otp_locked():
+        if user.otp_locked_until:
+            remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+            raise ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
+        raise ValidationError("Account temporarily locked. Try again later.")
+
+    if not user.otp:
+        raise ValidationError("No OTP generated. Request a new one.")
+
+    if user.is_otp_expired():
+        user.clear_otp()
+        raise ValidationError("OTP expired. Request a new one.")
+
+    if user.otp != otp:
+        user.otp_attempts += 1
+        if user.otp_attempts >= 3:
+            user.otp_locked_until = timezone.now() + timedelta(minutes=10)
+        user.save()
+        attempts_left = max(0, 3 - user.otp_attempts)
+        raise ValidationError(f"Invalid OTP. {attempts_left} attempts remaining.")
+
+    return user
+
+@transaction.atomic
+def reset_password(*, email: str, new_password: str) -> CustomUser:
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        raise ValidationError("No account found with this email.")
+
+    if user.check_password(new_password):
+        raise ValidationError("New password cannot be the same as your current password.")
+
+    user.set_password(new_password)
+    user.clear_otp()
+    user.save()
+    return user
+
+@transaction.atomic
+def resend_password_reset_otp(*, email: str) -> CustomUser:
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        raise ValidationError("No account found with this email.")
+
+    if not user.is_verified:
+        raise ValidationError("Your account is not verified.")
+
+    if user.is_otp_locked():
+        if user.otp_locked_until:
+            remaining = max(0, (user.otp_locked_until - timezone.now()).total_seconds() // 60)
+            raise ValidationError(f"Too many attempts. Try again in {int(remaining) + 1} minutes.")
+        raise ValidationError("Account temporarily locked. Try again later.")
+
+    # Re-use the generation logic
+    return request_password_reset(email=email)
