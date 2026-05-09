@@ -8,6 +8,12 @@ from drf_yasg import openapi
 from .serializers import PatientDashboardSerializer, DashboardAppointmentSerializer, PatientCompleteProfileSerializer
 from django.utils import timezone
 from datetime import datetime, date
+from .selectors import (
+    get_patient_upcoming_appointments,
+    get_patient_recent_appointments,
+    get_patient_dashboard_stats
+)
+from .services import update_patient_profile
 
 
 class PatientDashboardView(APIView):
@@ -102,10 +108,7 @@ class PatientUpcomingAppointmentsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            appointments = patient.appointments.filter(
-                appointment_date__gte=date.today(),
-                status__in=['pending', 'confirmed']
-            ).order_by('appointment_date', 'appointment_time')[:4]
+            appointments = get_patient_upcoming_appointments(patient=patient)
             serializer = DashboardAppointmentSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
@@ -159,10 +162,7 @@ class PatientRecentAppointmentsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            appointments = patient.appointments.filter(
-                appointment_date__lt=date.today(),
-                status='completed'
-            ).order_by('-appointment_date', '-appointment_time')[:4]
+            appointments = get_patient_recent_appointments(patient=patient)
             serializer = DashboardAppointmentSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
@@ -391,24 +391,11 @@ class PatientCompleteProfileView(APIView):
     def patch(self, request):
         try:
             patient = request.user.patient_profile
-            editable_fields = [
-                'first_name', 'last_name',
-                'phone_number', 'emergency_contact', 'emergency_email',
-                'city', 'is_insurance', 'ins_company_name', 'ins_policy_number',
-                'known_allergies', 'chronic_diseases', 'previous_surgeries',
-                'family_medical_history'
-            ]
-            filtered_data = {
-                key: value for key, value in request.data.items() 
-                if key in editable_fields
-            }
-            serializer = PatientCompleteProfileSerializer(
-                patient, 
-                data=filtered_data, 
-                partial=True
-            )
-            if serializer.is_valid():
-                serializer.save()
+            
+            from rest_framework.exceptions import ValidationError
+            try:
+                updated_patient = update_patient_profile(patient=patient, data=request.data)
+                serializer = PatientCompleteProfileSerializer(updated_patient)
                 return Response(
                     {
                         "message": "Profile updated successfully",
@@ -416,10 +403,11 @@ class PatientCompleteProfileView(APIView):
                     },
                     status=status.HTTP_200_OK
                 )
-            return Response(
-                {"error": "Invalid data", "details": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            except ValidationError as e:
+                return Response(
+                    {"error": "Invalid data", "details": e.detail},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         except AttributeError:
             return Response(
                 {"error": "Only patients can access this endpoint"},
@@ -506,23 +494,7 @@ class PatientDashboardStatsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            total_appointments = patient.appointments.count()
-            upcoming = patient.appointments.filter(
-                appointment_date__gte=date.today(),
-                status__in=['pending', 'confirmed']
-            ).count()
-            completed = patient.appointments.filter(
-                status='completed'
-            ).count()
-            pending = patient.appointments.filter(
-                status='pending'
-            ).count()
-            stats = {
-                "total_appointments": total_appointments,
-                "upcoming": upcoming,
-                "completed": completed,
-                "pending": pending
-            }
+            stats = get_patient_dashboard_stats(patient=patient)
             return Response(stats, status=status.HTTP_200_OK)
         except AttributeError:
             return Response(
