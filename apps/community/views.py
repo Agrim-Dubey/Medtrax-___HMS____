@@ -16,6 +16,21 @@ from .serializers import (
     CommentCreateSerializer,
     CategorySerializer
 )
+from .selectors import (
+    get_all_categories,
+    get_community_posts,
+    get_post_detail,
+    get_post_comments,
+    get_user_posts
+)
+from .services import (
+    initialize_default_categories,
+    create_community_post,
+    delete_community_post,
+    toggle_post_like,
+    create_post_comment,
+    increment_post_view_count
+)
 
 class CategoryListView(APIView):
     permission_classes = [AllowAny]
@@ -37,21 +52,9 @@ class CategoryListView(APIView):
         tags=['Categories']
     )
     def get(self, request):
-        default_categories = [
-            {'name': 'General Medicine', 'description': 'General health topics'},
-            {'name': 'Cardiology', 'description': 'Heart health'},
-            {'name': 'Pediatrics', 'description': 'Child health'},
-            {'name': 'Mental Health', 'description': 'Mental wellness'},
-            {'name': 'Nutrition', 'description': 'Diet advice'},
-            {'name': 'Fitness', 'description': 'Exercise tips'},
-        ]
-        for cat_data in default_categories:
-            Category.objects.get_or_create(
-                name=cat_data['name'],
-                defaults={'description': cat_data['description']}
-            )
-
-        serializer = CategorySerializer(Category.objects.all(), many=True)
+        initialize_default_categories()
+        categories = get_all_categories()
+        serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 class PostListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -91,18 +94,8 @@ class PostListView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
-        user = self.request.user
-        queryset = Post.objects.filter(status='published')
-
-        if hasattr(user, 'patient_profile'):
-            queryset = queryset.filter(visible_to_patients=True)
-        elif hasattr(user, 'doctor_profile'):
-            queryset = queryset.filter(visible_to_staff=True)
-
-        category = self.request.query_params.get('category', None)
-        if category:
-            queryset = queryset.filter(category__slug=category)
-        return queryset.order_by('-created_at')
+        category_slug = self.request.query_params.get('category', None)
+        return get_community_posts(user=self.request.user, category_slug=category_slug)
 
 class PostCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -138,15 +131,19 @@ class PostCreateView(APIView):
                 {"error": "Only doctors can create posts"},
                 status=status.HTTP_403_FORBIDDEN
             )
-        serializer = PostCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(author=request.user)
+        
+        from rest_framework.exceptions import ValidationError
+        try:
+            post = create_community_post(author=request.user, data=request.data)
+            # We need to serialize the post object for the response
+            # PostCreateSerializer works for create, but maybe we want the data back
             return Response({
                 "success": True,
                 "message": "Post created successfully",
-                "post": serializer.data
+                "post": PostCreateSerializer(post).data
             }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
 
 class PostDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -174,14 +171,13 @@ class PostDetailView(APIView):
         tags=['Posts']
     )
     def get(self, request, slug):
-        try:
-            post = Post.objects.get(slug=slug, status='published')
-            post.views_count += 1
-            post.save(update_fields=['views_count'])
-            serializer = PostDetailSerializer(post, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Post.DoesNotExist:
+        post = get_post_detail(slug=slug)
+        if not post:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        increment_post_view_count(post=post)
+        serializer = PostDetailSerializer(post, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="Delete a post",
@@ -203,23 +199,21 @@ class PostDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        try:
-            post = Post.objects.get(slug=slug)
-            if post.author != request.user:
-                return Response(
-                    {"error": "You can only delete your own posts"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            post.delete()
+        post = Post.objects.filter(slug=slug).first()
+        if not post:
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        if post.author != request.user:
             return Response(
-                {"message": "Post deleted successfully"},
-                status=status.HTTP_204_NO_CONTENT
+                {"error": "You can only delete your own posts"},
+                status=status.HTTP_403_FORBIDDEN
             )
-        except Post.DoesNotExist:
-            return Response(
-                {"error": "Post not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            
+        delete_community_post(post=post)
+        return Response(
+            {"message": "Post deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 class PostLikeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -242,15 +236,12 @@ class PostLikeView(APIView):
         tags=['Posts']
     )
     def post(self, request, slug):
-        try:
-            post = Post.objects.get(slug=slug, status='published')
-            like, created = Like.objects.get_or_create(post=post, user=request.user)
-            if not created:
-                like.delete()
-                return Response({"message": "Post unliked", "total_likes": post.likes.count(), "is_liked": False})
-            return Response({"message": "Post liked", "total_likes": post.likes.count(), "is_liked": True})
-        except Post.DoesNotExist:
+        post = get_post_detail(slug=slug)
+        if not post:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        result = toggle_post_like(post=post, user=request.user)
+        return Response(result, status=status.HTTP_200_OK)
         
 class CommentListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -270,11 +261,7 @@ class CommentListView(generics.ListAPIView):
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
-        try:
-            post = Post.objects.get(slug=slug, status='published')
-            return post.comments.filter(is_approved=True, parent=None)
-        except Post.DoesNotExist:
-            return Comment.objects.none()
+        return get_post_comments(post_slug=slug)
 
 
 class CommentCreateView(APIView):
@@ -300,15 +287,16 @@ class CommentCreateView(APIView):
         tags=['Comments']
     )
     def post(self, request, slug):
-        try:
-            post = Post.objects.get(slug=slug, status='published')
-            serializer = CommentCreateSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save(author=request.user, post=post)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Post.DoesNotExist:
+        post = get_post_detail(slug=slug)
+        if not post:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        from rest_framework.exceptions import ValidationError
+        try:
+            comment = create_post_comment(post=post, author=request.user, data=request.data)
+            return Response(CommentCreateSerializer(comment).data, status=status.HTTP_201_CREATED)
+        except ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
 
 class MyPostsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -324,4 +312,4 @@ class MyPostsView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Post.objects.filter(author=self.request.user).order_by('-created_at')
+        return get_user_posts(user=self.request.user)
