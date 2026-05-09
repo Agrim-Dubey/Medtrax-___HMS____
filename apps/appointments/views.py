@@ -15,21 +15,15 @@ from .serializers import (
 from Authapi.models import Doctor
 from datetime import datetime
 from .utils import get_available_slots
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-from .utils import get_doctor_queue_info
-from appointments.tasks import send_immediate_appointment_notification
 from appointments.throttles import AppointmentBookingThrottle, AppointmentActionsThrottle, DashboardThrottle
-
-
-
-def broadcast_queue_update(doctor):
-        channel_layer = get_channel_layer()
-        data = get_doctor_queue_info(doctor)
-        async_to_sync(channel_layer.group_send)(
-            f"doctor_{doctor.id}_queue",
-            {"type": "send_queue_update", "data": data}
-        )
+from .selectors import (
+    get_patient_appointments, get_doctor_pending_requests, get_available_doctors,
+    get_doctor_dashboard_stats, get_patient_dashboard_stats, get_patient_upcoming_appointments,
+    get_patient_recent_appointments, get_doctor_all_appointments
+)
+from .services import (
+    create_appointment_request, accept_appointment_request, reject_appointment_request
+)
 
 class PatientBookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -63,21 +57,21 @@ class PatientBookAppointmentView(APIView):
     def post(self, request):
         try:
             patient = request.user.patient_profile
-            serializer = AppointmentRequestSerializer(data=request.data, context={'request': request})
             
-            if serializer.is_valid():
-                appointment = serializer.save(patient=patient, status='pending')
-                send_immediate_appointment_notification.delay(appointment.id, 'created')
+            # create_appointment_request service handles validation and creation
+            from rest_framework.exceptions import ValidationError
+            try:
+                appointment = create_appointment_request(patient=patient, data=request.data)
+            except ValidationError as e:
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
                 
-                return Response(
-                    {
-                        "message": "Appointment request sent successfully",
-                        "appointment": AppointmentSerializer(appointment).data
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-            
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "message": "Appointment request sent successfully",
+                    "appointment": AppointmentSerializer(appointment).data
+                },
+                status=status.HTTP_201_CREATED
+            )
             
         except AttributeError:
             return Response(
@@ -100,9 +94,7 @@ class PatientAppointmentListView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            appointments = Appointment.objects.filter(
-                patient=patient
-            ).select_related('doctor', 'doctor__user').order_by('-appointment_date')
+            appointments = get_patient_appointments(patient=patient)
             
             serializer = AppointmentSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -131,11 +123,7 @@ class DoctorAppointmentRequestsView(APIView):
             doctor = request.user.doctor_profile
             today = timezone.now().date()
             
-            requests = Appointment.objects.filter(
-                doctor=doctor,
-                status='pending',
-                appointment_date__gte=today
-            ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')
+            requests = get_doctor_pending_requests(doctor=doctor, date=today)
             
             serializer = DoctorAppointmentListSerializer(requests, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -187,18 +175,15 @@ class DoctorAcceptAppointmentView(APIView):
     def patch(self, request, appointment_id):
         try:
             doctor = request.user.doctor_profile
-            appointment = get_object_or_404(
-                Appointment,
-                id=appointment_id,
-                doctor=doctor,
-                status='pending'
-            )
             
-            appointment.status = 'confirmed'
-            appointment.save()
-            
-            broadcast_queue_update(doctor)
-            send_immediate_appointment_notification.delay(appointment.id, 'confirmed')
+            from django.http import Http404
+            try:
+                appointment = accept_appointment_request(appointment_id=appointment_id, doctor=doctor)
+            except Http404:
+                return Response(
+                    {"error": "Appointment not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
             
             return Response(
                 {
@@ -255,17 +240,14 @@ class DoctorRejectAppointmentView(APIView):
     def patch(self, request, appointment_id):
         try:
             doctor = request.user.doctor_profile
-            appointment = get_object_or_404(
-                Appointment,
-                id=appointment_id,
-                doctor=doctor,
-                status='pending'
-            )
-            
-            appointment.status = 'cancelled'
-            appointment.save()
-            broadcast_queue_update(doctor)
-            send_immediate_appointment_notification.delay(appointment.id, 'cancelled')
+            from django.http import Http404
+            try:
+                appointment = reject_appointment_request(appointment_id=appointment_id, doctor=doctor)
+            except Http404:
+                return Response(
+                    {"error": "Appointment not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
             
             return Response(
                 {
@@ -300,9 +282,7 @@ class AvailableDoctorsListView(APIView):
     def get(self, request):
         from .serializers import DoctorListSerializer
         
-        doctors = Doctor.objects.filter(
-            user__is_active=True
-        ).select_related('user')
+        doctors = get_available_doctors()
         
         serializer = DoctorListSerializer(doctors, many=True) 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -472,19 +452,7 @@ class DoctorDashboardStatsView(APIView):
             doctor = request.user.doctor_profile
             today = timezone.now().date()
             
-            stats = {
-                'total_appointments': Appointment.objects.filter(doctor=doctor).count(),
-                'today_appointments': Appointment.objects.filter(
-                    doctor=doctor,
-                    appointment_date=today,
-                    status__in=['confirmed', 'completed']
-                ).count(),
-                'total_patients': Appointment.objects.filter(doctor=doctor).values('patient').distinct().count(),
-                'pending_requests': Appointment.objects.filter(
-                    doctor=doctor,
-                    status='pending'
-                ).count()
-            }
+            stats = get_doctor_dashboard_stats(doctor=doctor, date=today)
             
             return Response(stats, status=status.HTTP_200_OK)
         except AttributeError:
@@ -533,17 +501,9 @@ class PatientDashboardStatsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
+            today = timezone.now().date()
             
-            stats = {
-                'total_appointments': Appointment.objects.filter(patient=patient).count(),
-                'upcoming': Appointment.objects.filter(
-                    patient=patient,
-                    appointment_date__gte=timezone.now().date(),
-                    status='confirmed'
-                ).count(),
-                'completed': Appointment.objects.filter(patient=patient, status='completed').count(),
-                'pending': Appointment.objects.filter(patient=patient, status='pending').count()
-            }
+            stats = get_patient_dashboard_stats(patient=patient, date=today)
             
             return Response(stats, status=status.HTTP_200_OK)
         except AttributeError:
@@ -595,11 +555,8 @@ class PatientUpcomingAppointmentsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            appointments = Appointment.objects.filter(
-                patient=patient,
-                appointment_date__gte=timezone.now().date(),
-                status='confirmed'
-            ).select_related('doctor')[:5]
+            today = timezone.now().date()
+            appointments = get_patient_upcoming_appointments(patient=patient, date=today, limit=5)
             
             data = [{
                 'id': apt.id,
@@ -659,10 +616,7 @@ class PatientRecentAppointmentsView(APIView):
     def get(self, request):
         try:
             patient = request.user.patient_profile
-            appointments = Appointment.objects.filter(
-                patient=patient,
-                status='completed'
-            ).select_related('doctor').order_by('-appointment_date')[:5]
+            appointments = get_patient_recent_appointments(patient=patient, limit=5)
             
             data = [{
                 'id': apt.id,
@@ -692,10 +646,7 @@ class DoctorAppointmentsListView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            
-            appointments = Appointment.objects.filter(
-                doctor=doctor
-            ).select_related('patient', 'patient__user').order_by('-appointment_date', '-appointment_time')
+            appointments = get_doctor_all_appointments(doctor=doctor)
             
             serializer = DoctorAppointmentListSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
