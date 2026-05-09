@@ -16,6 +16,14 @@ from .serializers import (
 )
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from .selectors import (
+    get_doctor_dashboard_stats,
+    get_doctor_today_appointments,
+    get_doctor_upcoming_appointments,
+    get_doctor_recent_reviews,
+    get_doctor_weekly_stats
+)
+from .services import update_doctor_profile
 
 
 class DoctorDashboardProfileView(APIView):
@@ -135,34 +143,7 @@ class DoctorDashboardStatsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            today = timezone.now().date()
-            total_appointments_today = Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date=today
-            ).count()
-            pending_appointments = Appointment.objects.filter(
-                doctor=doctor,
-                status='pending'
-            ).count()
-            upcoming_appointments = Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date__gte=today,
-                status__in=['pending', 'confirmed']
-            ).count()
-            completed_appointments = Appointment.objects.filter(
-                doctor=doctor,
-                status='completed'
-            ).count()
-            reviews = DoctorReview.objects.filter(doctor=doctor)
-            avg_rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-            stats = {
-                'total_appointments_today': total_appointments_today,
-                'pending_appointments': pending_appointments,
-                'upcoming_appointments': upcoming_appointments,
-                'completed_appointments': completed_appointments,
-                'average_rating': round(avg_rating, 1),
-                'total_reviews': reviews.count()
-            }
+            stats = get_doctor_dashboard_stats(doctor=doctor)
             return Response(stats, status=status.HTTP_200_OK)
         except AttributeError:
             return Response(
@@ -247,12 +228,7 @@ class DoctorTodayAppointmentsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            today = timezone.now().date()
-            appointments = Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date=today,
-                status__in=['pending', 'confirmed']
-            ).select_related('patient', 'patient__user').order_by('appointment_time')[:10]
+            appointments = get_doctor_today_appointments(doctor=doctor)
             serializer = DashboardAppointmentSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
@@ -338,13 +314,7 @@ class DoctorUpcomingAppointmentsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            today = timezone.now().date()
-            week_later = today + timedelta(days=7)
-            appointments = Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date__range=[today, week_later],
-                status__in=['pending', 'confirmed']
-            ).select_related('patient', 'patient__user').order_by('appointment_date', 'appointment_time')[:10]
+            appointments = get_doctor_upcoming_appointments(doctor=doctor)
             serializer = DashboardAppointmentSerializer(appointments, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
@@ -431,9 +401,7 @@ class DoctorRecentReviewsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            reviews = DoctorReview.objects.filter(
-                doctor=doctor
-            ).select_related('patient').order_by('-created_at')[:5]
+            reviews = get_doctor_recent_reviews(doctor=doctor)
             serializer = DoctorReviewSerializer(reviews, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except AttributeError:
@@ -712,24 +680,11 @@ class DoctorCompleteProfileView(APIView):
     def patch(self, request):
         try:
             doctor = request.user.doctor_profile
-            editable_fields = ['first_name', 'last_name', 
-                'phone_number', 'alternate_phone_number', 'alternate_email',
-                'address', 'city', 'state', 'pincode', 'country',
-                'marital_status', 'qualification', 'years_of_experience',
-                'department', 'clinic_name', 'emergency_contact_person',
-                'emergency_contact_number'
-            ]
-            filtered_data = {
-                key: value for key, value in request.data.items() 
-                if key in editable_fields
-            }
-            serializer = DoctorCompleteProfileSerializer(
-                doctor, 
-                data=filtered_data, 
-                partial=True
-            )
-            if serializer.is_valid():
-                serializer.save()
+            
+            from rest_framework.exceptions import ValidationError
+            try:
+                updated_doctor = update_doctor_profile(doctor=doctor, data=request.data)
+                serializer = DoctorCompleteProfileSerializer(updated_doctor)
                 return Response(
                     {
                         "message": "Profile updated successfully",
@@ -737,10 +692,11 @@ class DoctorCompleteProfileView(APIView):
                     },
                     status=status.HTTP_200_OK
                 )
-            return Response(
-                {"error": "Invalid data", "details": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            except ValidationError as e:
+                return Response(
+                    {"error": "Invalid data", "details": e.detail},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         except AttributeError:
             return Response(
                 {"error": "Only doctors can access this endpoint"},
@@ -843,31 +799,8 @@ class DoctorWeeklyStatsView(APIView):
     def get(self, request):
         try:
             doctor = request.user.doctor_profile
-            today = timezone.now().date()
-            start_date = today - timedelta(days=6)
-            appointments_by_date = Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date__gte=start_date,
-                appointment_date__lte=today,
-                status='completed'
-            ).values('appointment_date').annotate(
-                patient_count=Count('id')
-            ).order_by('appointment_date')
-            date_counts = {
-                item['appointment_date']: item['patient_count'] 
-                for item in appointments_by_date
-            }
-            last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-            weekly_data = [
-                {
-                    'date': day.strftime('%Y-%m-%d'),
-                    'day_name': day.strftime('%a'),
-                    'day_short': day.strftime('%d %b'),
-                    'patient_count': date_counts.get(day, 0)
-                }
-                for day in last_7_days
-            ]
-            total_week = sum(date_counts.values())
+            weekly_data = get_doctor_weekly_stats(doctor=doctor)
+            total_week = sum(item['patient_count'] for item in weekly_data)
             return Response({
                 'weekly_stats': weekly_data,
                 'total_week': total_week
