@@ -137,33 +137,6 @@ class ForgotPasswordSerializer(serializers.Serializer):
     def validate_email(self, value):
         return value.strip().lower()
 
-    def validate(self, data):
-        email = data.get('email')
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("No account found with this email. Please sign up.")
-
-        if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified. Please complete registration first.")
-
-        otp = str(random.randint(100000, 999999))
-        user.otp = otp
-        user.otp_created_at = timezone.now()
-        user.otp_type = 'reset'
-        user.otp_attempts = 0
-        user.otp_locked_until = None
-        user.save()
-
-        try:
-           send_otp_email_task.delay(email, otp, 'reset')
-        except Exception as e:
-            raise serializers.ValidationError(f"Failed to send OTP. {str(e)}")
-
-        data['user'] = user
-        return data
-
 
 class VerifyPasswordResetOTPSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

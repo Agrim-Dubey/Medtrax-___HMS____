@@ -20,7 +20,7 @@ from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateTh
 
 from Authapi.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
-from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile
+from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile, request_password_reset
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,
@@ -713,10 +713,20 @@ class ForgotPasswordView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            email = serializer.validated_data['email']
+
+            try:
+                request_password_reset(email=email)
+            except ValidationError as e:
+                return Response(
+                    {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             return Response({
                 'success': True,
                 'message': 'OTP sent to your email. Valid for 3 minutes.',
-                'email': request.data.get('email'),
+                'email': email,
                 
             }, status=status.HTTP_200_OK)
 

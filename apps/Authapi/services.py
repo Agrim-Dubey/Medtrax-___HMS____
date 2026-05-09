@@ -156,3 +156,31 @@ def create_patient_profile(*, user: CustomUser, data: dict) -> tuple[CustomUser,
     user.save()
 
     return user, patient
+
+@transaction.atomic
+def request_password_reset(*, email: str) -> CustomUser:
+    """
+    Validates user and sends a password reset OTP.
+    """
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        raise ValidationError("No account found with this email. Please sign up.")
+
+    if not user.is_verified:
+        raise ValidationError("Your account is not verified. Please complete registration first.")
+
+    otp = str(random.randint(100000, 999999))
+    user.otp = otp
+    user.otp_created_at = timezone.now()
+    user.otp_type = 'reset'
+    user.otp_attempts = 0
+    user.otp_locked_until = None
+    user.save()
+
+    try:
+       send_otp_email_task.delay(email, otp, 'reset')
+    except Exception as e:
+        raise ValidationError(f"Failed to send OTP. {str(e)}")
+
+    return user
