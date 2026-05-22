@@ -106,6 +106,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5174",
     "http://127.0.0.1:5174",
     "https://medtrax-hms-6.onrender.com",
+    "https://medtrax-frontend-env8.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -120,12 +121,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "https://medtrax-hms-6.onrender.com",
+    "https://medtrax-frontend-env8.vercel.app",
 ]
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SAMESITE = None
-SESSION_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE = 'None'
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
