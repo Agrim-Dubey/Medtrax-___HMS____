@@ -1,6 +1,6 @@
 # Medtrax HMS - Hospital Management System
 
-Medtrax is a modern, feature-rich Hospital Management System (HMS) built with Django and Django Channels, containerized with Docker, and designed to easily deploy to platforms like Render.
+Medtrax is a modern, feature-rich Hospital Management System (HMS) built with Django and Django Channels and containerized with Docker.
 
 ## Features
 
@@ -38,7 +38,6 @@ medtrax_hms/
 ├── medtrax/                # Main Django configuration (settings, urls, asgi, wsgi)
 ├── deploy/                 # Deployment and infrastructure configs
 │   ├── docker/             # Docker configuration (Dockerfile, compose, env)
-│   ├── render/             # Render blueprint configuration (render.yaml)
 │   └── github/             # GitHub workflow templates
 ├── .env                    # Environment variables (Create this based on deploy/docker/.env.docker)
 ├── manage.py               # Django management script
@@ -103,26 +102,7 @@ The easiest way to run the project locally is using Docker Compose.
    - The API will be available at `http://localhost:8000/api/`
    - The Admin panel will be available at `http://localhost:8000/admin/`
 
-## Deployment to Render
-
-This project is fully ready to be deployed to Render using the provided `render.yaml` configuration.
-
-### Steps for Render:
-
-1. Push your code to a GitHub/GitLab repository.
-2. In your Render Dashboard, select **Blueprints** -> **New Blueprint Instance**.
-3. Connect your repository. Render will automatically detect the `render.yaml` file.
-4. Render will create the following services:
-   - **PostgreSQL Database** (`medtrax-db`)
-   - **Redis Instance** (`medtrax-redis`)
-   - **Web Service** (`medtrax-web`): Runs Daphne for handling both HTTP and WebSockets.
-   - **Background Workers**: `medtrax-celery` and `medtrax-celery-beat` for scheduled and asynchronous tasks.
-5. In your Render Web Service settings, update the environment variables for your email configuration (for OTP and emails) since they are marked as `sync: false` in `render.yaml`:
-   - `EMAIL_HOST_USER`
-   - `EMAIL_HOST_PASSWORD`
-   - `DEFAULT_FROM_EMAIL`
-
 ## Notes on Architecture
 
 - **WebSockets**: We use Daphne as the ASGI server. Daphne properly handles both HTTP requests and WebSocket connections required for the `chat_room` and `videocounselling` apps.
-- **Static & Media Files**: WhiteNoise handles static files serving. Ensure `DEBUG=False` in production for proper serving. Media files in production should ideally be stored in S3 or a similar block storage since Render uses ephemeral filesystems for web services.
+- **Static & Media Files**: WhiteNoise handles static files serving. Ensure `DEBUG=False` in production for proper serving. Media files in production should ideally be stored in S3 or a similar block storage service.
