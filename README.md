@@ -1,108 +1,102 @@
-# Medtrax HMS - Hospital Management System
+# Medtrax HMS - Hospital Management System (Backend)
 
-Medtrax is a modern, feature-rich Hospital Management System (HMS) built with Django and Django Channels and containerized with Docker.
+Medtrax is a production-ready Hospital Management System (HMS) built with Django, Django Channels, PostgreSQL, Redis, Celery, and containerized with Docker.
+
+---
 
 ## Features
 
-- **Authentication & Authorization**: Secure signup, login, and password reset functionalities with OTP verification via email.
-- **Doctor & Patient Portals**: Separate dashboards and profiles for doctors and patients.
-- **Appointments Management**: Book, schedule, and manage appointments.
-- **Real-Time Chat & Video**: Integrated real-time chat rooms and video counseling using WebSockets (Django Channels) and Redis.
-- **Prescription System**: Manage patient prescriptions.
-- **Community Forum**: Participate in community discussions.
-- **Asynchronous Tasks**: Background task execution using Celery and Redis.
+- **Authentication & Authorization**: Custom user model with dual profiles (Doctor & Patient), JWT auth via HTTP-only cookies, and email OTP verification.
+- **Appointments Management**: Dynamic slot generation, appointment booking, acceptance/rejection workflows, and real-time waiting queue calculations.
+- **Real-Time Chat & Video**: WebSocket chat rooms and WebRTC video signaling powered by Django Channels and Redis.
+- **Doctor & Patient Dashboards**: Statistics, upcoming/past schedules, weekly agendas, and patient review management.
+- **Prescription System**: Structured medical prescriptions with nested medication tracking and diagnostic test orders.
+- **Community Forum**: Category-based health discussions with nested replies, comments, and like reactions.
+- **Asynchronous Tasks**: Background task execution and scheduled jobs managed by Celery and Redis.
+
+---
 
 ## Tech Stack
 
-- **Backend**: Python 3.12, Django 5.2.x, Django Rest Framework (DRF)
-- **Real-Time**: Django Channels, Redis
-- **Database**: PostgreSQL
-- **Task Queue**: Celery, Redis
-- **Containerization**: Docker, Docker Compose
+- **Framework**: Python 3.12, Django 5.2.x, Django Rest Framework (DRF)
+- **ASGI & WebSockets**: Daphne, Channels, Channels-Redis
+- **Database**: PostgreSQL (with connection pooling via `dj-database-url`)
+- **Cache & Message Broker**: Redis
+- **Task Queue & Scheduler**: Celery, django-celery-beat, django-celery-results
+- **Containerization & CI/CD**: Docker, Docker Compose, GitHub Actions
+
+---
 
 ## Folder Structure
 
-The project has been organized to keep the root directory clean by moving all Django applications into the `apps/` directory. 
+The backend follows a modular domain-driven architecture, organizing all business domains into `apps/`:
 
-```
-medtrax_hms/
-├── apps/                   # Contains all Django applications
-│   ├── Authapi/            # Authentication & Profiles
-│   ├── appointments/       # Appointment Management
-│   ├── chat_room/          # Real-Time WebSocket Chat
-│   ├── community/          # Community Forums
-│   ├── doctor_dashboard/   # Doctor's specific views
-│   ├── patient_dashboard/  # Patient's specific views
-│   ├── prescription/       # Prescriptions Management
-│   └── videocounselling/   # Video Call Logic
-├── medtrax/                # Main Django configuration (settings, urls, asgi, wsgi)
-├── deploy/                 # Deployment and infrastructure configs
-│   ├── docker/             # Docker configuration (Dockerfile, compose, env)
-│   └── github/             # GitHub workflow templates
-├── .env                    # Environment variables (Create this based on deploy/docker/.env.docker)
-├── manage.py               # Django management script
-└── requirements.txt        # Python dependencies
+```text
+medtrax-backend/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # GitHub Actions Docker build & EC2 deploy
+├── apps/                       # Modular Django applications
+│   ├── Authapi/                # User authentication, OTP, JWT, & profile models
+│   ├── appointments/           # Appointment slots, booking, & queue WebSockets
+│   ├── chat_room/              # Direct chat rooms, messaging, & networking
+│   ├── community/              # Health forums, posts, comments, & reactions
+│   ├── doctor_dashboard/       # Doctor analytics, schedules, & reviews
+│   ├── patient_dashboard/      # Patient portal, statistics, & appointments
+│   ├── prescription/           # Medical prescriptions & medications
+│   └── videocounselling/       # Video consultations & WebRTC signaling
+├── medtrax/                    # Django project core (settings, URLs, ASGI/WSGI, Celery)
+├── static/                     # Source vendor static assets (AdminLTE, Select2, Jazzmin)
+├── templates/                  # Global templates directory
+├── Dockerfile                  # Production multi-stage Docker build
+├── docker-compose.yml          # Local container orchestration (web, db, redis, celery)
+├── .env.example                # Documented environment variables template
+├── manage.py                   # Django management CLI
+└── requirements.txt            # Python dependencies
 ```
 
 ---
 
-## Technical Appendix: Markdown vs. Markup
-
-### Markup Language
-A **Markup Language** is a system for annotating a document in a way that is syntactically distinguishable from the text. It uses **tags** to define elements, structure, and presentation.
-*   **Example (HTML):**
-    ```html
-    <h1>Hospital Dashboard</h1>
-    <p>Welcome to <strong>Medtrax</strong> HMS.</p>
-    ```
-
-### Markdown Language
-A **Markdown Language** is a lightweight markup language with plain-text formatting syntax. It is designed to be highly readable for humans in its raw form and easily converted to HTML.
-*   **Example (Markdown):**
-    ```markdown
-    # Hospital Dashboard
-    Welcome to **Medtrax** HMS.
-    ```
-
-### Key Differences
-| Feature | Markup (e.g., HTML) | Markdown |
-| :--- | :--- | :--- |
-| **Readability** | Lower (cluttered with tags) | Higher (looks like plain text) |
-| **Complexity** | High (can define deep structures) | Low (focused on formatting) |
-| **Syntax** | Uses `<tags>` | Uses `symbols` (e.g., `#`, `**`) |
-| **Use Case** | Web development, data storage | Documentation, blogging, READMEs |
-
-
-## Running Locally
-
-The easiest way to run the project locally is using Docker Compose.
+## Getting Started
 
 ### Prerequisites
-- Docker and Docker Compose installed.
 
-### Steps
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
+- Alternatively, Python 3.12+ and PostgreSQL + Redis locally.
 
-1. **Clone the repository.**
-2. **Environment Variables**: Create a `.env` file in the root directory. You can copy `.env.docker` and customize it.
-   ```bash
-   cp .env.docker .env
-   ```
-3. **Start the containers**:
-   ```bash
-   docker-compose up --build
-   ```
-   This will start:
-   - PostgreSQL Database (`db`)
-   - Redis (`redis`)
-   - Django Web Server (`web`) at `http://127.0.0.1:8000`
-   - Celery Worker (`celery`)
-   - Celery Beat (`celery-beat`)
+### 1. Environment Configuration
 
-4. **Access the application**:
-   - The API will be available at `http://localhost:8000/api/`
-   - The Admin panel will be available at `http://localhost:8000/admin/`
+Copy the example environment file and adjust credentials as needed:
 
-## Notes on Architecture
+```bash
+cp .env.example .env
+```
 
-- **WebSockets**: We use Daphne as the ASGI server. Daphne properly handles both HTTP requests and WebSocket connections required for the `chat_room` and `videocounselling` apps.
-- **Static & Media Files**: WhiteNoise handles static files serving. Ensure `DEBUG=False` in production for proper serving. Media files in production should ideally be stored in S3 or a similar block storage service.
+### 2. Run with Docker Compose
+
+Build and launch the complete stack:
+
+```bash
+docker compose up --build
+```
+
+This launches:
+- **`web`**: Daphne ASGI server on `http://127.0.0.1:8000`
+- **`db`**: PostgreSQL 15 on port `5432`
+- **`redis`**: Redis 7 on port `6379`
+- **`celery`**: Celery worker for async background jobs
+- **`celery-beat`**: Celery periodic task scheduler
+
+### 3. Verification & Access
+
+- **API Root**: `http://localhost:8000/api/`
+- **Swagger Docs**: `http://localhost:8000/swagger/`
+- **Django Admin**: `http://localhost:8000/admin/`
+
+---
+
+## Architecture Details
+
+- **WebSockets & Real-Time**: Daphne is configured in `medtrax.asgi` to route both HTTP requests and WebSocket connections (`/ws/chat/`, `/ws/video/`, `/ws/queue/`).
+- **Stateless Authentication**: JWT tokens are issued on login and stored in secure, `SameSite=None` HTTP-only cookies with rotating refresh tokens.
+- **Static Assets**: WhiteNoise (`CompressedManifestStaticFilesStorage`) manages asset serving in containerized deployments.
