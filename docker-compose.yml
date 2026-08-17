@@ -32,11 +32,11 @@ services:
 
   web:
     build:
-      context: ../../
-      dockerfile: ../../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-web
     env_file:
-      - .env.docker
+      - .env
     command: >
       sh -c "
         while ! nc -z db 5432; do sleep 1; done &&
@@ -45,7 +45,7 @@ services:
         daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
       "
     volumes:
-      - ../../:/app
+      - ./:/app
       - static_volume:/app/static
       - media_volume:/app/media
     ports:
@@ -59,14 +59,14 @@ services:
 
   celery:
     build:
-      context: ../../
-      dockerfile: ../../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-celery
     env_file:
-      - .env.docker
+      - .env
     command: sh -c "sleep 15 && celery -A medtrax worker --loglevel=info"
     volumes:
-      - ../../:/app
+      - ./:/app
     depends_on:
       - redis
       - db
@@ -75,14 +75,14 @@ services:
 
   celery-beat:
     build:
-      context: ../../
-      dockerfile: ../../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: medtrax-celery-beat
     env_file:
-      - .env.docker
+      - .env
     command: sh -c "sleep 20 && celery -A medtrax beat --loglevel=info"
     volumes:
-      - ../../:/app
+      - ./:/app
     depends_on:
       - redis
       - db
