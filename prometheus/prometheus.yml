@@ -1,0 +1,18 @@
+# Prometheus Configuration File
+global:
+  scrape_interval: 15s      # How often Prometheus fetches metrics from targets
+  evaluation_interval: 15s  # How often Prometheus evaluates alert rules
+
+scrape_configs:
+  # 1. Prometheus monitors its own internal health
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Prometheus monitors our Django backend application container
+  - job_name: 'medtrax-backend'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['web:8000']
+
