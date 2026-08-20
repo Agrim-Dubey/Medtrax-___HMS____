@@ -38,4 +38,4 @@ RUN mkdir -p /app/static /app/media && \
 EXPOSE 8000
 
 # Default command
-CMD python manage.py migrate && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
+CMD python manage.py migrate && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 config.asgi:application

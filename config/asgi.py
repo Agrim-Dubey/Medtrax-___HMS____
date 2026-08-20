@@ -2,7 +2,7 @@ import os
 import django
 from urllib.parse import parse_qs
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "medtrax.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 from chat_room.middleware import WebSocketRateLimitMiddleware
 from django.core.asgi import get_asgi_application

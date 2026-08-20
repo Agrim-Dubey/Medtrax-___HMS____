@@ -45,11 +45,11 @@ medtrax-backend/
 │   ├── patient_dashboard/      # Patient portal, statistics, & appointments
 │   ├── prescription/           # Medical prescriptions & medications
 │   └── videocounselling/       # Video consultations & WebRTC signaling
-├── medtrax/                    # Django project core (settings, URLs, ASGI/WSGI, Celery)
+├── config/                     # Django project core (settings, URLs, ASGI/WSGI, Celery)
 ├── static/                     # Source vendor static assets (AdminLTE, Select2, Jazzmin)
 ├── templates/                  # Global templates directory
 ├── Dockerfile                  # Production multi-stage Docker build
-├── docker-compose.yml          # Local container orchestration (web, db, redis, celery)
+├── compose.yml                 # Local container orchestration (web, db, redis, celery, prometheus)
 ├── .env.example                # Documented environment variables template
 ├── manage.py                   # Django management CLI
 └── requirements.txt            # Python dependencies
@@ -97,6 +97,6 @@ This launches:
 
 ## Architecture Details
 
-- **WebSockets & Real-Time**: Daphne is configured in `medtrax.asgi` to route both HTTP requests and WebSocket connections (`/ws/chat/`, `/ws/video/`, `/ws/queue/`).
+- **WebSockets & Real-Time**: Daphne is configured in `config.asgi` to route both HTTP requests and WebSocket connections (`/ws/chat/`, `/ws/video/`, `/ws/queue/`).
 - **Stateless Authentication**: JWT tokens are issued on login and stored in secure, `SameSite=None` HTTP-only cookies with rotating refresh tokens.
 - **Static Assets**: WhiteNoise (`CompressedManifestStaticFilesStorage`) manages asset serving in containerized deployments.

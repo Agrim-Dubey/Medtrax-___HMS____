@@ -76,9 +76,9 @@ TEMPLATES = [
     },
 ]
 
-ROOT_URLCONF = 'medtrax.urls'
-WSGI_APPLICATION = 'medtrax.wsgi.application'
-ASGI_APPLICATION = 'medtrax.asgi.application'
+ROOT_URLCONF = 'config.urls'
+WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 DATABASES = {
     'default': dj_database_url.parse(

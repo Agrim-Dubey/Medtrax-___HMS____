@@ -42,7 +42,7 @@ services:
         while ! nc -z db 5432; do sleep 1; done &&
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
-        daphne -b 0.0.0.0 -p 8000 medtrax.asgi:application
+        daphne -b 0.0.0.0 -p 8000 config.asgi:application
       "
     volumes:
       - ./:/app
@@ -64,7 +64,7 @@ services:
     container_name: medtrax-celery
     env_file:
       - .env
-    command: sh -c "sleep 15 && celery -A medtrax worker --loglevel=info"
+    command: sh -c "sleep 15 && celery -A config worker --loglevel=info"
     volumes:
       - ./:/app
     depends_on:
@@ -80,7 +80,7 @@ services:
     container_name: medtrax-celery-beat
     env_file:
       - .env
-    command: sh -c "sleep 20 && celery -A medtrax beat --loglevel=info"
+    command: sh -c "sleep 20 && celery -A config beat --loglevel=info"
     volumes:
       - ./:/app
     depends_on:
