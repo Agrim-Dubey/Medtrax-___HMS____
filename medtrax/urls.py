@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/appointments/', include('appointments.urls')),
     path('vapi/video/', include('videocounselling.urls')),
     path('api/prescriptions/', include('prescription.urls')),
+    path('', include('django_prometheus.urls')),
 
     re_path(
         r'^swagger(?P<format>\.json|\.yaml)$',
