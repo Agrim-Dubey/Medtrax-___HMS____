@@ -84,7 +84,8 @@ DATABASES = {
     'default': dj_database_url.parse(
         config('DATABASE_URL'),
         conn_max_age=600,
-        ssl_require=config('DB_SSL_REQUIRE', default=False, cast=bool)
+        ssl_require=config('DB_SSL_REQUIRE', default=False, cast=bool),
+        engine='django_prometheus.db.backends.postgresql'
     )
 }
 
@@ -141,7 +142,7 @@ REDIS_URL = config('REDIS_URL')
 
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
+        'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
