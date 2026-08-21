@@ -45,7 +45,8 @@ medtrax-backend/
 │   ├── patient_dashboard/      # Patient portal, statistics, & appointments
 │   ├── prescription/           # Medical prescriptions & medications
 │   └── videocounselling/       # Video consultations & WebRTC signaling
-├── config/                     # Django project core (settings, URLs, ASGI/WSGI, Celery)
+├── config/                     # Django project core (modular settings, URLs, ASGI/WSGI, Celery)
+│   ├── settings/               # Environment-split settings (base, development, production)
 ├── static/                     # Source vendor static assets (AdminLTE, Select2, Jazzmin)
 ├── templates/                  # Global templates directory
 ├── Dockerfile                  # Production multi-stage Docker build

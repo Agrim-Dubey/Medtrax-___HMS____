@@ -6,13 +6,11 @@ from corsheaders.defaults import default_headers
 from decouple import config
 import dj_database_url
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# BASE_DIR points to repository root (medtrax-backend)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
-
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'SAMEORIGIN'
@@ -42,7 +40,7 @@ INSTALLED_APPS = [
     'doctor_dashboard',
     'community',
     'patient_dashboard',
-    'prescription'
+    'prescription',
 ]
 
 MIDDLEWARE = [
@@ -58,7 +56,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
-
 
 TEMPLATES = [
     {
@@ -92,7 +89,6 @@ DATABASES = {
 AUTH_USER_MODEL = 'Authapi.CustomUser'
 AUTH_PASSWORD_VALIDATORS = []
 
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=config('JWT_ACCESS_TOKEN_LIFETIME_HOURS', default=1, cast=int)),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_TOKEN_LIFETIME_DAYS', default=30, cast=int)),
@@ -102,32 +98,12 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
 }
 
-CORS_ALLOW_ALL_ORIGINS = False
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "https://medtrax-frontend-env8.vercel.app",
-]
-
 CORS_ALLOW_CREDENTIALS = True
-
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
     "content-type",
 ]
 
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://medtrax-frontend-env8.vercel.app",
-]
-
-CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SAMESITE = 'None'
 
@@ -170,26 +146,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
     ),
-
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
-
     'DEFAULT_THROTTLE_RATES': {
         'anon': '1000/hour',
         'user': '1000/hour',
-
         'auth_anon': '20/hour',
         'auth_user': '100/hour',
-
         'otp': '10/hour',
         'login': '10/hour',
-
         'appointment_booking': '20/hour',
         'appointment_actions': '100/hour',
         'dashboard': '200/hour',
-
         'chat_message': '100/hour',
         'chat_group': '20/hour',
         'chat_connection': '30/hour',
@@ -206,7 +176,6 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@medtrax.me')
 
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -215,6 +184,6 @@ LOGGING = {
 }
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = config('TIME_ZONE', default='UTC')
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
