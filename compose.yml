@@ -108,9 +108,27 @@ services:
     depends_on:
       - web
 
+  grafana:
+    image: grafana/grafana-oss:11.1.0
+    container_name: medtrax-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   static_volume:
   media_volume:
   prometheus_data:
+  grafana_data:
 
