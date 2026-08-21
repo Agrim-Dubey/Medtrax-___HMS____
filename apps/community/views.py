@@ -2,6 +2,7 @@ from rest_framework import status, generics, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -34,6 +35,7 @@ from .services import (
 
 class CategoryListView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     @swagger_auto_schema(
         operation_summary="List all categories",

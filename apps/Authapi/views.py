@@ -16,7 +16,12 @@ from datetime import timedelta
 from dateutil import parser
 from rest_framework.permissions import IsAuthenticated
 from Authapi.tasks import send_otp_email_task
-from Authapi.throttles import AuthAnonRateThrottle, OTPRateThrottle, LoginRateThrottle
+from Authapi.throttles import (
+    AuthAnonRateThrottle,
+    AuthUserRateThrottle,
+    OTPRateThrottle,
+    LoginRateThrottle,
+)
 
 from Authapi.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
@@ -450,6 +455,7 @@ class DoctorDetailsView(APIView):
 
 class PatientDetailsView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonRateThrottle]
 
     @swagger_auto_schema(
         operation_description="Create complete patient profile with medical history",
@@ -912,6 +918,7 @@ class ResendPasswordResetOTPView(APIView):
 
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonRateThrottle]
 
     def post(self, request):
         try:
@@ -952,6 +959,7 @@ class RefreshTokenView(APIView):
 
 class VerifyTokenView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AuthUserRateThrottle]
 
     def get(self, request):
         try:
