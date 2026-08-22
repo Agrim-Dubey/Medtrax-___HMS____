@@ -5,6 +5,7 @@ from rest_framework.throttling import BaseThrottle
 from drf_yasg.views import get_schema_view
 from drf_yasg.generators import OpenAPISchemaGenerator
 from drf_yasg import openapi
+from config.health import healthz
 
 
 class NoThrottle(BaseThrottle):
@@ -61,6 +62,7 @@ urlpatterns = [
     path('api/appointments/', include('appointments.urls')),
     path('vapi/video/', include('videocounselling.urls')),
     path('api/prescriptions/', include('prescription.urls')),
+    path('healthz/', healthz, name='healthz'),
     path('', include('django_prometheus.urls')),
 
     re_path(
