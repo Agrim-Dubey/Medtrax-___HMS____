@@ -1,0 +1,52 @@
+groups:
+  - name: medtrax_service_alerts
+    rules:
+      - alert: MedtraxBackendDown
+        expr: up{job="medtrax-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "MedTrax backend service is unreachable"
+          description: "The medtrax-backend web container has been down for more than 1 minute."
+
+      - alert: MedtraxHigh5xxErrorRate
+        expr: (sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[2m])) / sum(rate(django_http_responses_total_by_status_total[2m]))) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "MedTrax high 5xx error rate detected"
+          description: "Over 5% of all HTTP requests resulted in 5xx internal server errors over the last 2 minutes."
+
+      - alert: MedtraxHighLatencyP95
+        expr: (histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "MedTrax p95 latency is exceeding 1.5 seconds"
+          description: "The 95th percentile latency of HTTP requests has been above 1.5 seconds for more than 5 minutes."
+
+      - alert: MedtraxDatabaseConnectionErrors
+        expr: rate(django_db_new_connection_errors_total[2m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL database connection errors detected"
+          description: "Django is reporting connection failures while attempting to connect to PostgreSQL."
+
+      - alert: MedtraxRedisCacheWarning
+        expr: (rate(django_cache_misses_total[5m]) > 0) and (rate(django_cache_hits_total[5m]) == 0)
+        for: 5m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Zero cache hits with continuous misses"
+          description: "Redis cache is recording only misses for 5 minutes, indicating possible cache flushing or connection degradation."

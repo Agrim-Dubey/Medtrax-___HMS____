@@ -1,0 +1,25 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  receiver: 'medtrax-default-receiver'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'medtrax-critical-receiver'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'medtrax-default-receiver'
+
+receivers:
+  - name: 'medtrax-default-receiver'
+    # Default receiver: routes alerts to the Alertmanager web UI and system log
+    # For production: add webhook_configs (Discord/Slack) or email_configs here
+
+  - name: 'medtrax-critical-receiver'
+    # High-priority receiver for service crashes and database connection drops
