@@ -128,6 +128,17 @@ services:
     ports:
       - "9093:9093"
 
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: medtrax-loki
+    restart: always
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
   grafana:
     image: grafana/grafana-oss:11.1.0
     container_name: medtrax-grafana
@@ -144,6 +155,7 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+      - loki
 
 volumes:
   postgres_data:
@@ -152,4 +164,5 @@ volumes:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  loki_data:
 
