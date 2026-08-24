@@ -1,4 +1,4 @@
-// Grafana Alloy Configuration for MedTrax Log Collection
+// Grafana Alloy Configuration for MedTrax Observability (Logs & Traces)
 
 // 1. Discover running Docker containers on the host Docker daemon
 discovery.docker "containers" {
@@ -33,5 +33,29 @@ loki.source.docker "medtrax" {
 loki.write "local_loki" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// 5. OpenTelemetry trace receiver: accepts OTLP traces from application services
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// 6. Forward received traces to the Grafana Tempo distributor
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
   }
 }

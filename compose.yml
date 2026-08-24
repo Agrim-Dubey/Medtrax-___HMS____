@@ -139,6 +139,17 @@ services:
     ports:
       - "3100:3100"
 
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: medtrax-tempo
+    restart: always
+    command: -config.file=/etc/tempo/tempo.yml
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+
   alloy:
     image: grafana/alloy:v1.2.0
     container_name: medtrax-alloy
@@ -152,8 +163,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
     depends_on:
       - loki
+      - tempo
 
   grafana:
     image: grafana/grafana-oss:11.1.0
@@ -172,6 +186,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
 volumes:
   postgres_data:
@@ -181,4 +196,5 @@ volumes:
   grafana_data:
   alertmanager_data:
   loki_data:
+  tempo_data:
 

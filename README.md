@@ -50,7 +50,7 @@ medtrax-backend/
 ├── static/                     # Source vendor static assets (AdminLTE, Select2, Jazzmin)
 ├── templates/                  # Global templates directory
 ├── Dockerfile                  # Production multi-stage Docker build
-├── compose.yml                 # Local container orchestration (web, db, redis, celery, prometheus, grafana, alertmanager, loki, alloy)
+├── compose.yml                 # Local container orchestration (web, db, redis, celery, prometheus, grafana, alertmanager, loki, tempo, alloy)
 ├── .env.example                # Documented environment variables template
 ├── manage.py                   # Django management CLI
 └── requirements.txt            # Python dependencies
