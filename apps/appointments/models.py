@@ -1,5 +1,5 @@
 from django.db import models
-from Authapi.models import Doctor, Patient
+from authentication.models import Doctor, Patient
 
 class Appointment(models.Model):
     STATUS_CHOICES = [

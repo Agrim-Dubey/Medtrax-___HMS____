@@ -1,6 +1,6 @@
 from django.test import TestCase
 from datetime import date, time, datetime
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from appointments.models import Appointment
 from appointments.utils import get_available_slots, get_doctor_queue_info
 

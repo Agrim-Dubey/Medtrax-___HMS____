@@ -1,6 +1,6 @@
 from django.test import TestCase
 from datetime import date
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 
 class ProfileModelsTests(TestCase):
     def setUp(self):

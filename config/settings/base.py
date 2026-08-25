@@ -33,7 +33,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'django_extensions',
     'django_prometheus',
-    'Authapi',
+    'authentication',
     'chat_room',
     'videocounselling',
     'appointments',
@@ -86,7 +86,7 @@ DATABASES = {
     )
 }
 
-AUTH_USER_MODEL = 'Authapi.CustomUser'
+AUTH_USER_MODEL = 'authentication.CustomUser'
 AUTH_PASSWORD_VALIDATORS = []
 
 SIMPLE_JWT = {
@@ -141,7 +141,7 @@ CHANNEL_LAYERS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'Authapi.authentication.CookieJWTAuthentication',
+        'authentication.authentication.CookieJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',

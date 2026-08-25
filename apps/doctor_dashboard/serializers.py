@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from Authapi.models import Doctor
+from authentication.models import Doctor
 from appointments.models import Appointment
 from .models import DoctorReview
 from django.utils import timezone

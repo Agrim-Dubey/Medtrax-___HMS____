@@ -1,6 +1,6 @@
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
-from Authapi.throttles import OTPRateThrottle, LoginRateThrottle, AuthAnonRateThrottle
+from authentication.throttles import OTPRateThrottle, LoginRateThrottle, AuthAnonRateThrottle
 
 class ThrottlingUnitTests(TestCase):
     def setUp(self):

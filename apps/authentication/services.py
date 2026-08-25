@@ -5,8 +5,8 @@ from django.core.exceptions import ValidationError
 import random
 import logging
 
-from Authapi.models import CustomUser, Doctor, Patient
-from Authapi.tasks import send_otp_email_task
+from authentication.models import CustomUser, Doctor, Patient
+from authentication.tasks import send_otp_email_task
 
 logger = logging.getLogger(__name__)
 

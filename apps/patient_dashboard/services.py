@@ -1,5 +1,5 @@
 from django.db import transaction
-from Authapi.models import Patient
+from authentication.models import Patient
 
 @transaction.atomic
 def update_patient_profile(*, patient: Patient, data: dict) -> Patient:

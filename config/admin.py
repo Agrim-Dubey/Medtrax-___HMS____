@@ -12,7 +12,7 @@ class MedtraxAdminSite(AdminSite):
     
     def index(self, request, extra_context=None):
         """Custom index page with statistics"""
-        from Authapi.models import CustomUser, Doctor, Patient
+        from authentication.models import CustomUser, Doctor, Patient
         from appointments.models import Appointment
         from community.models import Post
         from django.utils import timezone

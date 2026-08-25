@@ -13,7 +13,7 @@ from .serializers import (
     PrescriptionListSerializer,
     DoctorPatientListSerializer
 )
-from Authapi.models import Patient
+from authentication.models import Patient
 from appointments.models import Appointment
 from .selectors import (
     get_doctor_patients,

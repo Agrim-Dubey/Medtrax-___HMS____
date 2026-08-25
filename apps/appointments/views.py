@@ -12,7 +12,7 @@ from .serializers import (
     AppointmentRequestSerializer,
     DoctorAppointmentListSerializer
 )
-from Authapi.models import Doctor
+from authentication.models import Doctor
 from datetime import datetime
 from .utils import get_available_slots
 from .throttles import AppointmentBookingThrottle, AppointmentActionsThrottle, DashboardThrottle
@@ -692,7 +692,7 @@ class DoctorQueueInfoView(APIView):
 
     def get(self, request, doctor_id):
         from .utils import get_doctor_queue_info
-        from Authapi.models import Doctor
+        from authentication.models import Doctor
 
         try:
             doctor = Doctor.objects.get(id=doctor_id, user__is_active=True)

@@ -3,7 +3,7 @@ from django.utils import timezone
 from datetime import timedelta
 from appointments.models import Appointment
 from .models import DoctorReview
-from Authapi.models import Doctor
+from authentication.models import Doctor
 
 def get_doctor_dashboard_stats(*, doctor: Doctor) -> dict:
     today = timezone.now().date()

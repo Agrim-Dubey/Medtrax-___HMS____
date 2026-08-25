@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class CustomUserModelTests(TestCase):
     def setUp(self):

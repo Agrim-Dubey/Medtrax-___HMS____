@@ -1,5 +1,5 @@
 from django.db.models import QuerySet, Q
-from Authapi.models import CustomUser, Doctor
+from authentication.models import CustomUser, Doctor
 from .models import ChatRoom, DoctorConnection, Message
 
 def get_user_chat_rooms(*, user: CustomUser, room_type: str) -> QuerySet[ChatRoom]:

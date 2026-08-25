@@ -1,5 +1,5 @@
 from django.test import TestCase
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from doctor_dashboard.models import DoctorReview
 
 class DoctorReviewModelTests(TestCase):

@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class OTPVerificationTests(APITestCase):
     def setUp(self):
@@ -35,7 +35,7 @@ class OTPVerificationTests(APITestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.otp_attempts, 1)
 
-    @patch("Authapi.services.send_otp_email_task.delay")
+    @patch("authentication.services.send_otp_email_task.delay")
     def test_resend_otp_success(self, mock_email_task):
         payload = {"email": "otpuser@example.com"}
         response = self.client.post(self.resend_url, payload, format="json")

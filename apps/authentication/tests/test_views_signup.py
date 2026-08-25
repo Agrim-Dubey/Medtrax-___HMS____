@@ -2,13 +2,13 @@ from unittest.mock import patch
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class SignupAPITests(APITestCase):
     def setUp(self):
         self.signup_url = reverse("signup")
 
-    @patch("Authapi.services.send_otp_email_task.delay")
+    @patch("authentication.services.send_otp_email_task.delay")
     def test_successful_patient_signup(self, mock_email_task):
         payload = {
             "username": "newpatient",

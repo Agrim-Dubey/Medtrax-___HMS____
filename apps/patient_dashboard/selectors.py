@@ -1,6 +1,6 @@
 from django.db.models import QuerySet
 from datetime import date
-from Authapi.models import Patient
+from authentication.models import Patient
 from appointments.models import Appointment
 
 def get_patient_upcoming_appointments(*, patient: Patient, limit: int = 4) -> QuerySet[Appointment]:

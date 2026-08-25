@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class PasswordResetAPITests(APITestCase):
     def setUp(self):
@@ -17,7 +17,7 @@ class PasswordResetAPITests(APITestCase):
             is_verified=True
         )
 
-    @patch("Authapi.services.send_otp_email_task.delay")
+    @patch("authentication.services.send_otp_email_task.delay")
     def test_forgot_password_generates_otp(self, mock_email_task):
         response = self.client.post(self.forgot_url, {"email": "reset@example.com"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -1,7 +1,7 @@
 from django.test import TestCase
 from datetime import date, time
 from django.utils import timezone
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from appointments.models import Appointment
 from chat_room.models import ChatRoom
 from chat_room.tasks import disable_expired_chats

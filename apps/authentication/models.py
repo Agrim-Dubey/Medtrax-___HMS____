@@ -25,6 +25,7 @@ class CustomUser(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'Authapi_customuser'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['email']),
@@ -135,6 +136,7 @@ class Doctor(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'Authapi_doctor'
         ordering = ['-created_at']
         constraints = [
         models.UniqueConstraint(fields=['phone_number'], name='unique_doctor_phone')
@@ -199,6 +201,7 @@ class Patient(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'Authapi_patient'
         ordering = ['-created_at']
         constraints = [
         models.UniqueConstraint(fields=['phone_number'], name='unique_patient_phone')

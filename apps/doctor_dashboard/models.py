@@ -1,5 +1,5 @@
 from django.db import models
-from Authapi.models import Doctor, Patient
+from authentication.models import Doctor, Patient
 
 class DoctorReview(models.Model):
     RATING_CHOICES = [(i, f'{i} Star{"s" if i > 1 else ""}') for i in range(1, 6)]

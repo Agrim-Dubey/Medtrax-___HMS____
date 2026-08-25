@@ -2,7 +2,7 @@ from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
 from django.utils import timezone
-from Authapi.models import CustomUser  
+from authentication.models import CustomUser  
 
 
 class Category(models.Model):

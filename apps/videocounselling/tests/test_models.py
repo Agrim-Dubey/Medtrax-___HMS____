@@ -1,5 +1,5 @@
 from django.test import TestCase
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from appointments.models import Appointment
 from videocounselling.models import VideoCall
 

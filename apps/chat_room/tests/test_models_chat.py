@@ -1,5 +1,5 @@
 from django.test import TestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from chat_room.models import ChatRoom, Message
 
 class ChatRoomAndMessageModelTests(TestCase):

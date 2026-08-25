@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from doctor_dashboard.models import DoctorReview
 
 class DoctorRecentReviewsAPITests(APITestCase):

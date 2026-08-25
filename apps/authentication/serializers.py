@@ -6,8 +6,8 @@ from django.conf import settings
 import re
 import logging
 import random
-from Authapi.tasks import send_otp_email_task 
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.tasks import send_otp_email_task 
+from authentication.models import CustomUser, Doctor, Patient
 
 logger = logging.getLogger(__name__)
 class PasswordValidator:

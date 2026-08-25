@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Appointment
-from Authapi.models import Doctor
+from authentication.models import Doctor
 from .utils import get_doctor_queue_info
 
 class AppointmentRequestSerializer(serializers.ModelSerializer):

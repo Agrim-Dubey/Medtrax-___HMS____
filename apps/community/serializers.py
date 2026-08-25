@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Post, Comment, Like, Category, PostImage
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class CategorySerializer(serializers.ModelSerializer):
     """Serializer for post categories"""

@@ -1,5 +1,5 @@
 from django.db import models
-from Authapi.models import Doctor, Patient
+from authentication.models import Doctor, Patient
 from appointments.models import Appointment
 
 

@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from Authapi.models import CustomUser, Doctor
+from authentication.models import CustomUser, Doctor
 from .models import ChatRoom, DoctorConnection, Message
 
 @transaction.atomic

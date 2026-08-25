@@ -1,6 +1,6 @@
 from django.db.models import QuerySet
 from django.utils import timezone
-from Authapi.models import Doctor, Patient
+from authentication.models import Doctor, Patient
 from .models import Appointment
 
 def get_patient_appointments(*, patient: Patient) -> QuerySet[Appointment]:

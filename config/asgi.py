@@ -12,7 +12,7 @@ from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
 
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 import chat_room.routing
 import videocounselling.routing
 import appointments.routing

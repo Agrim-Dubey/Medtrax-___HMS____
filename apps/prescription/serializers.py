@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Prescription, Medication, LabTest
-from Authapi.models import Patient
+from authentication.models import Patient
 
 
 class MedicationSerializer(serializers.ModelSerializer):

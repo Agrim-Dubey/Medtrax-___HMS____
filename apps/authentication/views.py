@@ -15,17 +15,17 @@ import random
 from datetime import timedelta
 from dateutil import parser
 from rest_framework.permissions import IsAuthenticated
-from Authapi.tasks import send_otp_email_task
-from Authapi.throttles import (
+from authentication.tasks import send_otp_email_task
+from authentication.throttles import (
     AuthAnonRateThrottle,
     AuthUserRateThrottle,
     OTPRateThrottle,
     LoginRateThrottle,
 )
 
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from django.core.exceptions import ValidationError
-from Authapi.services import create_user_account, create_doctor_profile, create_patient_profile, request_password_reset, verify_password_reset_otp, reset_password, resend_password_reset_otp
+from authentication.services import create_user_account, create_doctor_profile, create_patient_profile, request_password_reset, verify_password_reset_otp, reset_password, resend_password_reset_otp
 from .serializers import (
     SignupSerializer, VerifySignupOTPSerializer, ResendSignupOTPSerializer,
     DoctorDetailsSerializer, PatientDetailsSerializer,

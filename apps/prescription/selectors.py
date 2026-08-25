@@ -1,5 +1,5 @@
 from django.db.models import QuerySet
-from Authapi.models import Patient, Doctor
+from authentication.models import Patient, Doctor
 from appointments.models import Appointment
 from .models import Prescription
 

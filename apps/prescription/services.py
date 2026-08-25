@@ -1,5 +1,5 @@
 from django.db import transaction
-from Authapi.models import Doctor
+from authentication.models import Doctor
 from .models import Prescription
 from .serializers import CreatePrescriptionSerializer
 

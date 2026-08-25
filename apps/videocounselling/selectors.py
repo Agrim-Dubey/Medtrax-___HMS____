@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import PermissionDenied
 from appointments.models import Appointment
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from .models import VideoCall
 
 def get_video_call_by_appointment(*, appointment_id: int, user: CustomUser) -> VideoCall:

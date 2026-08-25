@@ -1,6 +1,6 @@
 from django.db import models
 from appointments.models import Appointment
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 
 class VideoCall(models.Model):
     STATUS_CHOICES = [

@@ -1,6 +1,6 @@
 from unittest.mock import patch
 from django.test import TestCase
-from Authapi.models import CustomUser, Doctor, Patient
+from authentication.models import CustomUser, Doctor, Patient
 from appointments.models import Appointment
 from appointments.tasks import send_patient_reminder, send_doctor_reminder
 

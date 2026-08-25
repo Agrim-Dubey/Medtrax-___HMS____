@@ -13,7 +13,7 @@ from .serializers import (
     MessageSerializer, DoctorConnectionSerializer,
     DoctorConnectionListSerializer, DoctorMinimalSerializer
 )
-from Authapi.models import Doctor
+from authentication.models import Doctor
 from .throttles import (
     ChatListThrottle, ChatMessageThrottle,
     ChatConnectionThrottle, ChatSearchThrottle,

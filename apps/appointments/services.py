@@ -5,7 +5,7 @@ Handles business logic for booking, accepting, and rejecting appointments.
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
-from Authapi.models import Doctor, Patient
+from authentication.models import Doctor, Patient
 from .models import Appointment
 from .tasks import send_immediate_appointment_notification
 from asgiref.sync import async_to_sync

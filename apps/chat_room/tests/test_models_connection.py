@@ -1,5 +1,5 @@
 from django.test import TestCase
-from Authapi.models import CustomUser, Doctor
+from authentication.models import CustomUser, Doctor
 from chat_room.models import DoctorConnection
 
 class DoctorConnectionModelTests(TestCase):

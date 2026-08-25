@@ -1,5 +1,5 @@
 from django.db.models import QuerySet
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from .models import Post, Comment, Category
 
 def get_all_categories() -> QuerySet[Category]:

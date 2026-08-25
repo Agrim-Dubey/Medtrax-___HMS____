@@ -37,7 +37,7 @@ medtrax-backend/
 │   └── workflows/
 │       └── deploy.yml          # GitHub Actions Docker build & EC2 deploy
 ├── apps/                       # Modular Django applications
-│   ├── Authapi/                # User authentication, OTP, JWT, & profile models
+│   ├── authentication/         # User authentication, OTP, JWT, & profile models
 │   ├── appointments/           # Appointment slots, booking, & queue WebSockets
 │   ├── chat_room/              # Direct chat rooms, messaging, & networking
 │   ├── community/              # Health forums, posts, comments, & reactions

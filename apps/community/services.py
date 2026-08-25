@@ -3,7 +3,7 @@ Services for community forums.
 Handles creation of posts, likes, and comments with business validation.
 """
 from django.db import transaction
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from .models import Post, Comment, Like, Category
 from .serializers import PostCreateSerializer, CommentCreateSerializer
 

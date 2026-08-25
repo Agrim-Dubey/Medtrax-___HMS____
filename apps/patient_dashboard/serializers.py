@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from Authapi.models  import Patient
+from authentication.models  import Patient
 from appointments.models import Appointment
 
 class PatientDashboardSerializer(serializers.ModelSerializer):

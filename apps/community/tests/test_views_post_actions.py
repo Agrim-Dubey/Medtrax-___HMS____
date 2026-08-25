@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from community.models import Category, Post, Like
 
 class PostActionsAPITests(APITestCase):

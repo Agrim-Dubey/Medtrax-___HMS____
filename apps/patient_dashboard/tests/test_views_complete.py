@@ -1,7 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from Authapi.models import CustomUser, Patient
+from authentication.models import CustomUser, Patient
 
 class PatientCompleteProfileUpdateAPITests(APITestCase):
     def setUp(self):

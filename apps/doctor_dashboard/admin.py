@@ -50,12 +50,12 @@ class DoctorReviewAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     
     def doctor_name_link(self, obj):
-        url = reverse('admin:Authapi_doctor_change', args=[obj.doctor.id])
+        url = reverse('admin:authentication_doctor_change', args=[obj.doctor.id])
         return format_html('<a href="{}">Dr. {}</a>', url, obj.doctor.get_full_name())
     doctor_name_link.short_description = 'Doctor'
     
     def patient_name_link(self, obj):
-        url = reverse('admin:Authapi_patient_change', args=[obj.patient.id])
+        url = reverse('admin:authentication_patient_change', args=[obj.patient.id])
         return format_html('<a href="{}">{}</a>', url, obj.patient.get_full_name())
     patient_name_link.short_description = 'Patient'
     

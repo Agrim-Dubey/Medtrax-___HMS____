@@ -107,7 +107,7 @@ class PostAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     
     def author_name_link(self, obj):
-        url = reverse('admin:Authapi_customuser_change', args=[obj.author.id])
+        url = reverse('admin:authentication_customuser_change', args=[obj.author.id])
         return format_html('<a href="{}">{}</a>', url, obj.author.username)
     author_name_link.short_description = 'Author'
     
@@ -228,7 +228,7 @@ class CommentAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     
     def author_name_link(self, obj):
-        url = reverse('admin:Authapi_customuser_change', args=[obj.author.id])
+        url = reverse('admin:authentication_customuser_change', args=[obj.author.id])
         return format_html('<a href="{}">{}</a>', url, obj.author.username)
     author_name_link.short_description = 'Author'
     
@@ -289,7 +289,7 @@ class LikeAdmin(admin.ModelAdmin):
     ordering = ['-created_at']
     
     def user_name_link(self, obj):
-        url = reverse('admin:Authapi_customuser_change', args=[obj.user.id])
+        url = reverse('admin:authentication_customuser_change', args=[obj.user.id])
         return format_html('<a href="{}">{}</a>', url, obj.user.username)
     user_name_link.short_description = 'User'
     

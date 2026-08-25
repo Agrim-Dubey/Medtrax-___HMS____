@@ -1,5 +1,5 @@
 from django.test import TestCase
-from Authapi.models import CustomUser
+from authentication.models import CustomUser
 from community.models import Category, Post
 
 class CommunityCategoryAndPostModelTests(TestCase):

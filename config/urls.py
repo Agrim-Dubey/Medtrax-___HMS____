@@ -54,7 +54,7 @@ def patch_throttle(view_func):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('Authapi.urls')),
+    path('api/auth/', include('authentication.urls')),
     path('api/chat/', include('chat_room.urls')),
     path('api/doctor/dashboard/', include('doctor_dashboard.urls')),
     path('api/patient/dashboard/', include('patient_dashboard.urls')),

@@ -252,7 +252,7 @@ class DoctorAdmin(admin.ModelAdmin):
     
     def full_name_display(self, obj):
         """Display full name with link to user"""
-        user_url = reverse('admin:Authapi_customuser_change', args=[obj.user.id])
+        user_url = reverse('admin:authentication_customuser_change', args=[obj.user.id])
         return format_html(
             'Dr. <a href="{}">{}</a>',
             user_url,
@@ -367,7 +367,7 @@ class PatientAdmin(admin.ModelAdmin):
     
     def full_name_display(self, obj):
 
-        user_url = reverse('admin:Authapi_customuser_change', args=[obj.user.id])
+        user_url = reverse('admin:authentication_customuser_change', args=[obj.user.id])
         return format_html(
             '<a href="{}">{}</a>',
             user_url,
