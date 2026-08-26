@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('Authapi', '0003_doctor_unique_doctor_phone_and_more'),
+        ('authentication', '0003_doctor_unique_doctor_phone_and_more'),
         ('appointments', '0002_remove_appointment_appointment_appoint_5be6a4_idx_and_more'),
     ]
 

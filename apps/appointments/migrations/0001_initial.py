@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('Authapi', '0003_doctor_unique_doctor_phone_and_more'),
+        ('authentication', '0003_doctor_unique_doctor_phone_and_more'),
     ]
 
     operations = [
@@ -29,8 +29,8 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('approved_at', models.DateTimeField(blank=True, null=True)),
                 ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='doctor_appointments', to='Authapi.doctor')),
-                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appointments', to='Authapi.patient')),
+                ('doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='doctor_appointments', to='authentication.doctor')),
+                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appointments', to='authentication.patient')),
             ],
             options={
                 'verbose_name': 'Appointment',

@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('Authapi', '0003_doctor_unique_doctor_phone_and_more'),
+        ('authentication', '0003_doctor_unique_doctor_phone_and_more'),
         ('appointments', '0002_remove_appointment_appointment_appoint_5be6a4_idx_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -41,8 +41,8 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('chat_room', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='doctor_connection', to='chat_room.chatroom')),
-                ('from_doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sent_requests', to='Authapi.doctor')),
-                ('to_doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='received_requests', to='Authapi.doctor')),
+                ('from_doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sent_requests', to='authentication.doctor')),
+                ('to_doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='received_requests', to='authentication.doctor')),
             ],
         ),
         migrations.CreateModel(
@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
                 ('is_diagnosed', models.BooleanField(default=False, help_text='Verified diagnosis for this disease')),
                 ('joined_at', models.DateTimeField(auto_now_add=True)),
                 ('group_room', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='memberships', to='chat_room.chatroom')),
-                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='group_memberships', to='Authapi.patient')),
+                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='group_memberships', to='authentication.patient')),
             ],
         ),
         migrations.CreateModel(

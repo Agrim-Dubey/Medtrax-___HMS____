@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('Authapi', '0003_doctor_unique_doctor_phone_and_more'),
+        ('authentication', '0003_doctor_unique_doctor_phone_and_more'),
     ]
 
     operations = [
@@ -21,8 +21,8 @@ class Migration(migrations.Migration):
                 ('comment', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='Authapi.doctor')),
-                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='given_reviews', to='Authapi.patient')),
+                ('doctor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='authentication.doctor')),
+                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='given_reviews', to='authentication.patient')),
             ],
             options={
                 'verbose_name': 'Doctor Review',
