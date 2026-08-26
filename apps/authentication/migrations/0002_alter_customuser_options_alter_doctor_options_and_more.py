@@ -6,21 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('Authapi', '0001_initial'),
+        ('authentication', '0001_initial'),
     ]
 
     operations = [
         migrations.AlterModelOptions(
             name='customuser',
-            options={'ordering': ['-created_at'], 'verbose_name': 'User', 'verbose_name_plural': 'Users'},
+            options={'db_table': 'Authapi_customuser', 'ordering': ['-created_at'], 'verbose_name': 'User', 'verbose_name_plural': 'Users'},
         ),
         migrations.AlterModelOptions(
             name='doctor',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Doctor', 'verbose_name_plural': 'Doctors'},
+            options={'db_table': 'Authapi_doctor', 'ordering': ['-created_at'], 'verbose_name': 'Doctor', 'verbose_name_plural': 'Doctors'},
         ),
         migrations.AlterModelOptions(
             name='patient',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Patient', 'verbose_name_plural': 'Patients'},
+            options={'db_table': 'Authapi_patient', 'ordering': ['-created_at'], 'verbose_name': 'Patient', 'verbose_name_plural': 'Patients'},
         ),
         migrations.AlterField(
             model_name='customuser',

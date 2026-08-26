@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('Authapi', '0002_alter_customuser_options_alter_doctor_options_and_more'),
+        ('authentication', '0002_alter_customuser_options_alter_doctor_options_and_more'),
     ]
 
     operations = [
