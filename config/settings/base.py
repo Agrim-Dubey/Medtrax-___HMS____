@@ -77,13 +77,22 @@ ROOT_URLCONF = 'config.urls'
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+db_config = dj_database_url.parse(
+    config('DATABASE_URL'),
+    conn_max_age=600,
+    ssl_require=config('DB_SSL_REQUIRE', default=False, cast=bool),
+)
+if 'postgresql' in db_config.get('ENGINE', ''):
+    db_config['ENGINE'] = 'django_prometheus.db.backends.postgresql'
+elif 'sqlite3' in db_config.get('ENGINE', ''):
+    try:
+        import django_prometheus.db.backends.sqlite3
+        db_config['ENGINE'] = 'django_prometheus.db.backends.sqlite3'
+    except ImportError:
+        pass
+
 DATABASES = {
-    'default': dj_database_url.parse(
-        config('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=config('DB_SSL_REQUIRE', default=False, cast=bool),
-        engine='django_prometheus.db.backends.postgresql'
-    )
+    'default': db_config
 }
 
 AUTH_USER_MODEL = 'authentication.CustomUser'
