@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'community',
     'patient_dashboard',
     'prescription',
+    'ai_agents',
 ]
 
 MIDDLEWARE = [
