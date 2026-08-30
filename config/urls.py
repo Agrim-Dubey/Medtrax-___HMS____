@@ -62,6 +62,7 @@ urlpatterns = [
     path('api/appointments/', include('appointments.urls')),
     path('vapi/video/', include('videocounselling.urls')),
     path('api/prescriptions/', include('prescription.urls')),
+    path('api/ai/', include('ai_agents.urls')),
     path('healthz/', healthz, name='healthz'),
     path('', include('django_prometheus.urls')),
 
