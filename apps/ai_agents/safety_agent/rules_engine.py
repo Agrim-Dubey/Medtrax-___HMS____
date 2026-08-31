@@ -78,7 +78,7 @@ def check_disease_contraindications(med_names: List[str], chronic_diseases: Opti
             for med in norm_meds:
                 if any(cd in med or med in cd for cd in rule["contraindicated_drugs"]):
                     contraindications.append({
-                        "type": "DISEASE_CONTRAINDICATION",
+                        "type": "DRUG_DISEASE_CONTRAINDICATION",
                         "severity": rule["severity"],
                         "drug": med,
                         "condition": rule["disease_keywords"][0],
