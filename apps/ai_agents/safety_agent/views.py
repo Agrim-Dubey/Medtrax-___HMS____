@@ -1,16 +1,19 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
+from ai_agents.core import PromptInjectionError
+from ai_agents.permissions import IsDoctor
+from ai_agents.throttles import AIAgentBurstThrottle, SafetyAgentThrottle
 from authentication.models import Patient
+
+from .agent import ClinicalSafetyAgent
 from .serializers import (
     ClinicalSafetyCheckRequestSerializer,
-    ClinicalSafetyCheckResponseSerializer
+    ClinicalSafetyCheckResponseSerializer,
 )
-from .agent import ClinicalSafetyAgent
 
 
 class ClinicalSafetyCheckView(APIView):
@@ -19,13 +22,14 @@ class ClinicalSafetyCheckView(APIView):
     Analyzes proposed prescriptions for drug-drug interactions, patient allergy conflicts,
     and chronic disease contraindications before the prescription is finalized.
     """
-    permission_classes = [IsAuthenticated]
-    throttle_classes = []
+
+    permission_classes = [IsAuthenticated, IsDoctor]
+    throttle_classes = [AIAgentBurstThrottle, SafetyAgentThrottle]
 
     @swagger_auto_schema(
         operation_summary="Evaluate Prescription Safety (PharmaGuard AI)",
         operation_description=(
-            "Autonomous clinical pharmacology agent that analyzes proposed medications against "
+            "Doctor-only clinical pharmacology agent that analyzes proposed medications against "
             "the patient's documented allergies, chronic conditions, and recent active prescriptions. "
             "Returns a quantitative safety score (0-100) and actionable clinical warnings."
         ),
@@ -33,16 +37,18 @@ class ClinicalSafetyCheckView(APIView):
         responses={
             200: ClinicalSafetyCheckResponseSerializer,
             400: "Invalid payload or medications list",
+            403: "Only authenticated doctors can run clinical safety checks",
             404: "Patient not found",
+            429: "Rate limit exceeded",
         },
-        tags=['AI Clinical Agents']
+        tags=["AI Clinical Agents"],
     )
     def post(self, request):
         serializer = ClinicalSafetyCheckRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
                 {"success": False, "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
@@ -55,14 +61,20 @@ class ClinicalSafetyCheckView(APIView):
         except Patient.DoesNotExist:
             return Response(
                 {"success": False, "error": f"Patient with ID {patient_id} not found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         agent = ClinicalSafetyAgent()
-        result = agent.evaluate_prescription(
-            patient=patient,
-            proposed_medications=medications,
-            diagnosis=diagnosis
-        )
+        try:
+            result = agent.evaluate_prescription(
+                patient=patient,
+                proposed_medications=medications,
+                diagnosis=diagnosis,
+            )
+        except (PromptInjectionError, ValueError) as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response({"success": True, "data": result}, status=status.HTTP_200_OK)
