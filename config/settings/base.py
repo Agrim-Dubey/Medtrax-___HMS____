@@ -175,6 +175,12 @@ REST_FRAMEWORK = {
         'chat_connection': '30/hour',
         'chat_search': '50/hour',
         'chat_read': '300/hour',
+        'ai_burst': '15/minute',
+        'ai_safety': '60/hour',
+        'ai_triage': '30/hour',
+        'ai_summarizer': '40/hour',
+        'ai_care_plan': '30/hour',
+        'ai_appointment': '40/hour',
     }
 }
 
