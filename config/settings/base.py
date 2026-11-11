@@ -197,3 +197,11 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = config('TIME_ZONE', default='UTC')
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# AI Clinical Agents (Hybrid Deterministic + Optional LLM)
+AI_LLM_PROVIDER = config('AI_LLM_PROVIDER', default='none')
+AI_LLM_API_KEY = config('AI_LLM_API_KEY', default='')
+AI_LLM_MODEL = config('AI_LLM_MODEL', default='')
+AI_LLM_TIMEOUT_SECONDS = config('AI_LLM_TIMEOUT_SECONDS', default=8, cast=int)
+AI_LLM_MAX_TOKENS = config('AI_LLM_MAX_TOKENS', default=600, cast=int)
+AI_MAX_INPUT_CHARS = config('AI_MAX_INPUT_CHARS', default=2000, cast=int)
