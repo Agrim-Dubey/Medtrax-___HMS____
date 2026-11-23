@@ -33,9 +33,14 @@ class PasswordValidator:
 class PhoneValidator:
     @staticmethod
     def validate(phone):
-        if not re.match(r'^[0-9]{10,15}$', phone):
+        if not phone:
+            raise serializers.ValidationError("Phone number cannot be empty.")
+        cleaned = re.sub(r'[\s\-()]', '', str(phone).strip())
+        if cleaned.startswith('+'):
+            cleaned = cleaned[1:]
+        if not re.match(r'^[0-9]{10,15}$', cleaned):
             raise serializers.ValidationError("Phone number must be 10-15 digits.")
-        return True
+        return cleaned
 
 
 class SignupSerializer(serializers.Serializer):
@@ -185,7 +190,10 @@ class DoctorDetailsSerializer(serializers.Serializer):
     first_name = serializers.CharField(required=True, max_length=50)
     last_name = serializers.CharField(required=True, max_length=50)
     date_of_birth = serializers.DateField(required=True)
-    gender = serializers.ChoiceField(choices=['M', 'F', 'O','PNTS'], required=True)
+    gender = serializers.ChoiceField(
+        choices=['M', 'F', 'O', 'PNTS', 'male', 'female', 'other', 'Male', 'Female', 'Other', 'pnts'],
+        required=True
+    )
     blood_group = serializers.ChoiceField(choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], required=True)
     marital_status = serializers.CharField(required=False, allow_blank=True, max_length=20)
     address = serializers.CharField(required=False, allow_blank=True, max_length=500)
@@ -229,22 +237,32 @@ class DoctorDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
 
+    def validate_gender(self, value):
+        val = str(value or '').strip().lower()
+        mapping = {
+            'm': 'M', 'male': 'M',
+            'f': 'F', 'female': 'F',
+            'o': 'O', 'other': 'O',
+            'pnts': 'O', 'prefer not to say': 'O'
+        }
+        if val in mapping:
+            return mapping[val]
+        raise serializers.ValidationError(f'"{value}" is not a valid choice.')
+
     def validate_city(self, value):
         if not value.strip():
             raise serializers.ValidationError("City cannot be empty.")
         return value.strip()
 
     def validate_phone_number(self, value):
-        value = value.strip()
-        PhoneValidator.validate(value)
-        if Doctor.objects.filter(phone_number=value).exists():
+        cleaned = PhoneValidator.validate(value)
+        if Doctor.objects.filter(phone_number=cleaned).exists():
             raise serializers.ValidationError("This phone number is already registered.")
-        return value
+        return cleaned
 
     def validate_alternate_phone_number(self, value):
-        if value and value.strip():
-            value = value.strip()
-            PhoneValidator.validate(value)
+        if value and str(value).strip():
+            return PhoneValidator.validate(value)
         return value
 
     def validate_alternate_email(self, value):
@@ -253,9 +271,8 @@ class DoctorDetailsSerializer(serializers.Serializer):
         return value
 
     def validate_emergency_contact_number(self, value):
-        if value and value.strip():
-            value = value.strip()
-            PhoneValidator.validate(value)
+        if value and str(value).strip():
+            return PhoneValidator.validate(value)
         return value
 
     def validate_marital_status(self, value):
@@ -326,7 +343,10 @@ class PatientDetailsSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=True, max_length=50)
     date_of_birth = serializers.DateField(required=True)
     blood_group = serializers.ChoiceField(choices=['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], required=True)
-    gender = serializers.ChoiceField(choices=['M', 'F', 'O'], required=True)
+    gender = serializers.ChoiceField(
+        choices=['M', 'F', 'O', 'male', 'female', 'other', 'Male', 'Female', 'Other'],
+        required=True
+    )
     city = serializers.CharField(required=True, max_length=100)
     phone_number = serializers.CharField(required=True, max_length=15)
     emergency_contact = serializers.CharField(required=False, allow_blank=True, max_length=15)
@@ -363,22 +383,31 @@ class PatientDetailsSerializer(serializers.Serializer):
             raise serializers.ValidationError("Please enter a valid date of birth.")
         return value
 
+    def validate_gender(self, value):
+        val = str(value or '').strip().lower()
+        mapping = {
+            'm': 'M', 'male': 'M',
+            'f': 'F', 'female': 'F',
+            'o': 'O', 'other': 'O',
+        }
+        if val in mapping:
+            return mapping[val]
+        raise serializers.ValidationError(f'"{value}" is not a valid choice.')
+
     def validate_city(self, value):
         if not value.strip():
             raise serializers.ValidationError("City cannot be empty.")
         return value.strip()
 
     def validate_phone_number(self, value):
-        value = value.strip()
-        PhoneValidator.validate(value)
-        if Patient.objects.filter(phone_number=value).exists():
+        cleaned = PhoneValidator.validate(value)
+        if Patient.objects.filter(phone_number=cleaned).exists():
             raise serializers.ValidationError("This phone number is already registered.")
-        return value
+        return cleaned
 
     def validate_emergency_contact(self, value):
-        if value and value.strip():
-            value = value.strip()
-            PhoneValidator.validate(value)
+        if value and str(value).strip():
+            return PhoneValidator.validate(value)
         return value
 
     def validate_emergency_email(self, value):
