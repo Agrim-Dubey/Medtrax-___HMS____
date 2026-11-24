@@ -188,9 +188,49 @@ class ChatRoomViewSet(viewsets.ViewSet):
 
         try:
             message = send_chat_message(room_id=pk, sender=request.user, content=content)
+
+            # Broadcast to channel layer so connected WebSocket peers receive it in real-time
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    full_name = getattr(request.user, "username", "")
+                    try:
+                        if request.user.role == 'doctor':
+                            full_name = f"Dr. {request.user.doctor_profile.get_full_name()}"
+                        elif request.user.role == 'patient':
+                            full_name = request.user.patient_profile.get_full_name()
+                    except Exception:
+                        pass
+
+                    payload = {
+                        "id": message.id,
+                        "room": int(pk),
+                        "sender_id": request.user.id,
+                        "sender_username": getattr(request.user, "username", ""),
+                        "sender_full_name": full_name,
+                        "sender_role": getattr(request.user, "role", None),
+                        "content": message.content,
+                        "timestamp": message.timestamp.isoformat(),
+                        "is_read": message.is_read
+                    }
+                    async_to_sync(channel_layer.group_send)(
+                        f"chat_{pk}",
+                        {
+                            "type": "chat_message",
+                            "message": payload
+                        }
+                    )
+            except Exception:
+                pass
+
             return Response(MessageSerializer(message).data, status=201)
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=403)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
     @swagger_auto_schema(tags=["Chat"])
     @action(detail=True, methods=["post"], throttle_classes=[ChatReadThrottle])

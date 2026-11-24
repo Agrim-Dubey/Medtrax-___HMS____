@@ -49,7 +49,10 @@ def send_chat_message(*, room_id: int, sender: CustomUser, content: str) -> Mess
         raise PermissionDenied("Not a participant")
 
     if not chat_room.is_active:
-        raise PermissionDenied("Chat inactive")
+        raise PermissionDenied("Chat is inactive")
+
+    if chat_room.appointment and chat_room.appointment.status not in ['confirmed', None]:
+        raise PermissionDenied("This consultation has concluded. Chat is in read-only mode.")
 
     message = Message.objects.create(
         room=chat_room,

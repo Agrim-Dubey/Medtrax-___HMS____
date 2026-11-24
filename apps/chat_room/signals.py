@@ -46,15 +46,15 @@ def manage_patient_doctor_chat(sender, instance, created, **kwargs):
         
         return
     
-    # ✅ Deactivate chat room when cancelled
-    elif instance.status == 'cancelled':
-        logger.info(f"🚫 Status is 'cancelled', deactivating chat room...")
+    # ✅ Deactivate chat room when cancelled or completed
+    elif instance.status in ['cancelled', 'completed']:
+        logger.info(f"🚫 Status is '{instance.status}', deactivating chat room...")
         try:
             room = ChatRoom.objects.get(appointment=instance)
             room.is_active = False
             room.save()
             logger.info(f"🔒 Chat room deactivated: ID={room.id}")
         except ChatRoom.DoesNotExist:
-            logger.warning(f"⚠️ No chat room found for cancelled appointment {instance.id}")
+            logger.warning(f"⚠️ No chat room found for {instance.status} appointment {instance.id}")
     else:
         logger.info(f"ℹ️ Status is '{instance.status}', no chat action taken")

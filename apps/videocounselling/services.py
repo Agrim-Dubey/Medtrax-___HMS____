@@ -36,26 +36,32 @@ def initiate_video_call(*, appointment_id: int, user: CustomUser) -> VideoCall:
 @transaction.atomic
 def join_video_call(*, appointment_id: int, user: CustomUser) -> VideoCall:
     appointment = get_object_or_404(Appointment, id=appointment_id)
-    
+
     is_doctor = hasattr(user, 'doctor_profile') and appointment.doctor == user.doctor_profile
     is_patient = hasattr(user, 'patient_profile') and appointment.patient == user.patient_profile
 
     if not is_doctor and not is_patient:
         raise PermissionDenied("You are not a participant of this appointment")
 
-    try:
-        video_call = VideoCall.objects.get(appointment=appointment)
-    except VideoCall.DoesNotExist:
-        raise ValidationError("No active call for this appointment")
+    if appointment.status != 'confirmed':
+        raise ValidationError("Appointment must be confirmed to join a call")
 
-    if video_call.status == 'ended':
-        raise ValidationError("This call has already ended")
+    video_call, created = VideoCall.objects.get_or_create(
+        appointment=appointment,
+        defaults={'initiated_by': user, 'status': 'waiting'}
+    )
 
-    if video_call.status == 'waiting':
+    if not created and video_call.status == 'ended':
+        video_call.status = 'waiting'
+        video_call.started_at = None
+        video_call.ended_at = None
+        video_call.save()
+
+    if video_call.status == 'waiting' and is_doctor:
         video_call.status = 'active'
         video_call.started_at = timezone.now()
         video_call.save()
-        
+
     return video_call
 
 @transaction.atomic
