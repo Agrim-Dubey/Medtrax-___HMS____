@@ -197,7 +197,11 @@ class ChatRoomViewSet(viewsets.ViewSet):
     def mark_as_read(self, request, pk):
         from django.core.exceptions import PermissionDenied
         try:
-            mark_chat_messages_as_read(room_id=pk, user=request.user)
-            return Response({"message": "Messages marked as read"})
+            count = mark_chat_messages_as_read(room_id=pk, user=request.user)
+            return Response({
+                "message": "Messages marked as read",
+                "status": "success",
+                "marked_read": count or 0
+            })
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=403)

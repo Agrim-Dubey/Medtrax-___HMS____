@@ -4,17 +4,30 @@ from authentication.models import Doctor
 from .utils import get_doctor_queue_info
 
 class AppointmentRequestSerializer(serializers.ModelSerializer):
+    doctor = serializers.PrimaryKeyRelatedField(
+        queryset=Doctor.objects.all(),
+        required=False
+    )
+    doctor_id = serializers.PrimaryKeyRelatedField(
+        source='doctor',
+        queryset=Doctor.objects.all(),
+        required=False,
+        write_only=True
+    )
+
     class Meta:
         model = Appointment
-        fields = ['doctor', 'appointment_date', 'appointment_time', 'reason']
-    
-    def validate_appointment_date(self, value):
-        from django.utils import timezone
-        if value < timezone.now().date():
-            raise serializers.ValidationError("Cannot book appointments in the past")
-        return value
-    
+        fields = ['doctor', 'doctor_id', 'appointment_date', 'appointment_time', 'reason']
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and 'doctor_id' in data and 'doctor' not in data:
+            data = data.copy()
+            data['doctor'] = data['doctor_id']
+        return super().to_internal_value(data)
+
     def validate(self, data):
+        if not data.get('doctor'):
+            raise serializers.ValidationError({"doctor": ["Doctor is required."]})
         from django.utils import timezone
         from datetime import datetime
         
@@ -123,6 +136,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
             'qualification',
             'years_of_experience',
             'phone_number',
+            'city',
         ]
     
     def get_full_name(self, obj):

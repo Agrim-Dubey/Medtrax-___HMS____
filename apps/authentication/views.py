@@ -406,9 +406,13 @@ class DoctorDetailsView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
     
+            refresh = RefreshToken.for_user(user)
+            access_token_str = str(refresh.access_token)
+
             response = Response({
                 'success': True,
                 'message': 'Doctor profile created successfully!',
+                'access_token': access_token_str,
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -421,10 +425,9 @@ class DoctorDetailsView(APIView):
                 }
             }, status=status.HTTP_201_CREATED)
 
-            refresh = RefreshToken.for_user(user)
             response.set_cookie(
                 key='access_token',
-                value=str(refresh.access_token),
+                value=access_token_str,
                 httponly=True,
                 secure=True,
                 samesite='None',
@@ -508,23 +511,27 @@ class PatientDetailsView(APIView):
                     {'success': False, 'error': str(e.message) if hasattr(e, 'message') else str(e.messages[0])},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            response = Response({
-            'success': True,
-            'message': 'Patient profile created successfully!',
-            'user': {
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'role': 'patient',
-                'profile_id': patient.id,
-                'gender': patient.gender,
-                'phone_number': patient.phone_number
-            }
-        }, status=status.HTTP_201_CREATED)
             refresh = RefreshToken.for_user(user)
+            access_token_str = str(refresh.access_token)
+
+            response = Response({
+                'success': True,
+                'message': 'Patient profile created successfully!',
+                'access_token': access_token_str,
+                'user': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': 'patient',
+                    'profile_id': patient.id,
+                    'gender': patient.gender,
+                    'phone_number': patient.phone_number
+                }
+            }, status=status.HTTP_201_CREATED)
+
             response.set_cookie(
                 key='access_token',
-                value=str(refresh.access_token),
+                value=access_token_str,
                 httponly=True,
                 secure=True,
                 samesite='None',
@@ -650,10 +657,12 @@ class LoginView(APIView):
                     )
 
             refresh = RefreshToken.for_user(user)
+            access_token_str = str(refresh.access_token)
 
             response = Response({
                 'success': True,
                 'message': 'Login successful!',
+                'access_token': access_token_str,
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -665,7 +674,7 @@ class LoginView(APIView):
 
             response.set_cookie(
                 key='access_token',
-                value=str(refresh.access_token),
+                value=access_token_str,
                 httponly=True,
                 secure=True,
                 samesite='None',
@@ -936,7 +945,8 @@ class RefreshTokenView(APIView):
 
             response = Response({
                 'success': True,
-                'message': 'Token refreshed successfully'
+                'message': 'Token refreshed successfully',
+                'access_token': new_access_token
             }, status=status.HTTP_200_OK)
 
             response.set_cookie(
