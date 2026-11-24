@@ -1,4 +1,4 @@
-name: Deploy Medtrax (Dockerized)
+name: Deploy Medtrax Backend
 
 on:
   push:
@@ -10,72 +10,51 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push medtrax image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: agrim96336/medtrax-web:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: SSH into EC2 and deploy
+      - name: SSH into EC2 and Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME || 'ubuntu' }}
+          username: ${{ secrets.EC2_USER || secrets.EC2_USERNAME || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-            APP_DIR="/home/${{ secrets.EC2_USERNAME || 'ubuntu' }}/apps/medtrax"
-            echo "Navigating to $APP_DIR..."
+            USER_NAME="${{ secrets.EC2_USER || secrets.EC2_USERNAME || 'ubuntu' }}"
+            APP_DIR="/home/$USER_NAME/apps/medtrax"
+            
+            echo " Navigating to $APP_DIR..."
             cd "$APP_DIR"
 
-            echo "Pulling latest code from Git..."
+            echo " Pulling latest code from main branch..."
             git pull origin main
 
-            echo "Pulling latest Docker image..."
-            docker compose pull web celery celery-beat || true
+            echo " Building and starting application services..."
+            docker compose up -d --build db redis web celery celery-beat
 
-            echo "Starting application services..."
-            docker compose up -d db redis web celery celery-beat
-
-            echo "Verifying health..."
+            echo " Verifying backend healthz endpoint..."
             sleep 10
             HEALTHY=false
             for i in $(seq 1 12); do
               if curl -s -f http://127.0.0.1:8000/healthz/ > /dev/null 2>&1; then
-                echo "MedTrax backend is healthy!"
+                echo "✅ MedTrax backend is healthy and responding!"
                 HEALTHY=true
                 break
               fi
-              echo "Waiting for backend to become healthy ($i/12)..."
+              echo "⏳ Waiting for Daphne / Django to become healthy ($i/12)..."
               sleep 5
             done
 
             if [ "$HEALTHY" = false ]; then
-              echo "Healthcheck failed! Showing container logs:"
+              echo "❌ Healthcheck failed! Displaying container logs:"
               docker logs --tail 50 medtrax-web
               exit 1
             fi
 
-            echo "Pruning dangling images..."
+            echo " Pruning dangling Docker images..."
             docker image prune -f
+
+            echo " Deployment completed successfully!"
             docker compose ps
