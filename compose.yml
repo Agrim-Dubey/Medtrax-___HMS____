@@ -31,6 +31,7 @@ services:
       retries: 5
 
   web:
+    image: agrim96336/medtrax-web:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -64,6 +65,7 @@ services:
     restart: always
 
   celery:
+    image: agrim96336/medtrax-web:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -80,6 +82,7 @@ services:
     restart: always
 
   celery-beat:
+    image: agrim96336/medtrax-web:latest
     build:
       context: .
       dockerfile: Dockerfile

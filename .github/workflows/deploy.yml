@@ -3,6 +3,11 @@ name: Deploy Medtrax (Dockerized)
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-medtrax
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -15,17 +20,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create builder
-        run: docker buildx create --use --driver docker-container
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -33,37 +27,55 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push medtrax image
-        run: |
-          docker buildx build \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
-            -t agrim96336/medtrax-web:latest \
-            -f Dockerfile \
-            --push .
-
-      - name: Move new cache into place
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: agrim96336/medtrax-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: SSH into EC2 and deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USERNAME || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/medtrax-hms
+            set -e
+            APP_DIR="/home/${{ secrets.EC2_USERNAME || 'ubuntu' }}/apps/medtrax"
+            echo "Navigating to $APP_DIR..."
+            cd "$APP_DIR"
+
+            echo "Pulling latest code from Git..."
             git pull origin main
-            sudo docker compose down --remove-orphans
-            sudo docker compose pull web
-            sudo docker compose up -d
-            sleep 15
-            sudo docker cp medtrax-web:/app/static /home/ubuntu/medtrax-hms/ || true
-            sudo docker cp medtrax-web:/app/media /home/ubuntu/medtrax-hms/ || true
-            sudo chown -R ubuntu:ubuntu /home/ubuntu/medtrax-hms/static
-            sudo chown -R ubuntu:ubuntu /home/ubuntu/medtrax-hms/media
-            sudo chmod -R 755 /home/ubuntu/medtrax-hms/static
-            sudo chmod -R 755 /home/ubuntu/medtrax-hms/media
-            sudo systemctl restart nginx
-            sudo docker system prune -f
+
+            echo "Pulling latest Docker image..."
+            docker compose pull web celery celery-beat || true
+
+            echo "Starting application services..."
+            docker compose up -d db redis web celery celery-beat
+
+            echo "Verifying health..."
+            sleep 10
+            HEALTHY=false
+            for i in $(seq 1 12); do
+              if curl -s -f http://127.0.0.1:8000/healthz/ > /dev/null 2>&1; then
+                echo "MedTrax backend is healthy!"
+                HEALTHY=true
+                break
+              fi
+              echo "Waiting for backend to become healthy ($i/12)..."
+              sleep 5
+            done
+
+            if [ "$HEALTHY" = false ]; then
+              echo "Healthcheck failed! Showing container logs:"
+              docker logs --tail 50 medtrax-web
+              exit 1
+            fi
+
+            echo "Pruning dangling images..."
+            docker image prune -f
+            docker compose ps
