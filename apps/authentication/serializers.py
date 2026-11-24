@@ -51,8 +51,9 @@ class SignupSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         value = value.strip().lower()
-        if CustomUser.objects.filter(email=value, is_verified=True).exists():
-            raise serializers.ValidationError("This email is already registered.")
+        user = CustomUser.objects.filter(email=value).first()
+        if user and user.is_verified and user.is_profile_complete:
+            raise serializers.ValidationError("An account with this email is already registered and active. Please sign in.")
         return value
 
     def validate_password1(self, value):
@@ -129,7 +130,11 @@ class LoginSerializer(serializers.Serializer):
         user.reset_login_attempts()
 
         if not user.is_verified:
-            raise serializers.ValidationError("Your account is not verified. Please verify your email first.")
+            raise serializers.ValidationError({
+                "non_field_errors": ["Your account is not verified. Please verify your email first."],
+                "is_unverified": True,
+                "email": user.email,
+            })
         
         data['user'] = user
         data['is_profile_complete'] = user.is_profile_complete

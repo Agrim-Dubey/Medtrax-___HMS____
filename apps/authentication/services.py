@@ -27,8 +27,15 @@ def create_user_account(*, email: str, password: str, role: str) -> CustomUser:
         }
     )
 
-    if not created and user.is_verified:
-        raise ValidationError("This email is already registered.")
+    if not created and user.is_verified and user.is_profile_complete:
+        raise ValidationError("This email is already registered and active. Please sign in.")
+
+    # If the user verified their email previously, but dropped off before completing their profile:
+    if not created and user.is_verified and not user.is_profile_complete:
+        user.set_password(password)
+        user.role = role
+        user.save()
+        return user
 
     # Always reset the password and OTP fields for unverified accounts trying to sign up again
     user.set_password(password)

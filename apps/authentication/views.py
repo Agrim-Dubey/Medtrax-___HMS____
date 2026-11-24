@@ -129,6 +129,17 @@ class SignupView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            if user.is_verified and not user.is_profile_complete:
+                return Response({
+                    'success': True,
+                    'is_verified': True,
+                    'is_profile_complete': False,
+                    'message': 'Your email is already verified! Please complete your profile.',
+                    'email': email,
+                    'role': user.role,
+                    'next_step': 'complete_profile',
+                }, status=status.HTTP_200_OK)
+
             logger.info(f"Signup OTP sent for: {email} as {role}")
 
             return Response({
@@ -209,8 +220,9 @@ class VerifySignupOTPView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             if not user.otp_created_at or timezone.now() - user.otp_created_at > timedelta(minutes=3):
+                user.clear_otp()
                 return Response(
-                    {'success': False, 'error': 'OTP expired. Request a new one.'},
+                    {'success': False, 'error': 'Your OTP has expired (valid for 3 minutes). Please request a new code.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -619,12 +631,13 @@ class LoginView(APIView):
 
             if not is_profile_complete:
                 return Response({
-                    'success': False,
+                    'success': True,
                     'is_profile_complete': False,
-                    'message': 'Please complete your profile first.',
+                    'message': 'Please complete your profile to continue.',
                     'email': user.email,
                     'role': role,
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    'next_step': 'complete_profile',
+                }, status=status.HTTP_200_OK)
 
             profile_data = {}
             
