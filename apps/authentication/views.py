@@ -413,6 +413,7 @@ class DoctorDetailsView(APIView):
                 'success': True,
                 'message': 'Doctor profile created successfully!',
                 'access_token': access_token_str,
+                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -518,6 +519,7 @@ class PatientDetailsView(APIView):
                 'success': True,
                 'message': 'Patient profile created successfully!',
                 'access_token': access_token_str,
+                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -663,6 +665,7 @@ class LoginView(APIView):
                 'success': True,
                 'message': 'Login successful!',
                 'access_token': access_token_str,
+                'refresh_token': str(refresh),
                 'user': {
                     'user_id': user.id,
                     'username': user.username,
@@ -932,7 +935,7 @@ class RefreshTokenView(APIView):
     def post(self, request):
         try:
 
-            refresh_token = request.COOKIES.get('refresh_token')
+            refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh_token')
             
             if not refresh_token:
                 return Response(
@@ -946,7 +949,8 @@ class RefreshTokenView(APIView):
             response = Response({
                 'success': True,
                 'message': 'Token refreshed successfully',
-                'access_token': new_access_token
+                'access_token': new_access_token,
+                'refresh_token': str(refresh),
             }, status=status.HTTP_200_OK)
 
             response.set_cookie(
